@@ -72,6 +72,27 @@ func (a *DecideAction) Run(ctx *maa.Context, arg *maa.CustomActionArg) bool {
 		return true
 	}
 
+	// 手动残局：玩家手动打了跨天残局并消耗了翻倍 → 翻倍消耗超前于演算消耗，落进求解器 stateFilter
+	// 判不可达的状态（第3条 RemainDouble >= RemainCalc-3+MaxDouble）。典型如开局 331（Calc=3,Double=1）。
+	// 放弃只扣放弃次数、不扣演算，放完仍非法；演算才扣演算次数。故跳过求解直接演算：未翻倍 331→231 即合法；
+	// 已翻倍演算再扣 1 次翻倍（331→230→130），每步 RemainCalc 至少 -1，到 Calc=1 时 Double>=0 恒成立，
+	// 必然落回合法态空间，不死循环。
+	if gs.State.RemainDouble < gs.State.RemainCalc-3+solver.MaxDouble {
+		resetAband() // 开始演算结束本回合，下回合新局首步重新探测放弃次数
+		if err := routeDecision(ctx, arg.CurrentTaskName, solver.Calculate); err != nil {
+			log.Error().Err(err).Str("component", component).Msg("failed to route manual-endgame calculate")
+			return false
+		}
+		log.Info().
+			Str("component", component).
+			Int("remainCalc", gs.State.RemainCalc).
+			Int("remainDouble", gs.State.RemainDouble).
+			Bool("isDoubled", gs.State.IsDoubled).
+			Msg("manual endgame (Double<Calc-3+MaxDouble): skip solver, calculate to restore valid state")
+		maafocus.Print(ctx, i18n.T("trialofswordmancy.legacy_double"))
+		return true
+	}
+
 	// 配置：牌库/手牌/剩余次数/翻倍态来自 recognition 截图识别；溢出模式是玩家策略选项，
 	// 由本节点 custom_action_param.overflowMode 提供（任务 select 决定），覆盖 recognition 的默认值。
 	cfg := gs.Config
@@ -84,20 +105,13 @@ func (a *DecideAction) Run(ctx *maa.Context, arg *maa.CustomActionArg) bool {
 	// 复刻 TS 计算器（trial-of-swordmancy-strategy.vue）的推荐规则：抽牌与放弃总价值差 <1 时优先放弃。
 	best := pickDecision(outcomes)
 
-	// 不可达：识别产出了不在 MDP 状态空间的局面（识别 ROI/模板未校准、读错、或手牌超牌库等）。
-	// 这是错误，不是「奖励耗尽」—— 奖励耗尽由 pipeline 在进 Decide 前就识别并走 Finish。
-	// 这里直接让动作失败（return false），任务以错误中止，不冒充正常结束。
+	// 不可达：识别产出了不在 MDP 状态空间的局面（ROI/模板未校准、读错、手牌超牌库等），是错误而非
+	// 「奖励耗尽」（耗尽由 pipeline 在进 Decide 前就走 Finish）。用 focus 给用户一份局面速览（复用
+	// formatFocus，决策行显示「状态不可达」），并整体标红以醒目；不写 log.Error——否则 zerolog 的 ERR
+	// 会直接刷到用户界面；任务仍以错误中止。排查所需状态字段已在 recognition 的 "game state recognized" 日志里。
 	if outcomes == nil || best == solver.ActionNone {
-		log.Error().
-			Str("component", component).
-			Ints("hand", gs.State.Hand[:]).
-			Int("remainCalc", gs.State.RemainCalc).
-			Int("remainAband", gs.State.RemainAband).
-			Int("remainDouble", gs.State.RemainDouble).
-			Bool("isDoubled", gs.State.IsDoubled).
-			Ints("deck", gs.Config.Deck[:]).
-			Msg("unreachable state: recognition produced a state outside the MDP space; aborting")
-		maafocus.Print(ctx, i18n.T("trialofswordmancy.recognition_failed"))
+		red := "<span style=\"color:#ff4d4f;\">" + strings.ReplaceAll(formatFocus(gs, solver.ActionNone), "\n", "<br/>") + "</span>"
+		maafocus.Print(ctx, red)
 		return false
 	}
 
@@ -243,7 +257,7 @@ func actionFocusLabel(action solver.Action) string {
 	case solver.Double:
 		return i18n.T("trialofswordmancy.action.double")
 	default:
-		return i18n.T("trialofswordmancy.action.unknown")
+		return i18n.T("trialofswordmancy.action.unreachable")
 	}
 }
 
