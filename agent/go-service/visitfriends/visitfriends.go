@@ -19,12 +19,14 @@ type friendItem struct {
 }
 
 var (
-	scannedFriendItems       []friendItem
-	maxAssistCount           = 5
-	maxClueExchangeCount     = 5
-	currentAssistCount       = 0
-	currentClueExchangeCount = 0
-	lastScrollItemName       string
+	scannedFriendItems              []friendItem
+	maxAssistCount                  = 5
+	maxClueExchangeCount            = 5
+	currentAssistCount              = 0
+	currentClueExchangeCount        = 0
+	lastScrollItemName              string
+	cachedClueExchangeFriends       map[string]bool // 扫描阶段已检测到可情报交流的好友名→true
+	clueExchangeExhausted           bool            // 已翻完全部页面仍未找到可情报交流好友
 )
 
 // normalizeFriendName 清洗 OCR 识别到的好友名，去除尾部噪声：
@@ -94,6 +96,8 @@ func (a *VisitFriendsMainAction) Run(ctx *maa.Context, arg *maa.CustomActionArg)
 	currentAssistCount = 0
 	currentClueExchangeCount = 0
 	lastScrollItemName = ""
+	cachedClueExchangeFriends = make(map[string]bool)
+	clueExchangeExhausted = false
 	return true
 }
 
@@ -149,8 +153,8 @@ func (r *VisitFriendsMenuScanTargetFriendOpenRecognition) Run(ctx *maa.Context, 
 		return nil, false
 	}
 
-	var targetItem scanResultItem
-	hasTarget := false
+	// 收集所有候选好友
+	var candidates []scanResultItem
 
 	for i := range detailNameJson.Filtered {
 		if len(detailNameJson.Filtered[i].Text) == 0 {
@@ -174,10 +178,59 @@ func (r *VisitFriendsMenuScanTargetFriendOpenRecognition) Run(ctx *maa.Context, 
 			continue
 		}
 
+		candidates = append(candidates, scanResultItem{
+			NameText:  name,
+			ButtonBox: detailButtonJson.Filtered[i].Box,
+		})
+	}
+
+	if len(candidates) == 0 {
+		return nil, false
+	}
+
+	var targetItem scanResultItem
+	hasTarget := false
+
+	// 如果情报交流（线索交换）还有可用余额，优先寻找可情报交流的好友
+	if currentClueExchangeCount < maxClueExchangeCount {
+		for _, c := range candidates {
+			if len(c.ButtonBox) < 4 {
+				continue
+			}
+			override := map[string]any{
+				"VisitFriendsRecognitionItemClueExchangeByEnterButton": map[string]any{
+					"roi": maa.Rect{
+						c.ButtonBox[0],
+						c.ButtonBox[1],
+						c.ButtonBox[2],
+						c.ButtonBox[3],
+					},
+				},
+			}
+			detail, err := ctx.RunRecognition("VisitFriendsRecognitionItemClueExchangeByEnterButton", arg.Img, override)
+			if err != nil || detail == nil {
+				log.Warn().Err(err).Str("friend", c.NameText).Msg("failed to check clue exchange for priority")
+				continue
+			}
+			if detail.Hit {
+				log.Info().Str("friend", c.NameText).Msg("prioritized friend with clue exchange")
+				cachedClueExchangeFriends[c.NameText] = true
+				hasTarget = true
+				targetItem = c
+				break
+			}
+		}
+		// 如果当前页没有可情报交流的好友且尚未翻完所有页面，返回空触发翻页
+		if !hasTarget && !clueExchangeExhausted {
+			log.Info().Msg("no clue exchange friend on current page, triggering scroll")
+			return nil, false
+		}
+	}
+
+	// 回落：情报交流已满 或 已翻完全部页面无情报交流好友，取第一个候选
+	if !hasTarget {
+		targetItem = candidates[0]
 		hasTarget = true
-		targetItem.NameText = name
-		targetItem.ButtonBox = detailButtonJson.Filtered[i].Box
-		break
 	}
 
 	if !hasTarget {
@@ -255,41 +308,16 @@ func (a *VisitFriendsMenuScanTargetFriendOpenAction) Run(ctx *maa.Context, arg *
 	}
 
 	{
-		// 检查该好友有哪些可以助力
-		maafocus.Print(ctx, i18n.T("visitfriends.check_friend", resultItem.NameText))
-		enableOpen := currentAssistCount < maxAssistCount
-		override := map[string]any{
-			"VisitFriendsMenuScanDetailClueExchange": map[string]any{
-				"custom_recognition_param": map[string]any{
-					"friend_name": resultItem.NameText,
-					"enter_button_box": maa.Rect{
-						resultItem.ButtonBox[0],
-						resultItem.ButtonBox[1],
-						resultItem.ButtonBox[2],
-						resultItem.ButtonBox[3],
-					},
-				},
-			},
-			"VisitFriendsMenuScanDetailOpen": map[string]any{
-				"enabled": enableOpen,
-				"target": maa.Rect{
-					resultItem.ButtonBox[0],
-					resultItem.ButtonBox[1],
-					resultItem.ButtonBox[2],
-					resultItem.ButtonBox[3],
-				},
-			},
-			"VisitFriendsMenuScanDetailSaveAssist": map[string]any{
-				"custom_recognition_param": map[string]any{
-					"friend_name": resultItem.NameText,
-				},
-			},
-		}
-		_, err := ctx.RunTask("VisitFriendsMenuScanDetail", override)
-		if err != nil {
-			log.Error().Err(err).Msg("VisitFriendsMenuScanTargetFriendOpenAction: failed to run task")
-			return false
-		}
+		// 直接从扫描阶段缓存构造 friendItem，不再打开详情面板
+		// 情报交流结果来自扫描阶段的图标检测缓存
+		// 助力可用性交由终端内各子任务自行识别，不可用的会自然跳过
+		upsertScannedFriendItem(friendItem{
+			Name:                resultItem.NameText,
+			ClueExchange:        cachedClueExchangeFriends[resultItem.NameText],
+			ControlNexusAssist:  params.ControlNexusAssist,
+			MFGCabinAssist:      params.MFGCabinAssist,
+			GrowthChamberAssist: params.GrowthChamberAssist,
+		})
 	}
 
 	{
@@ -587,6 +615,11 @@ func (r *VisitFriendsMenuScanScrollFinishRecognition) Run(ctx *maa.Context, arg 
 	}
 
 	log.Info().Str("name", lastName).Msg("last friend item name is same as previous, scroll finish")
+	// 如果翻到底时情报交流还未满，标记已翻完，下次扫描回落取第一个候选
+	if currentClueExchangeCount < maxClueExchangeCount {
+		clueExchangeExhausted = true
+		log.Info().Msg("reached bottom without finding clue exchange friend, will fall back to assists")
+	}
 	detailJSON, _ := json.Marshal(map[string]string{"last_name": lastName})
 	return &maa.CustomRecognitionResult{
 		Box:    arg.Roi,

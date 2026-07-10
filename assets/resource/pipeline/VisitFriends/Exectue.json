@@ -127,8 +127,8 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "VisitFriendsMenuClueExchange",
             "VisitFriendsMenuClueExchangeFull",
+            "VisitFriendsMenuClueExchange",
             "VisitFriendsFakeTrue"
         ]
     },
@@ -136,8 +136,8 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "VisitFriendsMenuAssistControlNexus",
             "VisitFriendsMenuAssistFull",
+            "VisitFriendsMenuAssistControlNexus",
             "VisitFriendsFakeTrue"
         ]
     },
@@ -145,8 +145,8 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "VisitFriendsMenuAssistMFGCabin1",
             "VisitFriendsMenuAssistFull",
+            "VisitFriendsMenuAssistMFGCabin1",
             "VisitFriendsFakeTrue"
         ]
     },
@@ -154,8 +154,8 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "VisitFriendsMenuAssistMFGCabin2",
             "VisitFriendsMenuAssistFull",
+            "VisitFriendsMenuAssistMFGCabin2",
             "VisitFriendsFakeTrue"
         ]
     },
@@ -163,8 +163,8 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "VisitFriendsMenuAssistGrowthChamberSwipe",
             "VisitFriendsMenuAssistFull",
+            "VisitFriendsMenuAssistGrowthChamberSwipe",
             "VisitFriendsFakeTrue"
         ]
     },
