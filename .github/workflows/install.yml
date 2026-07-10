@@ -92,8 +92,8 @@ jobs:
     needs: meta
     strategy:
       matrix:
-        os: [win, macos, linux]
-        arch: [aarch64, x86_64]
+        os: [win]
+        arch: [x86_64]
       fail-fast: false
     runs-on: ${{ matrix.os == 'win' && 'windows-latest' || (matrix.os == 'macos' && 'macos-latest' || 'ubuntu-latest') }}
 
@@ -223,159 +223,12 @@ jobs:
             install/agent/WebView2Loader.dll
           retention-days: 90
 
-  package_linux_tarball:
-    needs: [meta, build_and_install]
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [aarch64, x86_64]
-      fail-fast: false
-
-    steps:
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: MaaEnd-linux-${{ matrix.arch }}-intermediate
-          path: "install"
-
-      - name: Repackage as tar.gz
-        shell: bash
-        run: |
-          # 给可执行文件添加执行权限
-          if [[ -f install/MaaEnd ]]; then
-            chmod +x install/MaaEnd
-          fi
-          if [[ -f install/agent/go-service ]]; then
-            chmod +x install/agent/go-service
-          fi
-          if [[ -f install/agent/cpp-algo ]]; then
-            chmod +x install/agent/cpp-algo
-          fi
-          # 给 maafw 目录下的可执行文件添加权限
-          find install/maafw -type f -name "Maa*" ! -name "*.so" -exec chmod +x {} \;
-
-          # 打包为 tar.gz
-          cd install
-          tar -czvf ../MaaEnd-linux-${{ matrix.arch }}.tar.gz .
-
-      - uses: actions/upload-artifact@v6
-        with:
-          name: MaaEnd-linux-${{ matrix.arch }}-tarball
-          path: "MaaEnd-linux-${{ matrix.arch }}.tar.gz"
-
-  package_macos_dmg:
-    needs: [meta, build_and_install]
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        arch: [aarch64, x86_64]
-      fail-fast: false
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: MaaEnd-macos-${{ matrix.arch }}-intermediate
-          path: "install"
-
-      - name: Update mirrorchyan_rid for macOS
-        shell: bash
-        run: |
-          # 更新 interface.json 中的 mirrorchyan_rid 为 MaaEnd_exec
-          jq --indent 4 '.mirrorchyan_rid = "MaaEnd_exec"' install/interface.json > install/interface.json.tmp
-          mv install/interface.json.tmp install/interface.json
-          echo "Updated mirrorchyan_rid to MaaEnd_exec"
-          cat install/interface.json | grep mirrorchyan_rid
-
-      - name: Package DMG
-        shell: bash
-        run: |
-          brew install create-dmg
-
-          # Prepare Icon
-          mkdir MaaEnd.iconset
-          sips -z 16 16     assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_16x16.png
-          sips -z 32 32     assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_16x16@2x.png
-          sips -z 32 32     assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_32x32.png
-          sips -z 64 64     assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_32x32@2x.png
-          sips -z 128 128   assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_128x128.png
-          sips -z 256 256   assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_128x128@2x.png
-          sips -z 256 256   assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_256x256.png
-          sips -z 512 512   assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_256x256@2x.png
-          sips -z 512 512   assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_512x512.png
-          sips -z 1024 1024 assets/locales/MaaEnd-Tiny.png --out MaaEnd.iconset/icon_512x512@2x.png
-          iconutil -c icns MaaEnd.iconset -o maaend.icns
-
-          # Prepare App Bundle
-          APP_NAME="MaaEnd.app"
-          mkdir -p "$APP_NAME/Contents/MacOS"
-          mkdir -p "$APP_NAME/Contents/Resources"
-          cp maaend.icns "$APP_NAME/Contents/Resources/"
-          cp -r install/* "$APP_NAME/Contents/MacOS/"
-          FULL_VERSION="${{ needs.meta.outputs.tag }}"
-          SHORT_VERSION=$(echo "$FULL_VERSION" | sed -E 's/-.*//')
-
-          cat > "$APP_NAME/Contents/Info.plist" <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleInfoDictionaryVersion</key>
-              <string>6.0</string>
-              <key>CFBundleExecutable</key>
-              <string>MaaEnd</string>
-              <key>CFBundleIconFile</key>
-              <string>maaend.icns</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.maaend.app</string>
-              <key>CFBundleName</key>
-              <string>MaaEnd</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>$SHORT_VERSION</string>
-              <key>CFBundleVersion</key>
-              <string>$FULL_VERSION</string>
-              <key>LSMinimumSystemVersion</key>
-              <string>10.13</string>
-          </dict>
-          </plist>
-          EOF
-
-          chmod +x "$APP_NAME/Contents/MacOS/MaaEnd"
-          if [[ -f "$APP_NAME/Contents/MacOS/agent/go-service" ]]; then
-            chmod +x "$APP_NAME/Contents/MacOS/agent/go-service"
-          fi
-          if [[ -f "$APP_NAME/Contents/MacOS/agent/cpp-algo" ]]; then
-            chmod +x "$APP_NAME/Contents/MacOS/agent/cpp-algo"
-          fi
-          codesign --force --deep --sign - "$APP_NAME"
-
-          create-dmg \
-            --volname "MaaEnd Installer" \
-            --volicon "maaend.icns" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 100 \
-            --icon "$APP_NAME" 200 190 \
-            --hide-extension "$APP_NAME" \
-            --app-drop-link 600 185 \
-            "MaaEnd.dmg" \
-            "$APP_NAME"
-
-      - uses: actions/upload-artifact@v6
-        with:
-          name: MaaEnd-macos-${{ matrix.arch }}-dmg
-          path: "MaaEnd.dmg"
-
   package_win_zip:
     needs: [meta, build_and_install]
     runs-on: windows-latest
     strategy:
       matrix:
-        arch: [aarch64, x86_64]
+        arch: [x86_64]
       fail-fast: false
 
     steps:
@@ -451,7 +304,7 @@ jobs:
 
   release:
     if: ${{ needs.meta.outputs.is_release == 'true' }}
-    needs: [meta, package_linux_tarball, package_macos_dmg, package_win_zip, changelog]
+    needs: [meta, package_win_zip, changelog]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v7
@@ -459,15 +312,7 @@ jobs:
           pattern: MaaEnd-*-zip
           path: artifacts
 
-      - uses: actions/download-artifact@v7
-        with:
-          pattern: MaaEnd-*-tarball
-          path: artifacts
 
-      - uses: actions/download-artifact@v7
-        with:
-          pattern: MaaEnd-*-dmg
-          path: artifacts
 
       - name: Prepare release artifacts
         run: |
@@ -477,22 +322,6 @@ jobs:
             if [[ -f "$f" ]]; then
               name=$(basename "$f" .zip)
               mv "$f" "${name}-${{ needs.meta.outputs.tag }}.zip"
-            fi
-          done
-          # 重命名 linux tar.gz 文件，添加版本号
-          for f in MaaEnd-linux-*-tarball/MaaEnd-linux-*.tar.gz; do
-            if [[ -f "$f" ]]; then
-              name=$(basename "$f" .tar.gz)
-              mv "$f" "${name}-${{ needs.meta.outputs.tag }}.tar.gz"
-            fi
-          done
-          # 重命名 dmg 文件，添加版本号
-          for f in MaaEnd-*-dmg/MaaEnd.dmg; do
-            if [[ -f "$f" ]]; then
-              dir=$(dirname "$f")
-              # 从目录名提取 arch (例如 MaaEnd-macos-aarch64-dmg -> macos-aarch64)
-              arch=$(echo "$dir" | sed 's/MaaEnd-//' | sed 's/-dmg//')
-              mv "$f" "MaaEnd-${arch}-${{ needs.meta.outputs.tag }}.dmg"
             fi
           done
           # 清理空目录
