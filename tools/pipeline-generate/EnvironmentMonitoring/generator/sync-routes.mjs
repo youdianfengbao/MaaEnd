@@ -1,5 +1,5 @@
 import {existsSync, readFileSync, writeFileSync} from "node:fs";
-import {resolve} from "node:path";
+import {dirname, resolve} from "node:path";
 import {pathToFileURL} from "node:url";
 import {
     buildGeneratedIdIndex,
@@ -14,6 +14,60 @@ const ROUTE_METADATA_KEYS = new Set([
     "Name",
     "Id",
 ]);
+
+const INTERFACE_LOCALES = {
+    "zh-CN": "zh_cn",
+    "zh-TW": "zh_tw",
+    "en-US": "en_us",
+    "ja-JP": "ja_jp",
+    "ko-KR": "ko_kr",
+};
+
+function syncRouteLocaleCatalogs(missions, idByMissionId) {
+    const localeDir = resolve(dirname(ROUTES_PATH), "../../../assets/locales/interface");
+    const routeKeyPrefix = "task.EnvironmentMonitoring.route.";
+    for (const [
+        sourceLocale,
+        fileLocale,
+    ] of Object.entries(INTERFACE_LOCALES)) {
+        const localePath = resolve(localeDir, `${fileLocale}.json`);
+        const originalText = readFileSync(localePath, "utf8");
+        const messages = JSON.parse(originalText);
+        const routeMessages = {};
+        for (const mission of missions) {
+            const id = idByMissionId.get(mission.missionId);
+            const value = mission.name?.[sourceLocale] || mission.name?.["zh-CN"] || mission.missionId;
+            routeMessages[`${routeKeyPrefix}${id}.label`] = value;
+        }
+
+        const sortedRouteMessages = Object.fromEntries(
+            Object.entries(routeMessages).sort(([left], [right]) => left.localeCompare(right)),
+        );
+        const syncedMessages = {};
+        let routesInserted = false;
+        for (const [
+            key,
+            value,
+        ] of Object.entries(messages)) {
+            if (key.startsWith(routeKeyPrefix)) {
+                continue;
+            }
+            syncedMessages[key] = value;
+            if (key === "task.EnvironmentMonitoring.label") {
+                Object.assign(syncedMessages, sortedRouteMessages);
+                routesInserted = true;
+            }
+        }
+        if (!routesInserted) {
+            Object.assign(syncedMessages, sortedRouteMessages);
+        }
+        const syncedText = `${JSON.stringify(syncedMessages, null, 4)}\n`;
+        if (syncedText !== originalText.replace(/\r\n/g, "\n")) {
+            writeFileSync(localePath, syncedText, "utf8");
+            console.log(`[EnvironmentMonitoring] 已同步 ${fileLocale}.json 的路线名称。`);
+        }
+    }
+}
 
 function normalizeSearchText(text) {
     return String(text || "")
@@ -158,6 +212,7 @@ export function syncRouteConfig() {
     const routes = JSON.parse(originalText);
     const missions = collectMonitoringMissions(readJson(KITE_STATION_DATA_PATH));
     const idByMissionId = buildGeneratedIdIndex(missions);
+    syncRouteLocaleCatalogs(missions, idByMissionId);
     const index = buildMissionSearchIndex(missions, idByMissionId);
     const syncedRoutes = appendMissingMissionRoutes(
         routes.map((route) => buildSyncedRoute(route, findMissionForRoute(route, index), idByMissionId)),

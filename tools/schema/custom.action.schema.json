@@ -49,6 +49,9 @@
                 "EssenceFilterSkillDecisionAction",
                 "EssenceFilterSwipeCalibrateAction",
                 "EssenceFilterTraceAction",
+				"FailureCollectorFinish",
+				"FailureCollectorRunTask",
+				"FailureCollectorReset",
                 "FalseAction",
                 "ImageCheckSetResultAction",
                 "ImportBluePrintsEnterCodeAction",
@@ -91,6 +94,50 @@
             ]
         }
     },
+	"allOf": [
+		{
+			"if": {
+				"properties": {
+					"custom_action": { "const": "FailureCollectorReset" }
+				},
+				"required": [ "custom_action" ]
+			},
+			"then": {
+				"properties": {
+					"custom_action_param": { "$ref": "./components/failure_collector.schema.json#/$defs/BaseParam" }
+				},
+				"required": [ "custom_action_param" ]
+			}
+		},
+		{
+			"if": {
+				"properties": {
+					"custom_action": { "const": "FailureCollectorRunTask" }
+				},
+				"required": [ "custom_action" ]
+			},
+			"then": {
+				"properties": {
+					"custom_action_param": { "$ref": "./components/failure_collector.schema.json#/$defs/RunTaskParam" }
+				},
+				"required": [ "custom_action_param" ]
+			}
+		},
+		{
+			"if": {
+				"properties": {
+					"custom_action": { "const": "FailureCollectorFinish" }
+				},
+				"required": [ "custom_action" ]
+			},
+			"then": {
+				"properties": {
+					"custom_action_param": { "$ref": "./components/failure_collector.schema.json#/$defs/FinishParam" }
+				},
+				"required": [ "custom_action_param" ]
+			}
+		}
+	],
     "if": {
         "type": "object",
         "required": [ "custom_action" ],
@@ -193,6 +240,22 @@
                                     "properties": {
                                         "custom_action_param": { "$ref": "./components/auto_alt.schema.json#/$defs/AutoAltSwipeParam" }
                                     }
+								},
+								"else": {
+									"if": {
+										"type": "object",
+										"required": [ "custom_action" ],
+                                    "properties": {
+										"custom_action": { "const": "FailureCollectorRunTask" }
+                                    }
+									},
+									"then": {
+										"type": "object",
+										"required": [ "custom_action_param" ],
+										"properties": {
+										"custom_action_param": { "$ref": "./components/failure_collector.schema.json#/$defs/RunTaskParam" }
+										}
+									}
                                 }
                             }
                         }

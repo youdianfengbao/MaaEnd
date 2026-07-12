@@ -40,6 +40,29 @@ The `SubTask` implementation is located in `agent/go-service/subtask` and is use
 
 Example file: [`SubTask.json`](../../../assets/resource/pipeline/Interface/Example/SubTask.json)
 
+### FailureCollector
+
+`FailureCollector` is implemented in `agent/go-service/common/failurecollector`. It collects failures across multiple subtasks and reports overall failure only after all subtasks finish. An individual subtask failure does not interrupt subsequent subtasks.
+
+Three Custom Actions are provided, linked into one collection by a shared `key`:
+
+- `FailureCollectorReset`: Resets the collection state for the given `key`. Must be called before all RunTask invocations.
+- `FailureCollectorRunTask`: Runs the subtask specified by `task`. On success, proceeds normally; on failure, records `failure_task` in occurrence order and optionally runs `recovery_task`. The Action itself always returns success so the Pipeline continues.
+- `FailureCollectorFinish`: Runs every recorded `failure_task` node in failure order, then clears the state. Returns failure when any failures were recorded, success otherwise.
+
+- Parameters:
+    - `FailureCollectorReset`:
+        - `key: string`: Collection identifier. Required. Must be consistent and globally unique within the same flow.
+    - `FailureCollectorRunTask`:
+        - `key: string`: Collection identifier. Required.
+        - `task: string`: The subtask Pipeline node to run. Required. When the target node is disabled (`Enabled = false`), it is skipped and not treated as a failure.
+        - `failure_task: string`: The Pipeline node recorded on failure. Required. This node typically uses `focus` to surface a user-visible message through the Agent.
+        - `recovery_task?: string`: A recovery task node to run after a failure. Optional.
+    - `FailureCollectorFinish`:
+        - `key: string`: Collection identifier. Required.
+
+Example file: [`AutoCollect.json`](../../../assets/resource/pipeline/AutoCollect.json)
+
 ### ClearHitCount
 
 The `ClearHitCount` implementation is located in `agent/go-service/clearhitcount` and is used to clear the hit count of specified nodes.

@@ -9,7 +9,24 @@
             "CheckEcologyNearTheFieldLogisticsDepotReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "EcologyNearTheFieldLogisticsDepotExecute",
+            "recovery_task": "EnvironmentMonitoringGoToOutskirtsMonitoringTerminal",
+            "failure_task": "EcologyNearTheFieldLogisticsDepotFailed"
+        },
+        "post_delay": 0
+    },
+    "EcologyNearTheFieldLogisticsDepotFailed": {
+        "desc": "储备站周围的生态环境任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.EcologyNearTheFieldLogisticsDepot.failed"
+        }
+    },
+    "EcologyNearTheFieldLogisticsDepotExecute": {
+        "desc": "执行储备站周围的生态环境任务路线",
         "next": [
             "AcceptEcologyNearTheFieldLogisticsDepot",
             "GoToEcologyNearTheFieldLogisticsDepotMission"

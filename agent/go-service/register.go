@@ -16,6 +16,7 @@ import (
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/common/charactercontroller"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/common/clearhitcount"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/common/expressionrecognition"
+	"github.com/MaaXYZ/MaaEnd/agent/go-service/common/failurecollector"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/common/falseaction"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/common/pipelineoverride"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/common/poststop"
@@ -54,6 +55,7 @@ func registerAll() {
 
 	// General Custom
 	subtask.Register()
+	failurecollector.Register()
 	clearhitcount.Register()
 	pipelineoverride.Register()
 	expressionrecognition.Register()

@@ -9,7 +9,24 @@
             "Check${Id}ReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "${Id}Execute",
+            "recovery_task": "${GoToMonitoringTerminal}",
+            "failure_task": "${Id}Failed"
+        },
+        "post_delay": 0
+    },
+    "${Id}Failed": {
+        "desc": "${Name}任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$${NameKey}"
+        }
+    },
+    "${Id}Execute": {
+        "desc": "执行${Name}任务路线",
         "next": [
             "Accept${Id}",
             "GoTo${Id}Mission"

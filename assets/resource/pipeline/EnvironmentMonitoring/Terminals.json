@@ -35,7 +35,7 @@
             "[JumpBack]XiraniteNexusJob",
             "[JumpBack]PierWaterwheelJob",
             "[JumpBack]MiniShellbeastJob",
-            "EnvironmentMonitoringFinish"
+            "EnvironmentMonitoringTerminalFinish"
         ]
     },
     "MarkerStoneMonitoringTerminal": {
@@ -70,7 +70,7 @@
             "[JumpBack]PeachTreeAtBabblesSHomeJob",
             "[JumpBack]WaterTemperatureControllerJob",
             "[JumpBack]SerenityGardenTianshiPillarJob",
-            "EnvironmentMonitoringFinish"
+            "EnvironmentMonitoringTerminalFinish"
         ]
     }
 }

@@ -9,7 +9,24 @@
             "CheckIndoorCropsReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "IndoorCropsExecute",
+            "recovery_task": "EnvironmentMonitoringGoToOutskirtsMonitoringTerminal",
+            "failure_task": "IndoorCropsFailed"
+        },
+        "post_delay": 0
+    },
+    "IndoorCropsFailed": {
+        "desc": "室内作物任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.IndoorCrops.failed"
+        }
+    },
+    "IndoorCropsExecute": {
+        "desc": "执行室内作物任务路线",
         "next": [
             "AcceptIndoorCrops",
             "GoToIndoorCropsMission"

@@ -9,7 +9,24 @@
             "CheckAnnularWaterfallReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "AnnularWaterfallExecute",
+            "recovery_task": "EnvironmentMonitoringGoToMarkerStoneMonitoringTerminal",
+            "failure_task": "AnnularWaterfallFailed"
+        },
+        "post_delay": 0
+    },
+    "AnnularWaterfallFailed": {
+        "desc": "环形瀑布任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.AnnularWaterfall.failed"
+        }
+    },
+    "AnnularWaterfallExecute": {
+        "desc": "执行环形瀑布任务路线",
         "next": [
             "AcceptAnnularWaterfall",
             "GoToAnnularWaterfallMission"

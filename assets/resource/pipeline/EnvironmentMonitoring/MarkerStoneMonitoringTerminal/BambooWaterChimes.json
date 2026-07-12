@@ -9,7 +9,24 @@
             "CheckBambooWaterChimesReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "BambooWaterChimesExecute",
+            "recovery_task": "EnvironmentMonitoringGoToMarkerStoneMonitoringTerminal",
+            "failure_task": "BambooWaterChimesFailed"
+        },
+        "post_delay": 0
+    },
+    "BambooWaterChimesFailed": {
+        "desc": "水竹铃任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.BambooWaterChimes.failed"
+        }
+    },
+    "BambooWaterChimesExecute": {
+        "desc": "执行水竹铃任务路线",
         "next": [
             "AcceptBambooWaterChimes",
             "GoToBambooWaterChimesMission"

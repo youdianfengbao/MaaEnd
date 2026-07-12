@@ -9,7 +9,24 @@
             "CheckFloraObservationPointReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "FloraObservationPointExecute",
+            "recovery_task": "EnvironmentMonitoringGoToMarkerStoneMonitoringTerminal",
+            "failure_task": "FloraObservationPointFailed"
+        },
+        "post_delay": 0
+    },
+    "FloraObservationPointFailed": {
+        "desc": "植物观察点任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.FloraObservationPoint.failed"
+        }
+    },
+    "FloraObservationPointExecute": {
+        "desc": "执行植物观察点任务路线",
         "next": [
             "AcceptFloraObservationPoint",
             "GoToFloraObservationPointMission"

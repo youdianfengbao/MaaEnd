@@ -1,6 +1,11 @@
 {
     "EnvironmentMonitoringMain": {
         "desc": "环境监测主流程",
+        "action": "Custom",
+        "custom_action": "FailureCollectorReset",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring"
+        },
         "next": [
             "EnvironmentMonitoringLoop",
             "[JumpBack]SceneEnterMenuRegionalDevelopmentWulingEnvironmentMonitoring"
@@ -19,6 +24,14 @@
         ]
     },
     "EnvironmentMonitoringFinish": {
-        "desc": "环境监测完成"
+        "desc": "汇总环境监测路线执行结果",
+        "action": "Custom",
+        "custom_action": "FailureCollectorFinish",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring"
+        }
+    },
+    "EnvironmentMonitoringTerminalFinish": {
+        "desc": "当前环境监测终端完成"
     }
 }

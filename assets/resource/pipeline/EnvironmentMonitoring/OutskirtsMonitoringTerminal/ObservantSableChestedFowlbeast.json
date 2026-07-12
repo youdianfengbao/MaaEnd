@@ -9,7 +9,24 @@
             "CheckObservantSableChestedFowlbeastReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "ObservantSableChestedFowlbeastExecute",
+            "recovery_task": "EnvironmentMonitoringGoToOutskirtsMonitoringTerminal",
+            "failure_task": "ObservantSableChestedFowlbeastFailed"
+        },
+        "post_delay": 0
+    },
+    "ObservantSableChestedFowlbeastFailed": {
+        "desc": "东张西望的黑腹雉羽兽任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.ObservantSableChestedFowlbeast.failed"
+        }
+    },
+    "ObservantSableChestedFowlbeastExecute": {
+        "desc": "执行东张西望的黑腹雉羽兽任务路线",
         "next": [
             "AcceptObservantSableChestedFowlbeast",
             "GoToObservantSableChestedFowlbeastMission"

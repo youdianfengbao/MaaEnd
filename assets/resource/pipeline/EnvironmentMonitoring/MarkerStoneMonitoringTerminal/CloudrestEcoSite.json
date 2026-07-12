@@ -9,7 +9,24 @@
             "CheckCloudrestEcoSiteReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "CloudrestEcoSiteExecute",
+            "recovery_task": "EnvironmentMonitoringGoToMarkerStoneMonitoringTerminal",
+            "failure_task": "CloudrestEcoSiteFailed"
+        },
+        "post_delay": 0
+    },
+    "CloudrestEcoSiteFailed": {
+        "desc": "栖云生态点任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.CloudrestEcoSite.failed"
+        }
+    },
+    "CloudrestEcoSiteExecute": {
+        "desc": "执行栖云生态点任务路线",
         "next": [
             "AcceptCloudrestEcoSite",
             "GoToCloudrestEcoSiteMission"

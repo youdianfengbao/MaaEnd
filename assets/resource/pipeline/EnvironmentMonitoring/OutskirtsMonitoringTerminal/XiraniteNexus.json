@@ -9,7 +9,24 @@
             "CheckXiraniteNexusReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "XiraniteNexusExecute",
+            "recovery_task": "EnvironmentMonitoringGoToOutskirtsMonitoringTerminal",
+            "failure_task": "XiraniteNexusFailed"
+        },
+        "post_delay": 0
+    },
+    "XiraniteNexusFailed": {
+        "desc": "枢壤仪任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.XiraniteNexus.failed"
+        }
+    },
+    "XiraniteNexusExecute": {
+        "desc": "执行枢壤仪任务路线",
         "next": [
             "AcceptXiraniteNexus",
             "GoToXiraniteNexusMission"

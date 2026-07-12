@@ -26,6 +26,7 @@ The core maintenance points for EnvironmentMonitoring are as follows:
 | Terminal Template                   | `tools/pipeline-generate/EnvironmentMonitoring/generator/terminals-template.json` | Terminal grouping node template                                                                                                                                                                                                                                                    |
 | Route/Coordinate Data               | `tools/pipeline-generate/EnvironmentMonitoring/routes.json`                       | Route overrides matched by observation point `MissionId` (teleport points, map, path, camera swipe direction); `Name` is for human reading only, `Id` is the final template node ID, convenient for searching generated nodes/file names                                           |
 | Route JSON Schema                   | `tools/schema/environment_monitoring_routes.schema.json`                          | Field constraints for `routes.json` (required fields, enums, coordinate array shapes), automatically associated via `.vscode/settings.json`, providing IDE field completion and validation                                                                                         |
+| Failure Collector Parameter Schema  | `tools/schema/components/failure_collector.schema.json`                           | Parameter constraints for generic Failure Collector Custom Actions; action names are registered in `tools/schema/custom.action.schema.json`                                                                                                                                        |
 | Route Sync Logic                    | `tools/pipeline-generate/EnvironmentMonitoring/generator/sync-routes.mjs`         | Automatically syncs `MissionId` / `Name` / `Id` in `routes.json` before generation and sorts by `MissionId`                                                                                                                                                                        |
 | Route Resolution Logic              | `tools/pipeline-generate/EnvironmentMonitoring/generator/route-resolver.mjs`      | Parses `routes.json` entries into pathfinding recognition/action parameters required by the template and uniformly handles unadapted fallbacks                                                                                                                                     |
 | Terminal List Data                  | `tools/pipeline-generate/EnvironmentMonitoring/generator/terminals-data.mjs`      | Generates each terminal's `next` from the row data of `data.mjs` and the automatically derived terminal list                                                                                                                                                                       |
@@ -46,11 +47,11 @@ EnvironmentMonitoringMain
        ├─ [JumpBack]OutskirtsMonitoringTerminal  (Outskirts Monitoring Terminal)
        │    └─ OutskirtsMonitoringTerminalLoop
        │         ├─ [JumpBack]{Id}Job × N        (Iterates through all observation points under this terminal)
-       │         └─ EnvironmentMonitoringFinish
+       │         └─ EnvironmentMonitoringTerminalFinish
        ├─ [JumpBack]MarkerStoneMonitoringTerminal (Marker Stone Monitoring Terminal)
        │    └─ MarkerStoneMonitoringTerminalLoop
        │         ├─ [JumpBack]{Id}Job × N
-       │         └─ EnvironmentMonitoringFinish
+       │         └─ EnvironmentMonitoringTerminalFinish
        └─ EnvironmentMonitoringFinish
 ```
 
@@ -79,6 +80,8 @@ EnvironmentMonitoringTakePhoto       (Enter photo mode -> orientation -> take ph
   └─ [Anchor]EnvironmentMonitoringBackToTerminal
        └─ EnvironmentMonitoringGoTo{Outskirts|MarkerStone}MonitoringTerminal
 ```
+
+Each `{Id}Job` still identifies its observation point list item, then uses the generic `FailureCollectorRunTask` action to execute the `{Id}Execute` route. The generator synchronizes zmdmap's five-language `mission.name` data into `task.EnvironmentMonitoring.route.{Id}.label`. If any node inside the route fails, the wrapper Action records `{Id}Failed`, runs `recovery_task` to return to the current monitoring terminal, and reports success outward so the remaining routes continue. After all terminals have been processed, `EnvironmentMonitoringFinish` uses `FailureCollectorFinish` to call those notification nodes in failure order, then returns overall failure. The Agent does not directly print user-facing messages.
 
 > [!NOTE]
 >
@@ -173,7 +176,7 @@ The default export of `data.mjs` is an array, where each element = the rendering
 }
 ```
 
-`terminals-data.mjs` scans all rows assembled by `data.mjs`, groups them by `Station`, links each observation point's `[JumpBack]{Id}Job` into the corresponding terminal's `next` list, and ends with `EnvironmentMonitoringFinish`.
+`terminals-data.mjs` scans all rows assembled by `data.mjs`, groups them by `Station`, links each observation point's `[JumpBack]{Id}Job` into the corresponding terminal's `next` list, and ends with `EnvironmentMonitoringTerminalFinish`. Each `{Id}Job` handles route failures through its `FailureCollectorRunTask` wrapper Action; after both terminals finish, the main flow uses `EnvironmentMonitoringFinish` to summarize the result.
 
 ### Run Commands
 
@@ -320,7 +323,7 @@ Before submission, at least check:
 1. Are the fields for new/modified entries in `tools/pipeline-generate/EnvironmentMonitoring/routes.json` complete?
 2. Does the `MissionId` for new entries in `routes.json` match the `missionId` in `kite_station_i18n.json`; `Id` is automatically refreshed by the generator.
 3. Have the `EnterMap`, `MapAssert`, `CameraSwipeDirection` for adapted entries been filled with real values, and has one of `MapPath` / `MapTarget` / `MapGoal` been selected and filled?
-4. In the regenerated `Terminals.json`, does each `{Station}MonitoringTerminalLoop.next` contain all new `[JumpBack]{Id}Job`, and end with `EnvironmentMonitoringFinish`?
+4. In the regenerated `Terminals.json`, does each `{Station}MonitoringTerminalLoop.next` contain all new `[JumpBack]{Id}Job`, and end with `EnvironmentMonitoringTerminalFinish`?
 5. Does the `Scene*` node referenced by `EnterMap` actually exist in `assets/resource/pipeline/SceneManager/` and `Interface/`?
 6. Is `CameraSwipeDirection` one of the four: `EnvironmentMonitoringSwipeScreen{Up/Down/Left/Right}`?
 7. **No manual modifications** were made to `assets/resource/pipeline/EnvironmentMonitoring/{Station}/*.json` or `Terminals.json` (manual modifications will be overwritten by the next generation; if special nodes are truly needed, they should be extended in `template.json` / `terminals-template.json`).

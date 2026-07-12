@@ -9,7 +9,24 @@
             "CheckHangingVinesReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "HangingVinesExecute",
+            "recovery_task": "EnvironmentMonitoringGoToMarkerStoneMonitoringTerminal",
+            "failure_task": "HangingVinesFailed"
+        },
+        "post_delay": 0
+    },
+    "HangingVinesFailed": {
+        "desc": "垂藤任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.HangingVines.failed"
+        }
+    },
+    "HangingVinesExecute": {
+        "desc": "执行垂藤任务路线",
         "next": [
             "AcceptHangingVines",
             "GoToHangingVinesMission"

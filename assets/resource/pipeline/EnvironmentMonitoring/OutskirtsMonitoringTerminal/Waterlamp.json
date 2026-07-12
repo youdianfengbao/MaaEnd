@@ -9,7 +9,24 @@
             "CheckWaterlampReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "WaterlampExecute",
+            "recovery_task": "EnvironmentMonitoringGoToOutskirtsMonitoringTerminal",
+            "failure_task": "WaterlampFailed"
+        },
+        "post_delay": 0
+    },
+    "WaterlampFailed": {
+        "desc": "水灯虫任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.Waterlamp.failed"
+        }
+    },
+    "WaterlampExecute": {
+        "desc": "执行水灯虫任务路线",
         "next": [
             "AcceptWaterlamp",
             "GoToWaterlampMission"

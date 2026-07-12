@@ -11,6 +11,7 @@
                 "TransferAll",
                 "OriginRegion",
                 "DestinationRegion",
+                "ItemTransferStashBackpackWhenBothFull",
                 "ItemTransferStashBackpack"
             ],
             "controller": [
@@ -3990,6 +3991,9 @@
                     "name": "ValleyIV",
                     "label": "$global.region.ValleyIV",
                     "pipeline_override": {
+                        "ItemTransferSkipSameRegionValleyIV": {
+                            "enabled": true
+                        },
                         "ItemTransferClickOrigin": {
                             "expected": [
                                 "四号谷地",
@@ -4020,6 +4024,9 @@
                     "name": "Wuling",
                     "label": "$global.region.Wuling",
                     "pipeline_override": {
+                        "ItemTransferSkipSameRegionWuling": {
+                            "enabled": true
+                        },
                         "ItemTransferClickOrigin": {
                             "expected": [
                                 "武陵",
@@ -4058,6 +4065,9 @@
                     "name": "ValleyIV",
                     "label": "$global.region.ValleyIV",
                     "pipeline_override": {
+                        "ItemTransferSkipSameRegionWuling": {
+                            "enabled": false
+                        },
                         "ItemTransferClickDestination": {
                             "expected": [
                                 "四号谷地",
@@ -4076,6 +4086,9 @@
                     "name": "Wuling",
                     "label": "$global.region.Wuling",
                     "pipeline_override": {
+                        "ItemTransferSkipSameRegionValleyIV": {
+                            "enabled": false
+                        },
                         "ItemTransferClickDestination": {
                             "expected": [
                                 "武陵",
@@ -4111,6 +4124,25 @@
                     "option": [
                         "StashBackpackType"
                     ]
+                }
+            ]
+        },
+        "ItemTransferStashBackpackWhenBothFull": {
+            "type": "switch",
+            "label": "$option.ItemTransferStashBackpackWhenBothFull.label",
+            "description": "$option.ItemTransferStashBackpackWhenBothFull.description",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "ItemTransferClickQuickStashReturn": {
+                            "enabled": true
+                        }
+                    }
                 }
             ]
         }

@@ -512,8 +512,11 @@ uv run main.py
 | `assets/resource/pipeline/AutoCollect/AutoCollectRoute*.json` | 路径定义，包含 `MapNavigateAction` 节点和采集坐标                 | 新增路线、调整坐标、增减采集点  |
 | `assets/resource/pipeline/AutoCollect/AutoCollectClick.json`  | `COLLECT` 触发的 OCR 与点击子任务，入口为 `AutoCollectClickStart` | 新增或删除 OCR 识别的采集物名称 |
 | `assets/resource/pipeline/AutoCollect/AutoCollectDig.json`    | `DIG` 触发的挖掘子任务，入口为 `AutoCollectDigStart`              | 挖掘交互逻辑发生变更时          |
+| `assets/resource/pipeline/AutoCollect.json`                   | 路线遍历、失败收集及任务前后存放背包                              | 新增路线入口或调整总流程时      |
 
 **绝大多数情况下，路径作者只需要改 `AutoCollectRoute*.json`。**
+
+自动采集总流程由 `AutoCollectLoop` 依次调用路线包装节点。每个包装节点使用通用 `FailureCollectorRunTask` 执行已启用路线；路线内部任意节点失败时，包装 Action 会记录该路线的 `{Route}Failed` Pipeline 节点，并返回成功让 Pipeline 继续下一条路线。所有路线及后置背包整理结束后，`AutoCollectFinish` 按失败顺序依次调用这些节点，输出 `$option.*.label` 本地化文案，再让自动采集任务返回失败。
 
 ### 路径作者不需要碰的部分
 

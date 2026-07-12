@@ -9,7 +9,24 @@
             "CheckVigorousCisternOriginiumSlugReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "VigorousCisternOriginiumSlugExecute",
+            "recovery_task": "EnvironmentMonitoringGoToOutskirtsMonitoringTerminal",
+            "failure_task": "VigorousCisternOriginiumSlugFailed"
+        },
+        "post_delay": 0
+    },
+    "VigorousCisternOriginiumSlugFailed": {
+        "desc": "充满活力的蓄水源石虫任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.VigorousCisternOriginiumSlug.failed"
+        }
+    },
+    "VigorousCisternOriginiumSlugExecute": {
+        "desc": "执行充满活力的蓄水源石虫任务路线",
         "next": [
             "AcceptVigorousCisternOriginiumSlug",
             "GoToVigorousCisternOriginiumSlugMission"

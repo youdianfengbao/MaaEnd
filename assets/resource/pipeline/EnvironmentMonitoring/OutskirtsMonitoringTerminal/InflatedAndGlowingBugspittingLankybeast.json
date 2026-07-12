@@ -9,7 +9,24 @@
             "CheckInflatedAndGlowingBugspittingLankybeastReadyText"
         ],
         "pre_delay": 0,
-        "post_delay": 0,
+        "action": "Custom",
+        "custom_action": "FailureCollectorRunTask",
+        "custom_action_param": {
+            "key": "EnvironmentMonitoring",
+            "task": "InflatedAndGlowingBugspittingLankybeastExecute",
+            "recovery_task": "EnvironmentMonitoringGoToOutskirtsMonitoringTerminal",
+            "failure_task": "InflatedAndGlowingBugspittingLankybeastFailed"
+        },
+        "post_delay": 0
+    },
+    "InflatedAndGlowingBugspittingLankybeastFailed": {
+        "desc": "肚子鼓气后发光的吐虫长股兽任务执行失败提示",
+        "focus": {
+            "Node.Recognition.Succeeded": "$task.EnvironmentMonitoring.route.InflatedAndGlowingBugspittingLankybeast.failed"
+        }
+    },
+    "InflatedAndGlowingBugspittingLankybeastExecute": {
+        "desc": "执行肚子鼓气后发光的吐虫长股兽任务路线",
         "next": [
             "AcceptInflatedAndGlowingBugspittingLankybeast",
             "GoToInflatedAndGlowingBugspittingLankybeastMission"
