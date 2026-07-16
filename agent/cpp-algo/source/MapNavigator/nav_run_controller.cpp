@@ -35,8 +35,7 @@ bool CanUseNavRunSteering(const Waypoint& waypoint)
     return waypoint.HasPosition() && waypoint.action == ActionType::RUN;
 }
 
-std::optional<CorridorProjection>
-    ProjectOntoCorridor(const navmesh::WorldPath& path, size_t start_edge, const NaviPosition& position)
+std::optional<CorridorProjection> ProjectOntoCorridor(const navmesh::WorldPath& path, size_t start_edge, const NaviPosition& position)
 {
     if (path.points.size() < 2) {
         return std::nullopt;
@@ -156,8 +155,7 @@ size_t CountCorridorPassedRunWaypoints(
     return count;
 }
 
-navmesh::WorldPoint
-    LookaheadOnCorridor(const navmesh::WorldPath& path, const CorridorProjection& projection, double distance)
+navmesh::WorldPoint LookaheadOnCorridor(const navmesh::WorldPath& path, const CorridorProjection& projection, double distance)
 {
     if (path.points.empty()) {
         return projection.point;
@@ -198,10 +196,7 @@ navmesh::WorldPoint
     return path.points.back();
 }
 
-double UpcomingCorridorTurnDeg(
-    const navmesh::WorldPath& path,
-    const CorridorProjection& projection,
-    double lookahead_distance)
+double UpcomingCorridorTurnDeg(const navmesh::WorldPath& path, const CorridorProjection& projection, double lookahead_distance)
 {
     if (path.points.size() < 2 || projection.edge_idx + 1 >= path.points.size() || lookahead_distance <= 0.0) {
         return 0.0;
@@ -308,16 +303,14 @@ bool NavRunController::buildPlan(
     const navmesh::WorldPoint goal { .x = anchor.x, .y = anchor.y };
     auto route = PlanNavmeshRoute(param, position.zone_id, start, goal);
     if (!route || !route->ok() || route->path.points.size() < 2) {
-        LogDebug << "NavRunController plan build failed." << VAR(static_cast<int>(reason)) << VAR(anchor_index)
-                 << VAR(position.zone_id);
+        LogDebug << "NavRunController plan build failed." << VAR(static_cast<int>(reason)) << VAR(anchor_index) << VAR(position.zone_id);
         return false;
     }
     commit(std::move(route->path), false);
     return true;
 }
 
-double NavRunController::chooseLookaheadDistance(
-    const RouteTrackingState& route, bool sprint_active, double upcoming_turn_deg) const
+double NavRunController::chooseLookaheadDistance(const RouteTrackingState& route, bool sprint_active, double upcoming_turn_deg) const
 {
     if (upcoming_turn_deg >= kNavRunSharpTurnDeg) {
         return kNavRunLookaheadSharpTurnM;
@@ -331,8 +324,7 @@ double NavRunController::chooseLookaheadDistance(
     return kNavRunLookaheadWalkM;
 }
 
-NavRunReplanReason
-    NavRunController::detectReplanTrigger(const RouteTrackingState& route, std::chrono::steady_clock::time_point now) const
+NavRunReplanReason NavRunController::detectReplanTrigger(const RouteTrackingState& route, std::chrono::steady_clock::time_point now) const
 {
     if (route.startup_motion_confirmed && ElapsedMs(last_progress_seen_, now) >= kNavRunProgressRegressionMs) {
         return NavRunReplanReason::ProgressRegression;
@@ -392,8 +384,7 @@ NavRunTickResult NavRunController::tick(
     const bool hard_off = projection->cross_track > kNavRunCrossTrackFailM;
     const bool soft_off = projection->cross_track > kNavRunCrossTrackWarnM;
     NavRunReplanReason time_trigger = detectReplanTrigger(route, now);
-    if (time_trigger == NavRunReplanReason::ProgressRegression
-        && projection->cross_track < kNavRunProgressReplanMinCrossTrackM) {
+    if (time_trigger == NavRunReplanReason::ProgressRegression && projection->cross_track < kNavRunProgressReplanMinCrossTrackM) {
         time_trigger = NavRunReplanReason::None;
         last_progress_seen_ = now;
     }
@@ -402,8 +393,7 @@ NavRunTickResult NavRunController::tick(
     if (needs_replan) {
         const bool cooldown_ready = ElapsedMs(plan_.last_soft_replan_at, now) >= kNavRunSoftReplanCooldownMs;
         const bool budget_left = plan_.soft_replan_attempts < kNavRunSoftReplanMaxPerAnchor;
-        const NavRunReplanReason reason =
-            hard_off || soft_off ? NavRunReplanReason::OffCorridor : time_trigger;
+        const NavRunReplanReason reason = hard_off || soft_off ? NavRunReplanReason::OffCorridor : time_trigger;
 
         // hard_off skips cooldown but never bypasses the budget — once exhausted,
         // outer 3.5 s recovery handles the escalation.
@@ -420,8 +410,8 @@ NavRunTickResult NavRunController::tick(
                 last_progress_seen_ = now;
                 last_remaining_to_anchor_ = std::numeric_limits<double>::infinity();
                 result.replanned_with = reason;
-                LogInfo << "NavRunController soft replan." << VAR(static_cast<int>(reason))
-                        << VAR(plan_.soft_replan_attempts) << VAR(projection->cross_track) << VAR(anchor_index);
+                LogInfo << "NavRunController soft replan." << VAR(static_cast<int>(reason)) << VAR(plan_.soft_replan_attempts)
+                        << VAR(projection->cross_track) << VAR(anchor_index);
             }
         }
     }
@@ -447,8 +437,15 @@ NavRunTickResult NavRunController::tick(
     result.remaining_to_anchor = remaining;
     result.upcoming_turn_deg = upcoming_turn;
     const double character_arc = CorridorArcLengthTo(plan_.path, plan_.corridor_arc_prefix, *projection);
-    result.passed_run_waypoints =
+    const size_t corridor_passed =
         CountCorridorPassedRunWaypoints(*session, plan_.path, plan_.corridor_arc_prefix, anchor_index, character_arc);
+    if (route.startup_motion_confirmed) {
+        result.passed_run_waypoints = corridor_passed;
+    }
+    else if (corridor_passed > 0) {
+        LogDebug << "Corridor passed advance blocked before startup movement confirmed." << VAR(corridor_passed)
+                 << VAR(session->current_node_idx()) << VAR(character_arc);
+    }
     return result;
 }
 

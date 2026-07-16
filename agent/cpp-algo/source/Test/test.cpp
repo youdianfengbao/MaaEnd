@@ -4,15 +4,15 @@
 
 void Test()
 {
-    //FramelessWindow w;
-    //w.SetTopMost(true);
-    //w.Open();
+    // FramelessWindow w;
+    // w.SetTopMost(true);
+    // w.Open();
     //{
-    //    WebView2 view;
-    //    view.SetSize(682, 358);
-    //    view.SetURL(
-    //        "https://www.skland.com/");
-    //    view.Open();
+    //     WebView2 view;
+    //     view.SetSize(682, 358);
+    //     view.SetURL(
+    //         "https://www.skland.com/");
+    //     view.Open();
 
     //    getchar();
     //    view.Close();

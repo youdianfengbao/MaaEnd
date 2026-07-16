@@ -212,8 +212,8 @@ bool OverrideNext(MaaContext* context, const char* nodeName, const char* nextNod
         return false;
     }
 
-    const bool ok = MaaStringBufferSet(item, nextNode) && MaaStringListBufferAppend(list, item) &&
-                    MaaContextOverrideNext(context, nodeName, list);
+    const bool ok =
+        MaaStringBufferSet(item, nextNode) && MaaStringListBufferAppend(list, item) && MaaContextOverrideNext(context, nodeName, list);
     MaaStringListBufferDestroy(list);
     MaaStringBufferDestroy(item);
     return ok;
@@ -245,17 +245,15 @@ MaaBool MAA_CALL WeaponInventoryScanRecognitionRun(
         recogrid::GridScanOptions options;
         ApplyWeaponInventoryScanDefaults(options);
 
-        recogrid::GridRecognitionRequest request =
-            ParseWeaponRecognitionRequest(custom_recognition_param, options.recognition);
-        if ((custom_recognition_param == nullptr || std::strlen(custom_recognition_param) == 0) && roi != nullptr &&
-            roi->width > 0 && roi->height > 0) {
+        recogrid::GridRecognitionRequest request = ParseWeaponRecognitionRequest(custom_recognition_param, options.recognition);
+        if ((custom_recognition_param == nullptr || std::strlen(custom_recognition_param) == 0) && roi != nullptr && roi->width > 0
+            && roi->height > 0) {
             request = recogrid::ApplyRoiOverride(request, { roi->x, roi->y, roi->width, roi->height });
         }
 
         options.recognition = request.options;
         options.incremental = ReadIncremental(custom_recognition_param);
-        options.endMinMatchRatio =
-            ReadDoubleOption(custom_recognition_param, "end_min_match_ratio", options.endMinMatchRatio);
+        options.endMinMatchRatio = ReadDoubleOption(custom_recognition_param, "end_min_match_ratio", options.endMinMatchRatio);
         ApplyWeaponInventoryMask(options);
 
         const cv::Mat imageMat = to_mat(image);
@@ -267,12 +265,11 @@ MaaBool MAA_CALL WeaponInventoryScanRecognitionRun(
             const int cols = result.sessionCols;
             const int pageGrid = result.totalCells;
             const int newCells = static_cast<int>(result.newCellIndices.size());
-            LogInfo << "WeaponInventoryScan cumulative grid" << VAR(cumulativeGrid) << VAR(unknown) << VAR(rows)
-                    << VAR(cols) << VAR(pageGrid) << VAR(newCells);
-            LogInfo << "WeaponInventoryScan scan delta" << VAR(result.deltaReliable) << VAR(result.hasProgress)
-                    << VAR(result.reachedEnd) << VAR(result.rowOffset) << VAR(result.matchedCells)
-                    << VAR(result.comparedCells) << VAR(result.matchRatio) << VAR(result.averageDistance)
-                    << VAR(result.deltaScore);
+            LogInfo << "WeaponInventoryScan cumulative grid" << VAR(cumulativeGrid) << VAR(unknown) << VAR(rows) << VAR(cols)
+                    << VAR(pageGrid) << VAR(newCells);
+            LogInfo << "WeaponInventoryScan scan delta" << VAR(result.deltaReliable) << VAR(result.hasProgress) << VAR(result.reachedEnd)
+                    << VAR(result.rowOffset) << VAR(result.matchedCells) << VAR(result.comparedCells) << VAR(result.matchRatio)
+                    << VAR(result.averageDistance) << VAR(result.deltaScore);
             const char* nextNode = result.reachedEnd ? "WeaponInventoryScanFinish" : "WeaponInventoryScanSwipeNext";
             LogInfo << "WeaponInventoryScan override next" << VAR(nextNode);
             if (!OverrideNext(context, node_name, nextNode)) {

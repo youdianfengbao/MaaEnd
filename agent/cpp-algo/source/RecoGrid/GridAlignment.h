@@ -58,23 +58,10 @@ struct GridDeltaResult
     std::vector<std::size_t> newCellIndices;
 };
 
-Snapshot BuildSnapshot(
-    const cv::Mat& image,
-    const GridDetectOptions& options = {},
-    const CellMaskRatios& maskRatios = {});
+Snapshot BuildSnapshot(const cv::Mat& image, const GridDetectOptions& options = {}, const CellMaskRatios& maskRatios = {});
 AlignmentResult EstimateRowOffset(const Snapshot& first, const Snapshot& second, int matchDistanceThreshold = 12);
-AlignmentResult EstimateRowOffset(
-    const GridHashSnapshot& first,
-    const GridHashSnapshot& second,
-    int matchDistanceThreshold = 12);
-GridHashSnapshot MakeGridHashSnapshot(
-    int rows,
-    int cols,
-    std::vector<Hash> hashes,
-    std::vector<CellFeature> features = {});
-GridDeltaResult ComputeGridDelta(
-    const GridHashSnapshot& previous,
-    const GridHashSnapshot& current,
-    const GridDeltaOptions& options = {});
+AlignmentResult EstimateRowOffset(const GridHashSnapshot& first, const GridHashSnapshot& second, int matchDistanceThreshold = 12);
+GridHashSnapshot MakeGridHashSnapshot(int rows, int cols, std::vector<Hash> hashes, std::vector<CellFeature> features = {});
+GridDeltaResult ComputeGridDelta(const GridHashSnapshot& previous, const GridHashSnapshot& current, const GridDeltaOptions& options = {});
 
 } // namespace recogrid

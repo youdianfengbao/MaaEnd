@@ -112,8 +112,7 @@ double Quantile(std::vector<double> values, double quantile)
     }
 
     quantile = std::clamp(quantile, 0.0, 1.0);
-    const std::size_t index = static_cast<std::size_t>(
-        std::round(quantile * static_cast<double>(values.size() - 1)));
+    const std::size_t index = static_cast<std::size_t>(std::round(quantile * static_cast<double>(values.size() - 1)));
     std::nth_element(values.begin(), values.begin() + static_cast<std::ptrdiff_t>(index), values.end());
     return values[index];
 }
@@ -157,16 +156,13 @@ std::vector<Segment> DetectColsFromDarkSeparators(const cv::Mat& binary, const G
         std::remove_if(
             separators.begin(),
             separators.end(),
-            [](const Segment& segment) {
-                return SegmentLength(segment) > kDarkSeparatorMaxWidth;
-            }),
+            [](const Segment& segment) { return SegmentLength(segment) > kDarkSeparatorMaxWidth; }),
         separators.end());
     separators = MergeCloseSegments(separators, kDarkSeparatorMergeGap);
 
-    const int minLength = static_cast<int>(
-        std::round(static_cast<double>(options.lockedColWidth) * options.minKeptSegmentRatio));
-    const int maxLength = static_cast<int>(
-        std::round(static_cast<double>(options.lockedColWidth) * (1.0 + options.lockedSegmentTolerance)));
+    const int minLength = static_cast<int>(std::round(static_cast<double>(options.lockedColWidth) * options.minKeptSegmentRatio));
+    const int maxLength =
+        static_cast<int>(std::round(static_cast<double>(options.lockedColWidth) * (1.0 + options.lockedSegmentTolerance)));
     if (minLength <= 0 || maxLength < minLength) {
         return cols;
     }
@@ -200,9 +196,7 @@ std::vector<Segment> FilterSmallSegments(
     if (minLength <= 0) {
         return segments;
     }
-    const int maxLength = lockedLength > 0 ?
-                              static_cast<int>(std::round(static_cast<double>(lockedLength) * (1.0 + lockedTolerance))) :
-                              0;
+    const int maxLength = lockedLength > 0 ? static_cast<int>(std::round(static_cast<double>(lockedLength) * (1.0 + lockedTolerance))) : 0;
 
     std::vector<Segment> normalized;
     normalized.reserve(segments.size());
@@ -214,8 +208,8 @@ std::vector<Segment> FilterSmallSegments(
             const int gap = next.start - segment.end;
             const int mergedLength = next.end - segment.start;
             const bool touchesBoundary = segment.start <= 0 || next.end >= projectionLength;
-            if (SegmentLength(segment) < minLength && SegmentLength(next) < minLength && gap >= 0 &&
-                gap <= maxMergeGap && mergedLength >= minLength && !touchesBoundary) {
+            if (SegmentLength(segment) < minLength && SegmentLength(next) < minLength && gap >= 0 && gap <= maxMergeGap
+                && mergedLength >= minLength && !touchesBoundary) {
                 segment.end = next.end;
                 ++i;
             }

@@ -76,11 +76,21 @@ jobs:
             echo "exists=false" | tee -a "$GITHUB_OUTPUT"
           fi
 
+      - name: Generate MaaEndBot GitHub App token
+        if: steps.precheck.outputs.exists != 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.MAAEND_BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MAAEND_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Checkout repository
         if: steps.precheck.outputs.exists != 'true'
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.MAAEND_BOT_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           ref: v2
           # cherry-pick 需要访问 release 分支上的 commit，必须全量 clone
           fetch-depth: 0
@@ -126,7 +136,7 @@ jobs:
       - name: Create pull request to v2
         if: steps.precheck.outputs.exists != 'true'
         env:
-          GH_TOKEN: ${{ secrets.MAAEND_BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           FIX_BRANCH: ${{ steps.pr.outputs.fix_branch }}
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
           PR_TITLE: ${{ steps.pr.outputs.pr_title }}

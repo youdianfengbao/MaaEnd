@@ -47,11 +47,20 @@ jobs:
           echo "branch_name=${BRANCH_NAME}" | tee -a "$GITHUB_OUTPUT"
           echo "proceed=true" | tee -a "$GITHUB_OUTPUT"
 
+      - name: Generate MaaEndBot GitHub App token
+        if: steps.version.outputs.proceed == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.MAAEND_BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MAAEND_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Checkout repository at RC tag
         if: steps.version.outputs.proceed == 'true'
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.MAAEND_BOT_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           ref: ${{ github.event.release.tag_name }}
 
       - name: Create release branch
@@ -107,18 +116,28 @@ jobs:
           echo "current_branch=${CURRENT_BRANCH}" | tee -a "$GITHUB_OUTPUT"
           echo "proceed=true" | tee -a "$GITHUB_OUTPUT"
 
+      - name: Generate MaaEndBot GitHub App token
+        if: steps.version.outputs.proceed == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.MAAEND_BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MAAEND_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: read
+
       - name: Checkout repository
         if: steps.version.outputs.proceed == 'true'
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.MAAEND_BOT_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           # 仅需获取凭证用于 git push --delete 等远程操作
 
       - name: Clean up old release branches
         if: steps.version.outputs.proceed == 'true'
         env:
           CURRENT_BRANCH: ${{ steps.version.outputs.current_branch }}
-          GH_TOKEN: ${{ secrets.MAAEND_BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
 

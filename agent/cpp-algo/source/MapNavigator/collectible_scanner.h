@@ -38,7 +38,7 @@ private:
     void WorkerLoop();
 
     cv::Rect base_roi_;
-    cv::Mat icon_template_;  // grayscale; empty → fall back to the bright-text-blob heuristic
+    cv::Mat icon_template_; // grayscale; empty → fall back to the bright-text-blob heuristic
     std::thread worker_;
     std::mutex mutex_;
     std::condition_variable cv_;

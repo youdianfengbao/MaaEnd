@@ -241,8 +241,8 @@ bool GridRecognitionRequest::from_json(const json::value& value)
     if (!configuredTemplatePaths.empty()) {
         templatePaths = std::move(configuredTemplatePaths);
     }
-    if (!templatePath.empty() &&
-        (templatePaths.empty() || std::find(templatePaths.begin(), templatePaths.end(), templatePath) == templatePaths.end())) {
+    if (!templatePath.empty()
+        && (templatePaths.empty() || std::find(templatePaths.begin(), templatePaths.end(), templatePath) == templatePaths.end())) {
         templatePaths.insert(templatePaths.begin(), templatePath);
     }
     if (templatePath.empty() && !templatePaths.empty()) {
@@ -335,8 +335,7 @@ GridTemplateMatchResult MatchGridTemplate(
         return output;
     }
 
-    output.candidates =
-        FilterCandidates(result.grid.roi, result.grid.cells, target, std::max(0, options.maxPhashDistance), options.mask);
+    output.candidates = FilterCandidates(result.grid.roi, result.grid.cells, target, std::max(0, options.maxPhashDistance), options.mask);
     output.candidateCount = static_cast<int>(output.candidates.size());
 
     std::vector<Candidate> rankedCandidates = output.candidates;
@@ -378,10 +377,7 @@ GridTemplateMatchResult MatchGridTemplate(
     return output;
 }
 
-GridRecognitionResult RecognizeGridTemplate(
-    const cv::Mat& image,
-    const cv::Mat& target,
-    const GridRecognitionOptions& options)
+GridRecognitionResult RecognizeGridTemplate(const cv::Mat& image, const cv::Mat& target, const GridRecognitionOptions& options)
 {
     if (target.empty()) {
         throw std::invalid_argument("Cannot recognize grid template from an empty target");

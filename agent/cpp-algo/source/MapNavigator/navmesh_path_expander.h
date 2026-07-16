@@ -34,6 +34,7 @@ std::optional<navmesh::BaseNavRouteResult> PlanNavmeshRoute(
     const std::vector<uint32_t>& blocked_triangles = {});
 float NavmeshFloorYForZone(const NaviParam& param, const std::string& locator_zone);
 bool NavmeshZonesShareGeometry(const NaviParam& param, const std::string& zone_a, const std::string& zone_b);
+
 // Resample `poly` at ~`step` world units (clamped to >=0.1) and invoke `fn` on the leading vertex and
 // every resampled point. Used by NavmeshOffMeshFraction. Caller guards poly.size() >= 2 for a
 // meaningful result.
@@ -78,8 +79,20 @@ std::optional<navmesh::WorldPoint> PlanUnstickTarget(
     int attempt_index,
     double* out_distance = nullptr);
 bool AppendGeneratedNavmeshWaypoints(
-    const navmesh::WorldPath& world_path, std::vector<Waypoint>& out_path, bool include_goal,
-    bool emit_interior_corners = false, const navmesh::BaseNavPlanner* drivability_planner = nullptr,
-    uint16_t drivable_zone_id = 0);
+    const navmesh::WorldPath& world_path,
+    std::vector<Waypoint>& out_path,
+    bool include_goal,
+    bool emit_interior_corners = false,
+    const navmesh::BaseNavPlanner* drivability_planner = nullptr,
+    uint16_t drivable_zone_id = 0,
+    bool strict_segment_breaks = true);
+bool AppendGeneratedNavmeshWaypoints(
+    const NaviParam& param,
+    const std::string& locator_zone,
+    const navmesh::BaseNavRouteResult& route,
+    std::vector<Waypoint>& out_path,
+    bool include_goal,
+    bool emit_interior_corners,
+    bool strict_segment_breaks);
 
 } // namespace mapnavigator

@@ -114,10 +114,7 @@ struct GridClassificationResult
 };
 
 GridRecognitionResult RecognizeGrid(const cv::Mat& image, const GridRecognitionOptions& options = {});
-GridRecognitionResult RecognizeGridTemplate(
-    const cv::Mat& image,
-    const cv::Mat& target,
-    const GridRecognitionOptions& options = {});
+GridRecognitionResult RecognizeGridTemplate(const cv::Mat& image, const cv::Mat& target, const GridRecognitionOptions& options = {});
 GridRecognitionResult RecognizeGridRequest(const cv::Mat& image, const GridRecognitionRequest& request);
 GridTemplateMatchResult MatchGridTemplate(
     const GridRecognitionResult& result,

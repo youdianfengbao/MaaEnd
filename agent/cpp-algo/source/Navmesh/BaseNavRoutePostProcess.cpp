@@ -17,39 +17,39 @@ namespace
 constexpr double kDedupePointEpsilon = 0.25;
 constexpr double kCollinearEpsilon = 1e-3;
 constexpr double kRouteMaxPointDistance = 4.0;
-constexpr double kRouteCenterProbeLimit = 32.0;   // 居中时单侧探测墙距的上限(px)
-constexpr double kRouteCenterMaxShift = 24.0;     // 直段整体横移上限(px)
-constexpr double kCenterProbeStep = 0.5;          // 墙距探测步进(px)
-constexpr double kCenterValidateStep = 0.5;       // 连段校验采样步进(px)
-constexpr int kRoutePullMaxSkip = 8;              // 拉直可越过的最大连续不可达点数,用于跨越非单调视线遮挡
-constexpr double kRoutePullMaxReach = 64.0;       // 单条捷径的最大长度(px)
-constexpr double kRouteCornerAngleDeg = 35.0;     // 转角达此值即视为结构性拐角(px),在此切分直段
-constexpr double kRouteRunStraightTol = 1.6;      // 直段判据:内部点偏离首尾弦的上限(px)
-constexpr double kRouteCornerMoveFactor = 1.5;    // 拐角重连位移上限 = kRouteCenterMaxShift × 此系数
+constexpr double kRouteCenterProbeLimit = 32.0;           // 居中时单侧探测墙距的上限(px)
+constexpr double kRouteCenterMaxShift = 24.0;             // 直段整体横移上限(px)
+constexpr double kCenterProbeStep = 0.5;                  // 墙距探测步进(px)
+constexpr double kCenterValidateStep = 0.5;               // 连段校验采样步进(px)
+constexpr int kRoutePullMaxSkip = 8;                      // 拉直可越过的最大连续不可达点数,用于跨越非单调视线遮挡
+constexpr double kRoutePullMaxReach = 64.0;               // 单条捷径的最大长度(px)
+constexpr double kRouteCornerAngleDeg = 35.0;             // 转角达此值即视为结构性拐角(px),在此切分直段
+constexpr double kRouteRunStraightTol = 1.6;              // 直段判据:内部点偏离首尾弦的上限(px)
+constexpr double kRouteCornerMoveFactor = 1.5;            // 拐角重连位移上限 = kRouteCenterMaxShift × 此系数
 constexpr double kRouteShortcutMinClearance = 6.0;        // 拉直捷径沿途任一侧至少保留的横向余量(px)
 constexpr double kRouteShortcutClearanceProbeLimit = 8.0; // 捷径余量探测上限(px)
 constexpr double kRouteShortcutClearanceProbeStep = 1.0;  // 捷径余量探测步进(px)
 constexpr double kRouteShortcutClearanceSampleStep = 4.0; // 捷径沿线采样步进(px)
-constexpr double kRouteDecenterHugClearance = 4.0;  // 单侧余量 < 此值即视为"贴边"(px)
-constexpr double kRouteDecenterHugAsymmetry = 2.0;  // 且两侧余量差 >= 此值,才有"可向开阔侧让开"的空间(px)
-constexpr double kRouteDecenterWaterDrop = 1.5;     // 紧边外侧地面低于脚下此值(或离开网格)即判为水/坎(px)
-constexpr double kRouteRelaxTurnCap = 88.0;         // 松弛允许的转角上限(度);仍 <= 原转角者放行
-constexpr double kRouteRelaxMidpointWeight = 0.50;  // 松弛目标 = 此权重·邻点中点 + (1-此)·余量中心。
-constexpr double kRouteRelaxMaxTranslate = 12.0;    // 单点相对原位的最大位移(px)
-constexpr int kRouteRelaxIterations = 16;           // Gauss-Seidel 松弛迭代次数。cap 使单步居中变温和,靠多迭代逐步收敛到中线
-constexpr bool kRouteRelaxBiasNearCap = true;       // 余量偏置鲁棒:bias 钳在 min(左,右余量) 内 —— 走廊渐进居中
-constexpr double kRouteWaterShiftSafe = 4.0;        // 贴水块整体平移力争达到的单侧安全余量(px)
-constexpr double kRouteWaterShiftMax = 14.0;        // 贴水块整体平移上限(px)
+constexpr double kRouteDecenterHugClearance = 4.0;        // 单侧余量 < 此值即视为"贴边"(px)
+constexpr double kRouteDecenterHugAsymmetry = 2.0;        // 且两侧余量差 >= 此值,才有"可向开阔侧让开"的空间(px)
+constexpr double kRouteDecenterWaterDrop = 1.5;           // 紧边外侧地面低于脚下此值(或离开网格)即判为水/坎(px)
+constexpr double kRouteRelaxTurnCap = 88.0;               // 松弛允许的转角上限(度);仍 <= 原转角者放行
+constexpr double kRouteRelaxMidpointWeight = 0.50;        // 松弛目标 = 此权重·邻点中点 + (1-此)·余量中心。
+constexpr double kRouteRelaxMaxTranslate = 12.0;          // 单点相对原位的最大位移(px)
+constexpr int kRouteRelaxIterations = 16; // Gauss-Seidel 松弛迭代次数。cap 使单步居中变温和,靠多迭代逐步收敛到中线
+constexpr bool kRouteRelaxBiasNearCap = true; // 余量偏置鲁棒:bias 钳在 min(左,右余量) 内 —— 走廊渐进居中
+constexpr double kRouteWaterShiftSafe = 4.0;  // 贴水块整体平移力争达到的单侧安全余量(px)
+constexpr double kRouteWaterShiftMax = 14.0;  // 贴水块整体平移上限(px)
 // 居中细化三:抗噪裕度地板。funnel/拉直求最短会贴 navmesh 内角,前两道对 pinned 拐角/凸角仍留贴边点
 // (各向同性最近边界 ~0)。上游图像定位有噪,贴可走面边界=出界风险。把"最近边界 < 地板"的点(含 pinned)
 // 沿各向探测的开阔向量(中轴梯度)推离边界到地板;凸角最近边界在斜对角,故必须各向探测、垂直 L/R 看不到。
 constexpr bool kRouteFloorEnable = true;
-constexpr double kRouteFloorMinClearance = 2.0;  // 目标最小离边余量(px):最近边界 < 此的点向中轴推离边界
-constexpr double kRouteFloorStep = 0.6;          // 单轮沿中轴最大推进(px):小步多迭代,防过冲到对侧反而变差
-constexpr double kRouteFloorMaxTranslate = 4.0;  // 单点相对原位的累计最大位移(px)
-constexpr int kRouteFloorIterations = 14;        // 中轴梯度上升迭代上限(收敛即停;已达标点设 settled 永久跳过)
-constexpr int kRouteFloorProbeDirs = 8;          // 各向探测方向数(8 足够辨最近边界方向)
-constexpr double kRouteFloorProbeMargin = 1.0;   // 墙距探测早停余量:只探到 地板+此 即够判达标(px)
+constexpr double kRouteFloorMinClearance = 2.0; // 目标最小离边余量(px):最近边界 < 此的点向中轴推离边界
+constexpr double kRouteFloorStep = 0.6;         // 单轮沿中轴最大推进(px):小步多迭代,防过冲到对侧反而变差
+constexpr double kRouteFloorMaxTranslate = 4.0; // 单点相对原位的累计最大位移(px)
+constexpr int kRouteFloorIterations = 14;       // 中轴梯度上升迭代上限(收敛即停;已达标点设 settled 永久跳过)
+constexpr int kRouteFloorProbeDirs = 8;         // 各向探测方向数(8 足够辨最近边界方向)
+constexpr double kRouteFloorProbeMargin = 1.0;  // 墙距探测早停余量:只探到 地板+此 即够判达标(px)
 // 断崖抗掉落(收尾)。真实断崖(高度不连续,踩上去掉落)与无害接缝(高度连续,可走)在点包含式墙距里都是"边界",
 // 前面几道居中一视同仁、且小步/刚性块移;遇窄口(一侧断崖、开阔侧也不宽)贴断崖点卡在原地——小步一迈就跨崖出界被
 // 连段守卫拒掉,永远推不动(离崖~0)。这里只针对贴真实断崖的点,允许大步跨到开阔侧,取离崖最远的合法候选。
@@ -57,17 +57,11 @@ constexpr bool kRouteGapRepelEnable = true;
 constexpr double kRouteGapRepelTrigger = 1.5;      // 仅处理点距真实断崖 < 此的点(px);开阔/贴接缝者不动
 constexpr double kRouteGapRepelSafe = 2.0;         // 推离断崖力争达到的距离(px);达到即停,窄口够不到则尽力
 constexpr double kRouteGapRepelMaxTranslate = 4.0; // 单点相对原位的最大跳离位移(px)
-constexpr double kRouteGapRepelStep = 0.3;         // 跳离步进(px):允许大步跨到开阔侧,不像地板小步会被断崖对岸卡住
-constexpr int kRouteGapRepelProbeDirs = 16;        // 各向探测方向数(断崖方向任意,须够密以免漏判)
-constexpr double kRouteGapRepelProbeStep = 0.15;   // 离崖距探测步进(px):须细于居中默认,否则窄口 0.1->0.4 的改善看不见
+constexpr double kRouteGapRepelStep = 0.3;       // 跳离步进(px):允许大步跨到开阔侧,不像地板小步会被断崖对岸卡住
+constexpr int kRouteGapRepelProbeDirs = 16;      // 各向探测方向数(断崖方向任意,须够密以免漏判)
+constexpr double kRouteGapRepelProbeStep = 0.15; // 离崖距探测步进(px):须细于居中默认,否则窄口 0.1->0.4 的改善看不见
 
-double MaxOffsetOnMesh(
-    const WorldPoint& origin,
-    double dir_x,
-    double dir_y,
-    double cap,
-    const PointOnMeshFn& point_on_mesh,
-    double step);
+double MaxOffsetOnMesh(const WorldPoint& origin, double dir_x, double dir_y, double cap, const PointOnMeshFn& point_on_mesh, double step);
 
 std::vector<size_t> SortedUniqueBreaks(std::vector<size_t> breaks)
 {
@@ -147,8 +141,13 @@ bool SegmentShortcutHasClearance(const WorldPoint& a, const WorldPoint& b, const
         }
         const double left =
             MaxOffsetOnMesh(sample, normal_x, normal_y, kRouteShortcutClearanceProbeLimit, point_on_mesh, kRouteShortcutClearanceProbeStep);
-        const double right =
-            MaxOffsetOnMesh(sample, -normal_x, -normal_y, kRouteShortcutClearanceProbeLimit, point_on_mesh, kRouteShortcutClearanceProbeStep);
+        const double right = MaxOffsetOnMesh(
+            sample,
+            -normal_x,
+            -normal_y,
+            kRouteShortcutClearanceProbeLimit,
+            point_on_mesh,
+            kRouteShortcutClearanceProbeStep);
         if (std::min(left, right) < kRouteShortcutMinClearance) {
             return false;
         }
@@ -187,8 +186,7 @@ std::vector<size_t> ThinContinuousSegment(
                 break;
             }
             // 中线可走还不够:侧向余量不足的捷径(贴 L 形拐角内侧水边切线)必须拒绝,保留原拐角。
-            const bool has_clearance =
-                !point_on_mesh || SegmentShortcutHasClearance(points[anchor], points[probe], point_on_mesh);
+            const bool has_clearance = !point_on_mesh || SegmentShortcutHasClearance(points[anchor], points[probe], point_on_mesh);
             if (is_segment_walkable(points[anchor], points[probe]) && has_clearance) {
                 farthest = probe;
                 misses = 0;
@@ -235,8 +233,8 @@ RoutePointsWithBreaks ThinRoutePointsWithBreaks(
         if (segment_index > 0) {
             result.segment_breaks.push_back(result.points.size());
         }
-        const std::vector<size_t> kept_indices = ThinContinuousSegment(
-            points, segment_starts[segment_index], segment_ends[segment_index], is_segment_walkable, point_on_mesh);
+        const std::vector<size_t> kept_indices =
+            ThinContinuousSegment(points, segment_starts[segment_index], segment_ends[segment_index], is_segment_walkable, point_on_mesh);
         for (size_t index : kept_indices) {
             result.points.push_back(points[index]);
         }
@@ -262,11 +260,10 @@ std::vector<WorldPoint> DensifyContinuousSegment(const std::vector<WorldPoint>& 
         const int step_count = std::max(1, static_cast<int>(std::ceil(distance / safe_max_distance)));
         for (int step = 1; step < step_count; ++step) {
             const double t = static_cast<double>(step) / static_cast<double>(step_count);
-            result.push_back(
-                WorldPoint {
-                    .x = from_point.x + (to_point.x - from_point.x) * t,
-                    .y = from_point.y + (to_point.y - from_point.y) * t,
-                });
+            result.push_back(WorldPoint {
+                .x = from_point.x + (to_point.x - from_point.x) * t,
+                .y = from_point.y + (to_point.y - from_point.y) * t,
+            });
         }
         result.push_back(to_point);
     }
@@ -621,8 +618,8 @@ struct EdgeOpenDirection
 {
     double open_x = 0.0;
     double open_y = 0.0;
-    double open_room = 0.0;   // 开阔侧(余量大)的横向余量
-    double tight_room = 0.0;  // 紧边(余量小)的横向余量
+    double open_room = 0.0;  // 开阔侧(余量大)的横向余量
+    double tight_room = 0.0; // 紧边(余量小)的横向余量
 };
 
 // 判断 points[index] 是否"贴着边",若是则回传可让开的方向(开阔侧单位法向 + 两侧余量)。
@@ -750,7 +747,8 @@ std::vector<WorldPoint> ClearanceRelaxWithBreaks(
                 const double near_wall = std::min(clearance_left, clearance_right);
                 if (bias > near_wall) {
                     bias = near_wall;
-                } else if (bias < -near_wall) {
+                }
+                else if (bias < -near_wall) {
                     bias = -near_wall;
                 }
             }
@@ -832,7 +830,8 @@ std::vector<WorldPoint> WaterEdgeShiftWithBreaks(
         const long long start = i;
         const EdgeOpenDirection& head = *info[static_cast<size_t>(start)];
         while (i + 1 < point_count - 1 && info[static_cast<size_t>(i + 1)] && !is_block_edge(i)
-               && (info[static_cast<size_t>(i + 1)]->open_x * head.open_x + info[static_cast<size_t>(i + 1)]->open_y * head.open_y) > -0.5) {
+               && (info[static_cast<size_t>(i + 1)]->open_x * head.open_x + info[static_cast<size_t>(i + 1)]->open_y * head.open_y)
+                      > -0.5) {
             ++i;
         }
         const long long end = i;
@@ -923,8 +922,16 @@ std::vector<WorldPoint> WaterEdgeShiftWithBreaks(
                 if (feasible) {
                     for (long long k = low - 1; k <= high + 1; ++k) {
                         if (k > 0 && k < point_count - 1
-                            && RouteTurnAngleDeg(trial[static_cast<size_t>(k - 1)], trial[static_cast<size_t>(k)], trial[static_cast<size_t>(k + 1)]) > 90.0
-                            && RouteTurnAngleDeg(result[static_cast<size_t>(k - 1)], result[static_cast<size_t>(k)], result[static_cast<size_t>(k + 1)]) <= 90.0) {
+                            && RouteTurnAngleDeg(
+                                   trial[static_cast<size_t>(k - 1)],
+                                   trial[static_cast<size_t>(k)],
+                                   trial[static_cast<size_t>(k + 1)])
+                                   > 90.0
+                            && RouteTurnAngleDeg(
+                                   result[static_cast<size_t>(k - 1)],
+                                   result[static_cast<size_t>(k)],
+                                   result[static_cast<size_t>(k + 1)])
+                                   <= 90.0) {
                             feasible = false;
                             break;
                         }
@@ -1036,12 +1043,12 @@ std::vector<WorldPoint> ClearanceFloorWithBreaks(
                 d_min = std::min(d_min, offset);
             }
             if (d_min >= floor_clearance) {
-                settled[index] = 1;  // 最近边界已达地板,后续轮次跳过
+                settled[index] = 1; // 最近边界已达地板,后续轮次跳过
                 continue;
             }
             const double open_length = std::sqrt(open_x * open_x + open_y * open_y);
             if (open_length < 1e-6) {
-                settled[index] = 1;  // 对称窄颈:开阔向量相消,半宽已到极限
+                settled[index] = 1; // 对称窄颈:开阔向量相消,半宽已到极限
                 continue;
             }
             const double unit_x = open_x / open_length;
@@ -1066,7 +1073,7 @@ std::vector<WorldPoint> ClearanceFloorWithBreaks(
                 continue;
             }
             if (min_clearance(candidate) <= d_min + 1e-6) {
-                continue;  // 推后必须确有余量增益(防过冲到更差)
+                continue; // 推后必须确有余量增益(防过冲到更差)
             }
             // 转角守卫:就地换入候选、被拒再换回(O(1),不做整表拷贝 —— 否则每道 pass O(N²),密网格长路线爆炸)。
             const WorldPoint saved = result[index];
@@ -1086,7 +1093,7 @@ std::vector<WorldPoint> ClearanceFloorWithBreaks(
             moved = true;
         }
         if (!moved) {
-            break;  // 收敛即停
+            break; // 收敛即停
         }
     }
     return result;
@@ -1135,8 +1142,7 @@ std::vector<WorldPoint> RealGapRepelWithBreaks(
     const auto gap_distance = [&](const WorldPoint& p) -> double {
         double nearest = -1.0;
         for (int k = 0; k < kRouteGapRepelProbeDirs; ++k) {
-            const double offset =
-                MaxOffsetOnMesh(p, probe_dx[k], probe_dy[k], trigger, point_on_mesh, kRouteGapRepelProbeStep);
+            const double offset = MaxOffsetOnMesh(p, probe_dx[k], probe_dy[k], trigger, point_on_mesh, kRouteGapRepelProbeStep);
             if (offset >= trigger) {
                 continue;
             }
@@ -1167,11 +1173,10 @@ std::vector<WorldPoint> RealGapRepelWithBreaks(
         WorldPoint best = here;
         double best_score = base;
         for (int k = 0; k < kRouteGapRepelProbeDirs; ++k) {
-            for (double push = kRouteGapRepelStep; push <= kRouteGapRepelMaxTranslate + 1e-9;
-                 push += kRouteGapRepelStep) {
+            for (double push = kRouteGapRepelStep; push <= kRouteGapRepelMaxTranslate + 1e-9; push += kRouteGapRepelStep) {
                 const WorldPoint candidate { .x = here.x + probe_dx[k] * push, .y = here.y + probe_dy[k] * push };
                 if (!point_on_mesh(candidate)) {
-                    break;  // 此向已出界,不必再远
+                    break; // 此向已出界,不必再远
                 }
                 if (!(SegmentOnMesh(a, candidate, point_on_mesh) && SegmentOnMesh(candidate, c, point_on_mesh))) {
                     continue;
@@ -1197,7 +1202,7 @@ std::vector<WorldPoint> RealGapRepelWithBreaks(
                 }
             }
             if (best_score >= safe) {
-                break;  // 已够远,不必再试其它方向
+                break; // 已够远,不必再试其它方向
             }
         }
         result[index] = best;

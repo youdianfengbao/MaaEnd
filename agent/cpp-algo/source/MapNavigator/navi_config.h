@@ -96,15 +96,16 @@ constexpr int32_t kRecoveryJumpAttemptsBeforeDetour = 2;
 constexpr double kDynamicRecoveryResetDistance = 2.0;
 constexpr double kCloseGoalDetourSuppressSlack = 6.0;
 constexpr int32_t kRecoveryDetourAttemptsBeforeUnstick = 1;
-constexpr double kUnstickSampleStepM = 0.5;        // per-ray on/off scan resolution (world units)
-constexpr double kUnstickMaxRockCrossingM = 2.0;   // tolerate this much off-mesh (the rock) before solid ground; longer = water => reject bearing
-constexpr double kUnstickMeshMarginM = 1.0;        // step this far past the mesh edge so we land ON solid ground
-constexpr double kUnstickMinDistanceM = 2.5;       // shortest committed dislodge step
-constexpr double kUnstickMaxDistanceM = 6.0;       // ray-scan reach / longest dislodge step
-constexpr int32_t kUnstickPulseMs = 270;           // per forward pulse after turning to the escape bearing
-constexpr int32_t kUnstickMaxPulses = 8;           // committed-walk cap; displacement exit usually ends it sooner
-constexpr double kUnstickResetDistanceM = 2.0;     // relocated this far from the unstick origin => reset bearing rotation
-constexpr double kUnstickSuccessFraction = 0.6;    // displacement >= this * planned dist => a real dislodge step
+constexpr double kUnstickSampleStepM = 0.5;  // per-ray on/off scan resolution (world units)
+constexpr double kUnstickMaxRockCrossingM =
+    2.0;                                     // tolerate this much off-mesh (the rock) before solid ground; longer = water => reject bearing
+constexpr double kUnstickMeshMarginM = 1.0;  // step this far past the mesh edge so we land ON solid ground
+constexpr double kUnstickMinDistanceM = 2.5; // shortest committed dislodge step
+constexpr double kUnstickMaxDistanceM = 6.0; // ray-scan reach / longest dislodge step
+constexpr int32_t kUnstickPulseMs = 270;     // per forward pulse after turning to the escape bearing
+constexpr int32_t kUnstickMaxPulses = 8;     // committed-walk cap; displacement exit usually ends it sooner
+constexpr double kUnstickResetDistanceM = 2.0;  // relocated this far from the unstick origin => reset bearing rotation
+constexpr double kUnstickSuccessFraction = 0.6; // displacement >= this * planned dist => a real dislodge step
 // When the locator yields no usable fix for a sustained period (e.g. the agent was shoved across a
 // zone boundary into a sub-zone the active route was not planned in, so every fix fails zone
 // validation), stop holding forward into the obstacle, hop periodically to dislodge, and fail-fast
@@ -114,9 +115,9 @@ constexpr int32_t kLocalizationLossTimeoutMs = kDynamicRecoveryTotalTimeoutMs;
 
 // River-fall recovery (see navigator-river-fall-teleport-gap): black-screen loss = fell in water, teleported to
 // shore facing it. Turn 180° away then pulse inland until clear; hard clock bounds thin-shore re-fall loops.
-constexpr int32_t kRiverFallRecoveryTimeoutMs = kDynamicRecoveryTotalTimeoutMs;     // 30s clean fail-fast
-constexpr double kRiverFallRecoveryClearDistance = kDynamicRecoveryResetDistance;   // walked 2m clear of shore
-constexpr int32_t kRiverFallRecoveryPulseMs = kPostHeadingForwardPulseMs;           // proven heading-commit pulse
+constexpr int32_t kRiverFallRecoveryTimeoutMs = kDynamicRecoveryTotalTimeoutMs;   // 30s clean fail-fast
+constexpr double kRiverFallRecoveryClearDistance = kDynamicRecoveryResetDistance; // walked 2m clear of shore
+constexpr int32_t kRiverFallRecoveryPulseMs = kPostHeadingForwardPulseMs;         // proven heading-commit pulse
 
 // Off-route wedge watchdog. Corridor progress (what the stall clocks see) keeps advancing while the authored
 // cursor is pinned far off-route, so a bad latch wanders with zero route progress until the action hard-fails.
@@ -190,12 +191,12 @@ constexpr int32_t kCollectRoiBaseHeight = 720;
 
 constexpr const char* kCollectIconRelativePath = "resource/image/RealTimeTask/AutoPick.png";
 constexpr double kCollectIconMatchThreshold = 0.75;
-constexpr int32_t kCollectLabelBrightThreshold = 210;  // 0-255 luma; near-white glyphs survive, grass (~200) drops
-constexpr int32_t kCollectLabelMorphWidth = 8;         // horizontal close width that merges glyphs into a word
-constexpr int32_t kCollectLabelMinWidth = 24;          // ~2-char CJK name floor (the 5-char label measured 78px)
-constexpr int32_t kCollectLabelMinHeight = 7;          // reject thin specks (label glyph row ~14px)
-constexpr int32_t kCollectLabelMaxHeight = 26;         // reject tall non-text structures
-constexpr double kCollectLabelMaxFill = 0.80;          // text is sparse (label fill ~0.4-0.66); solid blob = panel/icon
+constexpr int32_t kCollectLabelBrightThreshold = 210; // 0-255 luma; near-white glyphs survive, grass (~200) drops
+constexpr int32_t kCollectLabelMorphWidth = 8;        // horizontal close width that merges glyphs into a word
+constexpr int32_t kCollectLabelMinWidth = 24;         // ~2-char CJK name floor (the 5-char label measured 78px)
+constexpr int32_t kCollectLabelMinHeight = 7;         // reject thin specks (label glyph row ~14px)
+constexpr int32_t kCollectLabelMaxHeight = 26;        // reject tall non-text structures
+constexpr double kCollectLabelMaxFill = 0.80;         // text is sparse (label fill ~0.4-0.66); solid blob = panel/icon
 constexpr int32_t kCollectScanIntervalMs = 1500;
 constexpr double kCollectRetryMinMoveWu = 2.5;
 constexpr double kCollectSprintSuppressBandWu = 8.0;

@@ -332,7 +332,7 @@ Exclude 分支 **不会** 购买，仅把“已达标”的物品从本轮扫描
 | 调度券明明够却停止扫描 | `AutoStockTargetCompareValleyIV` 表达式与用户输入的 `{ReserveValleyIV}`                                                |
 | 反复点击同一已达标商品 | Exclude 后 `{Item}RemoveFilter` 与 `ResetRecognitionParams` 是否执行                                                   |
 
-日志分析可参考 skill：`.claude/skills/autostockstaple-log-analysis/SKILL.md`。
+日志分析可参考 skill：`.agents/skills/autostockstaple-log-analysis/SKILL.md`。
 
 ## 与 AutoStockpile 的区别
 
@@ -342,4 +342,4 @@ Exclude 分支 **不会** 购买，仅把“已达标”的物品从本轮扫描
 | 商品定位 | 列表时间锚点 + OCR 偏移链   | 模板匹配 + OCR 映射       |
 | 数量控制 | 弹窗 BetterSliding + 表达式 | Go 解析详情页调节         |
 
-两者界面相似但逻辑独立；日志分析见 `.claude/skills/autostockstaple-log-analysis/SKILL.md`。
+两者界面相似但逻辑独立；日志分析见 `.agents/skills/autostockstaple-log-analysis/SKILL.md`。

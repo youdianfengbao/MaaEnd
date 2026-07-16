@@ -12,7 +12,6 @@
 #include <MaaUtils/Logger.h>
 #include <MaaUtils/Platform.h>
 
-
 namespace
 {
 
@@ -62,8 +61,7 @@ std::filesystem::path redirect_user_data_folder()
     wchar_t exe_buf[MAX_PATH] = {};
     DWORD len = GetModuleFileNameW(nullptr, exe_buf, MAX_PATH);
     if (len == 0 || len >= MAX_PATH) {
-        LogWarn << "WebView2: GetModuleFileNameW failed, fall back to inherited UDF env"
-                << VAR(GetLastError());
+        LogWarn << "WebView2: GetModuleFileNameW failed, fall back to inherited UDF env" << VAR(GetLastError());
         return {};
     }
 
@@ -75,19 +73,16 @@ std::filesystem::path redirect_user_data_folder()
     if (ec) {
         // 即便目录创建失败，仍然继续推进；后续 CreateCoreWebView2EnvironmentWithOptions
         // 会给出更精确的错误（如 E_ACCESSDENIED），避免我们在此默默回退到宿主共享 UDF。
-        LogWarn << "WebView2: create user data folder failed"
-                << VAR(MAA_NS::path_to_utf8_string(udf)) << VAR(ec.message());
+        LogWarn << "WebView2: create user data folder failed" << VAR(MAA_NS::path_to_utf8_string(udf)) << VAR(ec.message());
     }
 
     if (!SetEnvironmentVariableW(L"WEBVIEW2_USER_DATA_FOLDER", udf.c_str())) {
-        LogWarn << "WebView2: SetEnvironmentVariableW(WEBVIEW2_USER_DATA_FOLDER) failed"
-                << VAR(GetLastError());
+        LogWarn << "WebView2: SetEnvironmentVariableW(WEBVIEW2_USER_DATA_FOLDER) failed" << VAR(GetLastError());
         // 写环境变量失败，仍然把路径返回出去；调用方至少能通过显式参数尝试一次。
         return udf;
     }
 
-    LogInfo << "WebView2: redirected user data folder"
-            << VAR(MAA_NS::path_to_utf8_string(udf));
+    LogInfo << "WebView2: redirected user data folder" << VAR(MAA_NS::path_to_utf8_string(udf));
     return udf;
 }
 
@@ -275,7 +270,8 @@ void WebView2::onControllerCreated(HRESULT result, ICoreWebView2Controller* cont
         return;
     }
 
-    // 应用 settings 类配置。所有 settings 必须在 Navigate 之前生效，否则首屏的对应行为已经按默认值发生（比如右键菜单已弹、首次请求 UA 已发出）。
+    // 应用 settings 类配置。所有 settings 必须在 Navigate 之前生效，否则首屏的对应行为已经按默认值发生（比如右键菜单已弹、首次请求 UA
+    // 已发出）。
     Microsoft::WRL::ComPtr<ICoreWebView2Settings> settings;
     if (SUCCEEDED(webview_->get_Settings(&settings)) && settings) {
         settings->put_AreDefaultContextMenusEnabled(context_menu_enabled_ ? TRUE : FALSE);
@@ -295,8 +291,7 @@ void WebView2::onControllerCreated(HRESULT result, ICoreWebView2Controller* cont
                 }
             }
             else {
-                LogWarn << "WebView2: ICoreWebView2Settings2 unavailable, user agent override skipped"
-                        << VAR(user_agent_);
+                LogWarn << "WebView2: ICoreWebView2Settings2 unavailable, user agent override skipped" << VAR(user_agent_);
             }
         }
     }

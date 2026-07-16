@@ -41,8 +41,7 @@ cv::Mat ToPHashGray(const cv::Mat& image)
         bgra[1].convertTo(green, CV_32F);
         bgra[2].convertTo(red, CV_32F);
 
-        const cv::Mat grayFloat =
-            (0.114f * blue + 0.587f * green + 0.299f * red).mul(alpha) + 255.0f * invAlpha;
+        const cv::Mat grayFloat = (0.114f * blue + 0.587f * green + 0.299f * red).mul(alpha) + 255.0f * invAlpha;
         grayFloat.convertTo(gray, CV_8U);
     }
     else if (image.channels() == 3) {
@@ -132,10 +131,7 @@ int HammingDistance(Hash lhs, Hash rhs)
     return distance;
 }
 
-std::vector<Hash> ComputeCellHashes(
-    const cv::Mat& roi,
-    const std::vector<cv::Rect>& cells,
-    const CellMaskRatios& maskRatios)
+std::vector<Hash> ComputeCellHashes(const cv::Mat& roi, const std::vector<cv::Rect>& cells, const CellMaskRatios& maskRatios)
 {
     std::vector<Hash> hashes;
     hashes.reserve(cells.size());
@@ -174,8 +170,8 @@ CellFeature ComputeCellFeature(const cv::Mat& image)
 
 int FeatureDistance(const CellFeature& lhs, const CellFeature& rhs)
 {
-    if (lhs.data.empty() || rhs.data.empty() || lhs.data.size() != rhs.data.size() || lhs.width != rhs.width ||
-        lhs.height != rhs.height || lhs.channels != rhs.channels) {
+    if (lhs.data.empty() || rhs.data.empty() || lhs.data.size() != rhs.data.size() || lhs.width != rhs.width || lhs.height != rhs.height
+        || lhs.channels != rhs.channels) {
         return kFeatureDistanceScale;
     }
 
@@ -188,10 +184,7 @@ int FeatureDistance(const CellFeature& lhs, const CellFeature& rhs)
     return static_cast<int>(std::round(average * static_cast<double>(kFeatureDistanceScale) / 255.0));
 }
 
-std::vector<CellFeature> ComputeCellFeatures(
-    const cv::Mat& roi,
-    const std::vector<cv::Rect>& cells,
-    const CellMaskRatios& maskRatios)
+std::vector<CellFeature> ComputeCellFeatures(const cv::Mat& roi, const std::vector<cv::Rect>& cells, const CellMaskRatios& maskRatios)
 {
     std::vector<CellFeature> features;
     features.reserve(cells.size());

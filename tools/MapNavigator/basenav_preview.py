@@ -59,7 +59,6 @@ ROUTE_RELAX_MIDPOINT_WEIGHT = 0.50  # 松弛目标 = 此权重·邻点中点 + (
 ROUTE_RELAX_MAX_TRANSLATE = 12.0  # 单点相对原位的最大位移(像素):钳住松弛,不让它把点拽过头
 ROUTE_RELAX_ITERATIONS = 16  # Gauss-Seidel 松弛迭代次数。cap 使单步居中变温和(只按近墙距推),靠多迭代逐步收敛到中线
 ROUTE_RELAX_BIAS_NEAR_CAP = True  # 余量偏置鲁棒:把 bias 钳在 min(左,右余量) 内。走廊(两侧都近)逐迭代渐进居中;
-ROUTE_RELAX_ACTIVE_SET = True  # 提速(输出逐位不变):只处理"上轮自己或邻居动过"的点。松弛是局部 Gauss-Seidel,稳定点重算必不动,跳过等价
 ROUTE_RELAX_FAST_PROBE = True  # 提速(BIAS_NEAR_CAP 下输出逐位不变):耦合双侧探墙,近墙 m 确定后远侧封顶 3m —— bias 钳在 ±m 内,远侧超 3m 无影响,省大量步进
 ROUTE_WATER_SHIFT_SAFE = 4.0  # 贴水块整体平移力争达到的单侧安全余量(像素)
 ROUTE_WATER_SHIFT_MAX = 14.0  # 贴水块整体平移上限(像素)
@@ -293,8 +292,6 @@ class BaseNavField:
         self.natural_component_size: list[int] = []
         self.triangle_height: list[float] = []
         self.triangle_boundary_distance: list[float] = []
-        self.overlay_cache: dict[int, object] = {}
-        self.dots_cache: dict[int, object] = {}
         self._build_index(progress_callback=progress_callback)
         self._arrays = None  # 释放矢量化临时数组,只留下索引结果
 
@@ -389,139 +386,6 @@ class BaseNavField:
         if zone is None:
             return None
         return 0.0, 0.0, zone.width, zone.height
-
-    def walkable_preview_points(
-        self,
-        zone_id: int,
-        max_points: int = 60000,
-        display_zone_id: str = "",
-    ) -> list[tuple[float, float]]:
-        del display_zone_id
-        zone = self.zone_by_id.get(zone_id)
-        if zone is None or zone.triangle_count <= 0:
-            return []
-        stride = max(1, math.ceil(zone.triangle_count / max_points))
-        start = zone.first_triangle
-        end = start + zone.triangle_count
-        return [self.triangles[index].center for index in range(start, end, stride)]
-
-    def overlay_image(self, zone_id: int, progress_callback=None):
-        if zone_id in self.overlay_cache:
-            return self.overlay_cache[zone_id]
-        try:
-            from PIL import Image, ImageDraw
-        except ImportError:
-            return None
-
-        zone = self.zone_by_id.get(zone_id)
-        if zone is None or zone.width <= 0 or zone.height <= 0:
-            return None
-        if zone.flags & TIER_FLAG:
-            image = self._tier_overlay_image(zone, Image, ImageDraw)
-        else:
-            _scale = 0.5
-            _w = math.ceil(zone.width * _scale)
-            _h = math.ceil(zone.height * _scale)
-            image = Image.new("RGBA", (_w, _h), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(image)
-            start = zone.first_triangle
-            end = start + zone.triangle_count
-            total = end - start
-            _step = max(1, total // 50) if total > 100 else 1
-            for _idx, triangle_index in enumerate(range(start, end)):
-                tv = self.triangles[triangle_index].vertices
-                pts = [
-                    (self.vertices[tv[0]].u * _scale, self.vertices[tv[0]].v * _scale),
-                    (self.vertices[tv[1]].u * _scale, self.vertices[tv[1]].v * _scale),
-                    (self.vertices[tv[2]].u * _scale, self.vertices[tv[2]].v * _scale),
-                ]
-                draw.polygon(pts, fill=(255, 0, 0, 46))
-                if total > 100 and _idx % _step == 0:
-                    _report_progress(progress_callback, _idx / total)
-            image = image.resize((math.ceil(zone.width), math.ceil(zone.height)), Image.Resampling.NEAREST)
-        self.overlay_cache[zone_id] = image
-        return image
-
-    def _tier_overlay_image(self, zone, Image, ImageDraw):
-        # A tier has no triangles of its own; its mesh lives in the PARENT geometry zone
-        # (base pixels). Render the walkable surface onto the tier's OWN template canvas
-        # (tier pixels, sized to this tier zone), mapping each parent triangle inside the
-        # tier footprint base_px -> tier_px via the inverse affine (tier = (base - t)/s).
-        # So a selected tier shows its real template底图 with the可行走面 aligned on top —
-        # the visual oracle for the baked affine — instead of boxing a region in the base.
-        parent = self.zone_by_id.get(zone.component_count)
-        if parent is None or parent.width <= 0 or parent.height <= 0:
-            return None
-        sx, tx, sy, ty = zone.transform
-        if sx == 0.0 or sy == 0.0:
-            return None
-        # footprint in base_px (this tier's extent) — cheap cull of parent triangles
-        fxs = (tx, sx * zone.width + tx)
-        fys = (ty, sy * zone.height + ty)
-        fx0, fx1 = min(fxs), max(fxs)
-        fy0, fy1 = min(fys), max(fys)
-        # Only paint THIS tier's floor. The parent base zone stacks every floor's mesh at
-        # each (u,v); without the band filter the overlay shows other floors / walls bleeding
-        # through the tier底图. Keep triangles within floor_y±FLOOR_BAND (height == world Y),
-        # so the可行走面 rendering matches the floor the tier actually depicts. floor_y unset
-        # (the "…_Base" overview tiers) falls back to painting all triangles, as before.
-        floor_y = zone.floor_y
-        has_floor = floor_y > FLOOR_Y_VALID_MIN
-        image = Image.new("RGBA", (math.ceil(zone.width), math.ceil(zone.height)), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(image)
-        start = parent.first_triangle
-        end = start + parent.triangle_count
-        for triangle_index in range(start, end):
-            cx, cy = self.triangles[triangle_index].center
-            if cx < fx0 or cx > fx1 or cy < fy0 or cy > fy1:
-                continue
-            if has_floor and abs(self.triangle_height[triangle_index] - floor_y) > FLOOR_BAND:
-                continue
-            points = [
-                ((self.vertices[index].u - tx) / sx, (self.vertices[index].v - ty) / sy)
-                for index in self.triangles[triangle_index].vertices
-            ]
-            draw.polygon(points, fill=(255, 0, 0, 46))
-        return image
-
-    def walkable_dots_image(
-        self,
-        zone_id: int,
-        max_points: int = 60000,
-        display_zone_id: str = "",
-        progress_callback=None,
-    ):
-        cache_key = (zone_id, max_points)
-        if cache_key in self.dots_cache:
-            return self.dots_cache[cache_key]
-        try:
-            from PIL import Image, ImageDraw
-        except ImportError:
-            return None
-
-        zone = self.zone_by_id.get(zone_id)
-        if zone is None or zone.width <= 0 or zone.height <= 0:
-            return None
-        points = self.walkable_preview_points(zone_id, max_points, display_zone_id)
-        if not points:
-            return None
-        _scale = 0.5
-        _w = math.ceil(zone.width * _scale)
-        _h = math.ceil(zone.height * _scale)
-        image = Image.new("RGBA", (_w, _h), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(image)
-        total = len(points)
-        _step = max(1, total // 50) if total > 100 else 1
-        for _idx, (x, y) in enumerate(points):
-            draw.ellipse(
-                ((x - 1.5) * _scale, (y - 1.5) * _scale, (x + 1.5) * _scale, (y + 1.5) * _scale),
-                fill=(100, 100, 100, 200),
-            )
-            if total > 100 and _idx % _step == 0:
-                _report_progress(progress_callback, _idx / total)
-        image = image.resize((math.ceil(zone.width), math.ceil(zone.height)), Image.Resampling.NEAREST)
-        self.dots_cache[cache_key] = image
-        return image
 
     def find_route(
         self,
@@ -1020,12 +884,20 @@ class BaseNavField:
         triangle = self.triangles[triangle_index]
         return tuple((self.vertices[index].u, self.vertices[index].v) for index in triangle.vertices)  # type: ignore[return-value]
 
-    def _point_on_mesh(self, zone_id: int, point: tuple[float, float]) -> bool:
+    def _point_on_mesh(self, zone_id: int, point: tuple[float, float], tri_cache: list[int] | None = None) -> bool:
         # 点是否落在该区任意三角形内。与 is_segment_walkable 的逐三角行进不同,本判定只看"点在不在网格上",
         # 不依赖共享边邻接,因此在重叠/碎片网格上不会像行进那样误判 -> 居中据此能看见真实走廊宽度。
+        # tri_cache: 可选的单元素缓存 [last_hit_triangle]。密集探测(余量扫 ray、地板各向 probe)中相邻采样点
+        # 多落在同一三角形内(实测命中 62-76%),先测缓存命中的三角形即可免去 _candidate_triangles bin 扫描。
+        if tri_cache is not None and tri_cache[0] >= 0:
+            v0, v1, v2 = self._triangle_points(tri_cache[0])
+            if _point_in_triangle(point, v0, v1, v2):
+                return True
         for triangle_index in self._candidate_triangles(zone_id, point, SEGMENT_WALK_SNAP_RADIUS):
             v0, v1, v2 = self._triangle_points(triangle_index)
             if _point_in_triangle(point, v0, v1, v2):
+                if tri_cache is not None:
+                    tri_cache[0] = triangle_index
                 return True
         return False
 
@@ -1191,13 +1063,14 @@ class BaseNavField:
         # The corridor is single-zone (A* never crosses zones), so the first triangle's zone drives
         # the walkability check that keeps simplification from cutting a corner through a wall.
         zone_id = self.triangle_zone[triangle_path[0]] if triangle_path else 0
+        tri_cache = [-1]  # 密集探测缓存:相邻采样点多落在同一三角形内,命中即免 bin 扫描
         height_walkable = lambda segment_a, segment_b: self._segment_height_walkable(zone_id, segment_a, segment_b)
-        on_mesh = lambda point: self._point_on_mesh(zone_id, point)
-        # SSF 漏斗:在三角形走廊内直接求最短折线,替代中点+thin 拉直.
-        # 内部试双向握手、取在网格上且路径更短(更直)的那个;两向均离网格才回退到 thin.
+        on_mesh = lambda point: self._point_on_mesh(zone_id, point, tri_cache)
+        ground_height = lambda point: self._ground_height_near_indexed(zone_id, point, None)
+        # SSF 漏斗:在三角形走廊内直接求最短折线;双向握手均离网格才回退到中点走廊。
         funnel_result = _funnel_route_points(self, triangle_path, start, goal, on_mesh)
         if funnel_result is not None:
-            pulled_points, pulled_breaks = funnel_result
+            points, segment_breaks = funnel_result
         else:
             points = [start]
             segment_breaks = []
@@ -1212,43 +1085,12 @@ class BaseNavField:
                     segment_breaks.append(len(points))
                     points.append(bridge_points[1])
             points.append(goal)
-            deduped_points, deduped_breaks = _dedupe_points_with_breaks(points, segment_breaks)
-            simplified_points, simplified_breaks = _remove_collinear_with_breaks(deduped_points, deduped_breaks)
-            # LOS 拉直用"运行参考高度"oracle(不是 march):march 只走边邻接,在共面重叠缝处会误拒直捷径、
-            # 留住 portal 中点锯齿;高度 oracle 沿捷径按 ROUTE_PULL_SAMPLE_STEP 采样,要求处处在网格上且地面
-            # 高度不跳变 -> 开阔锯齿被拉直走中线、绕 +9 墙的真拐角因踩墙高度跳变而留住直角。
-            pulled_points, pulled_breaks = _thin_route_points_with_breaks(
-                simplified_points, simplified_breaks, is_segment_walkable=height_walkable, point_on_mesh=on_mesh
-            )
-        # 拉直输出是"拐角到拐角"、中间无内部点;先加密恢复内部采样点,结构保持式居中才有"直段"可整体平移。
-        densified_points, densified_breaks = _densify_route_points_with_breaks(pulled_points, pulled_breaks)
-        # 居中:在结构性拐角处切分直段,仅把够直的直段整体平移到走廊中线、并在拐角延长线交点处重连 ->
-        # 既居中又精确保住真直角(不抹圆、不锯齿)。墙距/校验用点包含式(march 在重叠/碎片网格上会低估
-        # 余量、误拒候选,使居中失效)。
-        centered_points, centered_breaks = _center_route_points_with_breaks(
-            densified_points, densified_breaks, point_on_mesh=on_mesh
-        )
-        # 逐 run 刚性居中只搬得动"够直的长直段";贴着水弯过去的块、孤立尖角仍 0 余量贴水。图像识别坐标离散、
-        # 滞后、有噪,贴水极危险,故再做两段"离水让边"细化:
-        #   ① 守卫式松弛:逐点推向 中点 + 余量中心,消尖角、离窄边(不抹真直角、不新增折返);
-        #   ② 贴水块整体平移:把方向一致的连续贴水点聚成块,带 Hann 渐隐整体让向开阔侧(松弛搬不动整块)。
-        ground_height = lambda point: self._ground_height_near_indexed(zone_id, point, None)
-        relaxed_points, relaxed_breaks = _route_clearance_relax_with_breaks(
-            centered_points, centered_breaks, point_on_mesh=on_mesh, height_walkable=height_walkable
-        )
-        decentered_points, decentered_breaks = _route_water_edge_shift_with_breaks(
-            relaxed_points, relaxed_breaks, point_on_mesh=on_mesh, ground_height=ground_height
-        )
-        # 居中/让边会把拐角搬到直段延长线交点上,可能拉出超过 ROUTE_MAX_POINT_DISTANCE 的长边;末尾再加密一次,
-        # 保证最终点距 <= ROUTE_MAX_POINT_DISTANCE(机器人沿密集折线行走)。
-        densified_final, densified_final_breaks = _densify_route_points_with_breaks(decentered_points, decentered_breaks)
-        # 抗噪裕度地板(收尾):funnel 求最短会贴 navmesh 内角,前面几道对 pinned 拐角/凸角仍留贴边点(离边~0);
-        # 上游图像定位有噪,贴可走面边界=出界风险。这里把残留贴边点沿中轴推离边界到地板,确保全程留抗噪余量(仿人走)。
-        floored, floored_breaks = _route_clearance_floor_with_breaks(
-            densified_final, densified_final_breaks, point_on_mesh=on_mesh
-        )
-        return _route_real_gap_repel_with_breaks(
-            floored, floored_breaks, point_on_mesh=on_mesh, height_walkable=height_walkable
+        return _post_process_route_points(
+            points,
+            segment_breaks,
+            is_segment_walkable=height_walkable,
+            point_on_mesh=on_mesh,
+            ground_height=ground_height,
         )
 
     def _shared_edge_portal(self, lhs: int, rhs: int) -> tuple[tuple[float, float], tuple[float, float]] | None:
@@ -2108,16 +1950,8 @@ def _route_clearance_relax_with_breaks(points, segment_breaks, point_on_mesh=Non
     def turn_at(arr, i):
         return _route_turn_angle_deg(arr[i - 1], arr[i], arr[i + 1]) if 0 < i < n - 1 else 0.0
 
-    # active-set(ROUTE_RELAX_ACTIVE_SET):dirty=待评估点;一点只在"自己或左右邻上次动过"时才需重算 —— 局部松弛
-    # 里稳定点重算的目标必与现状相同、必不动,跳过严格等价。关闭则 dirty=None,退化为原"每轮全扫描"逐位一致。
-    dirty = {i for i in range(1, n - 1) if i not in frozen and i not in pinned} if ROUTE_RELAX_ACTIVE_SET else None
     for _ in range(ROUTE_RELAX_ITERATIONS):
-        if dirty is not None and not dirty:
-            break  # 收敛:无待评估点
-        next_dirty = set() if dirty is not None else None
         for i in range(1, n - 1):
-            if dirty is not None and i not in dirty:
-                continue
             if i in frozen or i in pinned:
                 continue
             a, c = result[i - 1], result[i + 1]
@@ -2162,16 +1996,6 @@ def _route_clearance_relax_with_breaks(points, segment_breaks, point_on_mesh=Non
             if not all(turn_at(result, k) <= max(ROUTE_RELAX_TURN_CAP, origin_turn[k]) + 1e-6 for k in (i - 1, i, i + 1)):
                 result[i] = saved
                 continue
-            if dirty is not None:
-                # 邻域输入变了需重评:i+1 本轮就重评(在升序扫描前方,加入当前 dirty 等同原地处理);
-                # i-1/i/i+1 下轮重评。i-1 已扫过本轮、i 本轮只评一次,故二者只入 next_dirty。
-                if i + 1 <= n - 2:
-                    dirty.add(i + 1)
-                for j in (i - 1, i, i + 1):
-                    if 1 <= j <= n - 2:
-                        next_dirty.add(j)
-        if dirty is not None:
-            dirty = next_dirty
     return [tuple(point) for point in result], segment_breaks
 
 
@@ -2425,6 +2249,47 @@ def _route_real_gap_repel_with_breaks(points, segment_breaks, point_on_mesh=None
                 break  # 已够远,不必再试其它方向
         result[i] = [best[0], best[1]]
     return [tuple(point) for point in result], segment_breaks
+
+
+def _post_process_route_points(
+    points: list[tuple[float, float]],
+    segment_breaks: list[int],
+    *,
+    is_segment_walkable,
+    point_on_mesh,
+    ground_height,
+) -> tuple[list[tuple[float, float]], list[int]]:
+    """路线后处理链。与 C++ detail::PostProcessRoutePoints 逐级镜像,漏斗与中点走廊两条来源都走它。"""
+    deduped_points, deduped_breaks = _dedupe_points_with_breaks(points, segment_breaks)
+    simplified_points, simplified_breaks = _remove_collinear_with_breaks(deduped_points, deduped_breaks)
+    # LOS 拉直:将走廊内的锯齿拉直,仅在真拐角处保留点。
+    pulled_points, pulled_breaks = _thin_route_points_with_breaks(
+        simplified_points, simplified_breaks, is_segment_walkable=is_segment_walkable, point_on_mesh=point_on_mesh
+    )
+    # 加密恢复内部采样点,使后续居中有直段可整体平移(拉直输出仅含拐角)。
+    densified_points, densified_breaks = _densify_route_points_with_breaks(pulled_points, pulled_breaks)
+    # 居中:将直段平移至走廊中线、在拐角处重连,精确保留直角。
+    centered_points, centered_breaks = _center_route_points_with_breaks(
+        densified_points, densified_breaks, point_on_mesh=point_on_mesh
+    )
+    # 居中细化一:守卫式松弛,把逐 run 刚性居中漏掉的弯块/孤立尖角逐点推离窄边、消尖角。
+    relaxed_points, relaxed_breaks = _route_clearance_relax_with_breaks(
+        centered_points, centered_breaks, point_on_mesh=point_on_mesh, height_walkable=is_segment_walkable
+    )
+    # 居中细化二:方向一致的连续贴水点聚成块整体平移,让出单侧安全余量。
+    decentered_points, decentered_breaks = _route_water_edge_shift_with_breaks(
+        relaxed_points, relaxed_breaks, point_on_mesh=point_on_mesh, ground_height=ground_height
+    )
+    # 居中/平移可能拉出超过 ROUTE_MAX_POINT_DISTANCE 的长边,末尾再加密一次以保证点距上界。
+    densified_final, densified_final_breaks = _densify_route_points_with_breaks(decentered_points, decentered_breaks)
+    # 居中细化三:抗噪裕度地板,把残留贴边的点沿中轴推离边界(上游图像定位有噪,贴可走面边界=出界风险)。
+    floored, floored_breaks = _route_clearance_floor_with_breaks(
+        densified_final, densified_final_breaks, point_on_mesh=point_on_mesh
+    )
+    # 断崖抗掉落(收尾):只挑贴真实断崖的点,允许大步向开阔侧跳离。
+    return _route_real_gap_repel_with_breaks(
+        floored, floored_breaks, point_on_mesh=point_on_mesh, height_walkable=is_segment_walkable
+    )
 
 
 def _densify_continuous_segment(

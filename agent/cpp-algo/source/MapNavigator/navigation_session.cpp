@@ -323,8 +323,11 @@ void NavigationSession::ResetHardProgress()
     hard_progress_initialized_ = false;
 }
 
-void NavigationSession::ApplyDynamicOverlay(std::vector<Waypoint> generated_prefix, size_t continue_index, const NaviPosition& pos,
-                                            bool reset_hard_progress)
+void NavigationSession::ApplyDynamicOverlay(
+    std::vector<Waypoint> generated_prefix,
+    size_t continue_index,
+    const NaviPosition& pos,
+    bool reset_hard_progress)
 {
     assert(continue_index <= original_path_.size() && "Dynamic overlay continue index is out of range.");
     current_path_ = std::move(generated_prefix);
@@ -342,8 +345,8 @@ void NavigationSession::ApplyDynamicOverlay(std::vector<Waypoint> generated_pref
     if (reset_hard_progress) {
         ResetHardProgress();
     }
-    LogInfo << "Dynamic route overlay applied." << VAR(generated_count) << VAR(continue_index) << VAR(current_path_.size())
-            << VAR(pos.x) << VAR(pos.y) << VAR(pos.zone_id);
+    LogInfo << "Dynamic route overlay applied." << VAR(generated_count) << VAR(continue_index) << VAR(current_path_.size()) << VAR(pos.x)
+            << VAR(pos.y) << VAR(pos.zone_id);
 }
 
 NaviPhase NavigationSession::phase() const

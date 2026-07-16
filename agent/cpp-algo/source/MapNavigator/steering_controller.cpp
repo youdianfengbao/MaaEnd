@@ -39,15 +39,14 @@ SteeringCommand SteeringController::Update(double heading_error, double heading_
     // The implausible-rate ceiling is already handled by the early return above, so only the low deadband remains.
     double damping = 0.0;
     if (rate_magnitude >= kHeadingRateDeadbandDeg) {
-        damping =
-            std::clamp(-kHeadingRateDampingGain * heading_rate_deg, -kHeadingRateDampingCapDeg, kHeadingRateDampingCapDeg);
+        damping = std::clamp(-kHeadingRateDampingGain * heading_rate_deg, -kHeadingRateDampingCapDeg, kHeadingRateDampingCapDeg);
     }
     const double max_cmd = moving_forward ? kMovingMaxCmd : kTurningMaxCmd;
     const double cmd = std::clamp(p_term + damping, -max_cmd, max_cmd);
     command.yaw_delta_deg = cmd;
     command.issued = std::abs(cmd) >= 2.0;
-    LogDebug << "SteeringController update." << VAR(heading_error) << VAR(heading_rate_deg) << VAR(damping)
-             << VAR(moving_forward) << VAR(cmd);
+    LogDebug << "SteeringController update." << VAR(heading_error) << VAR(heading_rate_deg) << VAR(damping) << VAR(moving_forward)
+             << VAR(cmd);
     return command;
 }
 

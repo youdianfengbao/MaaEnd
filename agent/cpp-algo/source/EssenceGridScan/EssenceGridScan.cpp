@@ -77,18 +77,7 @@ struct EssenceScanDefaults
 };
 
 const EssenceScanDefaults kEssenceScanDefaults {
-    { 18, 72, 956, 570 },
-    { 1280, 720 },
-    0.2,
-    0.4,
-    10,
-    0.9,
-    10,
-    0,
-    0.35,
-    0.4,
-    true,
-    0.95,
+    { 18, 72, 956, 570 }, { 1280, 720 }, 0.2, 0.4, 10, 0.9, 10, 0, 0.35, 0.4, true, 0.95,
 };
 
 struct HsvRange
@@ -135,11 +124,9 @@ void EnsureLoaded()
     g_thumbDiscardTemplate = MAA_NS::imread(ResolveEssenceImagePath(kThumbDiscardTemplate), cv::IMREAD_UNCHANGED);
     g_thumbLockTemplates.clear();
     g_thumbLockTemplates.emplace_back(MAA_NS::imread(ResolveEssenceImagePath(kThumbLockTemplate), cv::IMREAD_UNCHANGED));
-    g_thumbLockTemplates.emplace_back(
-        MAA_NS::imread(ResolveEssenceImagePath(kThumbLockPurpleTemplate), cv::IMREAD_UNCHANGED));
-    const bool lockTemplateMissing = std::any_of(g_thumbLockTemplates.begin(), g_thumbLockTemplates.end(), [](const cv::Mat& templ) {
-        return templ.empty();
-    });
+    g_thumbLockTemplates.emplace_back(MAA_NS::imread(ResolveEssenceImagePath(kThumbLockPurpleTemplate), cv::IMREAD_UNCHANGED));
+    const bool lockTemplateMissing =
+        std::any_of(g_thumbLockTemplates.begin(), g_thumbLockTemplates.end(), [](const cv::Mat& templ) { return templ.empty(); });
     if (g_thumbDiscardTemplate.empty() || lockTemplateMissing) {
         throw std::runtime_error("Essence thumb templates cannot be loaded");
     }
@@ -195,9 +182,7 @@ double ReadDoubleOption(const char* raw, const char* key, double defaultValue)
     return object.at(key).as_double();
 }
 
-recogrid::GridRecognitionRequest ParseEssenceRecognitionRequest(
-    const char* raw,
-    const recogrid::GridRecognitionOptions& defaults)
+recogrid::GridRecognitionRequest ParseEssenceRecognitionRequest(const char* raw, const recogrid::GridRecognitionOptions& defaults)
 {
     recogrid::GridRecognitionRequest request;
     request.options = defaults;
@@ -292,8 +277,7 @@ struct QualityFilter
 
 bool IsInHsvRange(const cv::Vec3b& hsv, const HsvRange& range)
 {
-    return hsv[0] >= range.hueMin && hsv[0] <= range.hueMax && hsv[1] >= range.saturationMin &&
-           hsv[2] >= range.valueMin;
+    return hsv[0] >= range.hueMin && hsv[0] <= range.hueMax && hsv[1] >= range.saturationMin && hsv[2] >= range.valueMin;
 }
 
 bool IsGoldPixel(const cv::Vec3b& hsv)
@@ -350,8 +334,7 @@ QualityStats ClassifyCellQuality(const cv::Mat& image, const cv::Rect& screenCel
     if (stats.goldPixels >= kMinQualityPixels && stats.goldPixels >= stats.purplePixels * kQualityDominanceRatio) {
         stats.quality = "flawless_gold";
     }
-    else if (stats.purplePixels >= kMinQualityPixels &&
-             stats.purplePixels >= stats.goldPixels * kQualityDominanceRatio) {
+    else if (stats.purplePixels >= kMinQualityPixels && stats.purplePixels >= stats.goldPixels * kQualityDominanceRatio) {
         stats.quality = "high_purity_purple";
     }
     return stats;
@@ -712,8 +695,8 @@ bool OverrideNext(MaaContext* context, const char* nodeName, const char* nextNod
         return false;
     }
 
-    const bool ok = MaaStringBufferSet(item, nextNode) && MaaStringListBufferAppend(list, item) &&
-                    MaaContextOverrideNext(context, nodeName, list);
+    const bool ok =
+        MaaStringBufferSet(item, nextNode) && MaaStringListBufferAppend(list, item) && MaaContextOverrideNext(context, nodeName, list);
     MaaStringListBufferDestroy(list);
     MaaStringBufferDestroy(item);
     return ok;
@@ -752,10 +735,8 @@ void UpdateCellThumbStates(const cv::Mat& image, const std::vector<recogrid::Gri
     }
 }
 
-recogrid::GridScanResult ScanWithRecoGridEngine(
-    [[maybe_unused]] MaaTaskId taskId,
-    const cv::Mat& image,
-    const recogrid::GridScanOptions& options)
+recogrid::GridScanResult
+    ScanWithRecoGridEngine([[maybe_unused]] MaaTaskId taskId, const cv::Mat& image, const recogrid::GridScanOptions& options)
 {
     recogrid::GridScanResult result = g_engine.Scan(kSessionId, image, options);
     if (!result.success) {
@@ -826,17 +807,15 @@ MaaBool MAA_CALL EssenceGridAdvanceRecognitionRun(
         recogrid::GridScanOptions options;
         ApplyEssenceScanDefaults(options);
 
-        recogrid::GridRecognitionRequest request =
-            ParseEssenceRecognitionRequest(custom_recognition_param, options.recognition);
-        if ((custom_recognition_param == nullptr || std::strlen(custom_recognition_param) == 0) && roi != nullptr &&
-            roi->width > 0 && roi->height > 0) {
+        recogrid::GridRecognitionRequest request = ParseEssenceRecognitionRequest(custom_recognition_param, options.recognition);
+        if ((custom_recognition_param == nullptr || std::strlen(custom_recognition_param) == 0) && roi != nullptr && roi->width > 0
+            && roi->height > 0) {
             request = recogrid::ApplyRoiOverride(request, { roi->x, roi->y, roi->width, roi->height });
         }
 
         options.recognition = request.options;
         options.incremental = ReadBooleanOption(custom_recognition_param, "incremental", options.incremental);
-        options.endMinMatchRatio =
-            ReadDoubleOption(custom_recognition_param, "end_min_match_ratio", options.endMinMatchRatio);
+        options.endMinMatchRatio = ReadDoubleOption(custom_recognition_param, "end_min_match_ratio", options.endMinMatchRatio);
         const QualityFilter qualityFilter = ReadQualityFilter(context, node_name, custom_recognition_param);
 
         std::optional<recogrid::GridScanCell> selected = SelectNextQueuedCell();
@@ -885,10 +864,9 @@ MaaBool MAA_CALL EssenceGridAdvanceRecognitionRun(
             }
         }
 
-        LogInfo << "EssenceGridScan advance" << VAR(nextNode) << VAR(result.sessionTotalCells)
-                << VAR(g_issuedCellKeys.size()) << VAR(g_currentPageQueue.size()) << VAR(g_currentPageQueueIndex)
-                << VAR(g_scanRequired) << VAR(result.reachedEnd) << VAR(result.hasProgress) << VAR(result.rowOffset)
-                << VAR(result.matchRatio);
+        LogInfo << "EssenceGridScan advance" << VAR(nextNode) << VAR(result.sessionTotalCells) << VAR(g_issuedCellKeys.size())
+                << VAR(g_currentPageQueue.size()) << VAR(g_currentPageQueueIndex) << VAR(g_scanRequired) << VAR(result.reachedEnd)
+                << VAR(result.hasProgress) << VAR(result.rowOffset) << VAR(result.matchRatio);
         if (!OverrideNext(context, node_name, nextNode)) {
             LogWarn << "EssenceGridScan override next failed" << VAR(nextNode);
         }
@@ -927,8 +905,7 @@ MaaBool MAA_CALL EssenceGridPendingRecognitionRun(
     }
     WritePendingDetail(out_detail, true, "Pending Essence grid cell");
     LogInfo << "EssenceGridScan pending" << VAR(g_pendingCell->cellIndex) << VAR(g_pendingCell->screenCell.x)
-            << VAR(g_pendingCell->screenCell.y) << VAR(g_pendingCell->screenCell.width)
-            << VAR(g_pendingCell->screenCell.height);
+            << VAR(g_pendingCell->screenCell.y) << VAR(g_pendingCell->screenCell.width) << VAR(g_pendingCell->screenCell.height);
     return MAA_TRUE;
 }
 

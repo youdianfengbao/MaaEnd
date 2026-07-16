@@ -209,10 +209,8 @@ GridScanResult RecoGridEngine::Scan(const std::string& sessionId, const cv::Mat&
         const GridClassifyOptions classifyOptions = ToClassifyOptions(effectiveOptions.recognition);
         GridDeltaResult delta;
         if (options.incremental && hasSession && sessionIt->second.cols == result.cols) {
-            delta = ComputeGridDelta(
-                sessionIt->second.snapshot,
-                currentSnapshot,
-                { options.matchDistanceThreshold, options.minMatchRatio });
+            delta =
+                ComputeGridDelta(sessionIt->second.snapshot, currentSnapshot, { options.matchDistanceThreshold, options.minMatchRatio });
             AdjustLeadingPartialRowsForDelta(
                 delta,
                 recognition,
@@ -267,13 +265,8 @@ GridScanResult RecoGridEngine::Scan(const std::string& sessionId, const cv::Mat&
         result.totalCells = static_cast<int>(currentCells.size());
 
         const std::vector<std::size_t> occupiedIndices = CellIndices(currentCells);
-        GridClassificationResult classification = ClassifyGridCells(
-            recognition,
-            templates_,
-            effectiveOptions.recognition,
-            classifyOptions,
-            imageSize,
-            occupiedIndices);
+        GridClassificationResult classification =
+            ClassifyGridCells(recognition, templates_, effectiveOptions.recognition, classifyOptions, imageSize, occupiedIndices);
 
         ApplyClassifications(currentCells, classification, result.cols, 0, effectiveOptions.unknownTemplateId);
         result.newCellIndices = occupiedIndices;

@@ -6,9 +6,9 @@
 #include <type_traits>
 #include <vector>
 
-#include <meojson/json.hpp>
 #include <MaaFramework/MaaAPI.h>
 #include <MaaUtils/Logger.h>
+#include <meojson/json.hpp>
 
 #include "Common/WebView2.h"
 
@@ -221,10 +221,9 @@ MaaBool MAA_CALL RealTimeTaskActionRun(
             }
         }
         const std::string pipeline_override = BuildPipelineOverride(nodes);
-        LogInfo << "RealTimeTaskAction: start polling realtime nodes" << VAR(nodes.size())
-                << VAR(attach.skland_map_enable) << VAR(attach.skland_map_url) << VAR(attach.skland_map_opacity)
-                << VAR(attach.video_browser_enable) << VAR(attach.video_browser_opacity)
-                << VAR(attach.video_browser_url);
+        LogInfo << "RealTimeTaskAction: start polling realtime nodes" << VAR(nodes.size()) << VAR(attach.skland_map_enable)
+                << VAR(attach.skland_map_url) << VAR(attach.skland_map_opacity) << VAR(attach.video_browser_enable)
+                << VAR(attach.video_browser_opacity) << VAR(attach.video_browser_url);
 
         MaaTasker* tasker = MaaContextGetTasker(context);
         if (!tasker) {

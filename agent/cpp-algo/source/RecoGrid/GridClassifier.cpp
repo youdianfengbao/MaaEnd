@@ -68,11 +68,8 @@ DirectMaskKey MakeDirectMaskKey(const CellMaskRatios& ratios)
         return static_cast<int>(std::lround(value * 1'000'000.0));
     };
     return {
-        encode(ratios.leftHeaderWidth),
-        encode(ratios.leftHeaderHeight),
-        encode(ratios.rightHeaderWidth),
-        encode(ratios.rightHeaderHeight),
-        encode(ratios.bottomHeight),
+        encode(ratios.leftHeaderWidth),   encode(ratios.leftHeaderHeight), encode(ratios.rightHeaderWidth),
+        encode(ratios.rightHeaderHeight), encode(ratios.bottomHeight),
     };
 }
 
@@ -95,10 +92,7 @@ cv::Mat ToDirectBgr(const cv::Mat& image)
     return bgr;
 }
 
-DirectTemplateEntry BuildDirectTemplateEntry(
-    const cv::Mat& image,
-    cv::Size size,
-    const CellMaskRatios& maskRatios)
+DirectTemplateEntry BuildDirectTemplateEntry(const cv::Mat& image, cv::Size size, const CellMaskRatios& maskRatios)
 {
     DirectTemplateEntry entry;
     cv::Mat resized;
@@ -132,10 +126,7 @@ DirectTemplateEntry BuildDirectTemplateEntry(
     return entry;
 }
 
-DirectTemplateEntry GetDirectTemplateEntry(
-    const GridClassifyTemplate& entry,
-    cv::Size size,
-    const CellMaskRatios& maskRatios)
+DirectTemplateEntry GetDirectTemplateEntry(const GridClassifyTemplate& entry, cv::Size size, const CellMaskRatios& maskRatios)
 {
     static std::map<DirectTemplateKey, DirectTemplateEntry> cache;
 
@@ -189,11 +180,7 @@ double HueHistogramScoreDirect(const cv::Mat& source, const cv::Mat& target, con
     return std::clamp(cv::compareHist(sourceHist, targetHist, cv::HISTCMP_CORREL), 0.0, 1.0);
 }
 
-TemplateMatchResult DirectTemplateMatch(
-    const DirectCellEntry& cell,
-    const DirectTemplateEntry& target,
-    int phashDistance,
-    double hueWeight)
+TemplateMatchResult DirectTemplateMatch(const DirectCellEntry& cell, const DirectTemplateEntry& target, int phashDistance, double hueWeight)
 {
     TemplateMatchResult result;
     result.cell = cell.cell;
@@ -215,8 +202,7 @@ TemplateMatchResult DirectTemplateMatch(
     }
 
     const double clampedHueWeight = std::clamp(hueWeight, 0.0, 1.0);
-    const double hueScore =
-        clampedHueWeight > 0.0 ? HueHistogramScoreDirect(cell.bgr, target.bgr, target.mask) : 0.0;
+    const double hueScore = clampedHueWeight > 0.0 ? HueHistogramScoreDirect(cell.bgr, target.bgr, target.mask) : 0.0;
     result.templateScore = std::clamp(templateScore, 0.0, 1.0);
     result.hueScore = hueScore;
     result.score = std::clamp((1.0 - clampedHueWeight) * result.templateScore + clampedHueWeight * hueScore, 0.0, 1.0);
@@ -289,13 +275,12 @@ GridClassificationResult ClassifyGridCells(
     };
 
     constexpr int kDefaultTopTemplatesPerCell = 5;
-    const int topTemplatesPerCell =
-        classify.maxRankedCandidates > 0 ? classify.maxRankedCandidates : kDefaultTopTemplatesPerCell;
+    const int topTemplatesPerCell = classify.maxRankedCandidates > 0 ? classify.maxRankedCandidates : kDefaultTopTemplatesPerCell;
     std::vector<std::vector<Candidate>> candidatesByTemplate(templates.size());
     for (std::size_t localCellIndex = 0; localCellIndex < selectedCells.size(); ++localCellIndex) {
         const cv::Rect clipped = ClampRect(selectedCells[localCellIndex], result.grid.roi.size());
-        if (clipped.empty() || localCellIndex >= output.cells.size() || localCellIndex >= directCells.size() ||
-            directCells[localCellIndex].bgr.empty()) {
+        if (clipped.empty() || localCellIndex >= output.cells.size() || localCellIndex >= directCells.size()
+            || directCells[localCellIndex].bgr.empty()) {
             continue;
         }
 
@@ -353,29 +338,26 @@ GridClassificationResult ClassifyGridCells(
             }
             const DirectTemplateEntry directTemplate =
                 GetDirectTemplateEntry(entry, directCells[candidate.cellIndex].bgr.size(), gridOptions.mask);
-            TemplateMatchResult match = DirectTemplateMatch(
-                directCells[candidate.cellIndex],
-                directTemplate,
-                candidate.distance,
-                classify.hueWeight);
+            TemplateMatchResult match =
+                DirectTemplateMatch(directCells[candidate.cellIndex], directTemplate, candidate.distance, classify.hueWeight);
             match.cellIndex = candidate.cellIndex;
             ranked.push_back(std::move(match));
         }
         output.matchesRanked += static_cast<int>(ranked.size());
 
         for (const TemplateMatchResult& match : ranked) {
-            if (match.cellIndex >= output.cells.size() || match.match.empty() || !std::isfinite(match.score) ||
-                match.score < classify.minScore) {
+            if (match.cellIndex >= output.cells.size() || match.match.empty() || !std::isfinite(match.score)
+                || match.score < classify.minScore) {
                 continue;
             }
 
             GridCellClassification& current = output.cells[match.cellIndex];
-            const bool replace = !current.matched || match.score > current.score ||
-                                 (match.score == current.score && match.templateScore > current.templateScore) ||
-                                 (match.score == current.score && match.templateScore == current.templateScore &&
-                                  match.phashDistance < current.phashDistance) ||
-                                 (match.score == current.score && match.templateScore == current.templateScore &&
-                                  match.phashDistance == current.phashDistance && entry.id < current.templateId);
+            const bool replace = !current.matched || match.score > current.score
+                                 || (match.score == current.score && match.templateScore > current.templateScore)
+                                 || (match.score == current.score && match.templateScore == current.templateScore
+                                     && match.phashDistance < current.phashDistance)
+                                 || (match.score == current.score && match.templateScore == current.templateScore
+                                     && match.phashDistance == current.phashDistance && entry.id < current.templateId);
             if (!replace) {
                 continue;
             }

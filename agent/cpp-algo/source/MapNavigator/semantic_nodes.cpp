@@ -362,12 +362,10 @@ double VerifyAndCorrectHeading(const Context& ctx, double target_heading, double
             return achieved;
         }
         if (correction == kHeadingVerifyMaxRetries) {
-            LogWarn << "Heading retries exhausted, accepting." << VAR(target_heading) << VAR(achieved)
-                    << VAR(residual);
+            LogWarn << "Heading retries exhausted, accepting." << VAR(target_heading) << VAR(achieved) << VAR(residual);
             return achieved;
         }
-        LogInfo << "Heading off after turn, re-issuing." << VAR(target_heading) << VAR(achieved)
-                << VAR(residual) << VAR(correction);
+        LogInfo << "Heading off after turn, re-issuing." << VAR(target_heading) << VAR(achieved) << VAR(residual) << VAR(correction);
         if (!CommitHeadingTurn(ctx, residual)) {
             return achieved;
         }
@@ -414,8 +412,8 @@ Result ConsumeHeadingNodesImpl(const Context& ctx)
         // Closed-loop: confirm the turn landed and redo a swallowed view-drag (accept within wide band).
         achieved_heading = VerifyAndCorrectHeading(ctx, target_heading, start_heading);
 
-        LogInfo << "Heading-only node completed." << VAR(target_heading) << VAR(start_heading)
-                << VAR(heading_delta) << VAR(achieved_heading);
+        LogInfo << "Heading-only node completed." << VAR(target_heading) << VAR(start_heading) << VAR(heading_delta)
+                << VAR(achieved_heading);
         ctx.session->AdvanceToNextWaypoint(ActionType::HEADING, "heading_consumed");
         ctx.session->ResetProgress();
         ctx.runtime_state->OnWaypointAdvance();

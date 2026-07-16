@@ -25,7 +25,7 @@ constexpr double kBridgeHeightCostFactor = 40.0;
 constexpr double kBridgeMaxHeightDelta = 3.0;
 constexpr uint32_t kSmallBridgeComponentMaxTriangles = 512;
 constexpr double kSmallBridgeMaxGap = 4.0;
-constexpr double kRoutePullSampleStep = 0.5;       // 拉直判据沿捷径采样的步长(像素),与 Python ROUTE_PULL_SAMPLE_STEP 对齐
+constexpr double kRoutePullSampleStep = 0.5; // 拉直判据沿捷径采样的步长(像素),与 Python ROUTE_PULL_SAMPLE_STEP 对齐
 constexpr double kRouteBoundaryDistanceLimit = 8.0;
 constexpr double kRouteBoundaryPenaltyFactor = 2.0;
 
@@ -67,7 +67,8 @@ struct DisjointSet
 };
 
 constexpr uint32_t kInvalidTriangle = std::numeric_limits<uint32_t>::max();
-constexpr double kIndexBinSize = 4.0;              // 空间分箱的格边长(px),与 Python basenav_lib INDEX_BIN_SIZE 对齐。
+constexpr double kIndexBinSize = 4.0; // 空间分箱的格边长(px),与 Python basenav_lib INDEX_BIN_SIZE 对齐。
+
 // tier 细分后三角形极小,8px 每桶堆 ~200 个 → 每次 pointOnMesh 候选遍历是后处理热点;4px 每桶 ~12 个,查询 ~4x 快
 // (空间索引仅加速查询、不改判定结果)。建索引略增但 C++ 编译版快,可忽略。
 
@@ -79,19 +80,13 @@ uint64_t PackBinKey(uint16_t zone_id, int32_t bin_x, int32_t bin_y)
     return (zone << 48) | (packed_x << 24) | packed_y;
 }
 
-constexpr double kSegmentWalkSnapRadius = 1.0;     // snap radius for locating the segment origin on the mesh
-constexpr double kSegmentWalkEpsilon = 1e-6;       // tolerance on the t/s intersection fractions
-constexpr double kSegmentParallelEpsilon = 1e-12;  // |determinant| below this => segments treated as parallel
+constexpr double kSegmentWalkSnapRadius = 1.0;    // snap radius for locating the segment origin on the mesh
+constexpr double kSegmentWalkEpsilon = 1e-6;      // tolerance on the t/s intersection fractions
+constexpr double kSegmentParallelEpsilon = 1e-12; // |determinant| below this => segments treated as parallel
 
 // Intersection parameters of segment a->b with c->d; false if (near) parallel. `t` is the fraction
 // along a->b, `s` along c->d.
-bool SegmentIntersectParams(
-    const WorldPoint& a,
-    const WorldPoint& b,
-    const WorldPoint& c,
-    const WorldPoint& d,
-    double& t,
-    double& s)
+bool SegmentIntersectParams(const WorldPoint& a, const WorldPoint& b, const WorldPoint& c, const WorldPoint& d, double& t, double& s)
 {
     const double rx = b.x - a.x;
     const double ry = b.y - a.y;
@@ -139,7 +134,8 @@ static std::vector<WorldPoint> SsfFunnel(const std::vector<std::pair<WorldPoint,
             if (WptEqual(apex, pr) || FunnelTriArea2(apex, pl, right) > 0.0) {
                 pr = right;
                 ri = i;
-            } else {
+            }
+            else {
                 pts.push_back(pl);
                 apex = pl;
                 ai = li;
@@ -153,7 +149,8 @@ static std::vector<WorldPoint> SsfFunnel(const std::vector<std::pair<WorldPoint,
             if (WptEqual(apex, pl) || FunnelTriArea2(apex, pr, left) < 0.0) {
                 pl = left;
                 li = i;
-            } else {
+            }
+            else {
                 pts.push_back(pr);
                 apex = pr;
                 ai = ri;
@@ -435,8 +432,8 @@ std::optional<double> BaseNavPlanner::groundHeightNearIndexed(
     return best;
 }
 
-bool BaseNavPlanner::segmentHeightWalkable(
-    uint16_t zone_id, const WorldPoint& a, const WorldPoint& b, const std::vector<uint8_t>* blocked) const
+bool BaseNavPlanner::segmentHeightWalkable(uint16_t zone_id, const WorldPoint& a, const WorldPoint& b, const std::vector<uint8_t>* blocked)
+    const
 {
     if (pack_.findZone(zone_id) == nullptr) {
         return false;
@@ -693,7 +690,9 @@ std::optional<BaseNavSnapResult> BaseNavPlanner::snap(uint16_t zone_id, const Wo
             }
             const double delta = std::abs(triangle_heights_[triangle_index] - static_cast<double>(floor_y));
             const std::tuple<int, int, double, double> key { delta <= static_cast<double>(kBaseNavFloorBand) ? 0 : 1,
-                                                             is_small_island(triangle_index) ? 1 : 0, distance, delta };
+                                                             is_small_island(triangle_index) ? 1 : 0,
+                                                             distance,
+                                                             delta };
             if (!best_key || key < *best_key) {
                 best_key = key;
                 best_floor = BaseNavSnapResult { .triangle = triangle_index, .point = snapped, .distance = distance };
@@ -885,11 +884,17 @@ std::optional<std::pair<std::vector<WorldPoint>, std::vector<size_t>>> BaseNavPl
     const auto& pack_vertices = pack_.vertices();
 
     // 预处理每条走廊边:正规 2 共享顶点 → portal;退化 → bridge/pinch.
-    struct PortalEdge {
-        enum class Kind { Portal, Bridge, Pinch } kind;
-        uint32_t u_idx = 0, v_idx = 0;   // Portal: CCW 有向出边 u→v; left=pu, right=pv
-        WorldPoint exit_pt{}, entry_pt{}; // Bridge: 出口/入口
-        WorldPoint pinch_pt{};            // Pinch:  收缩孔
+    struct PortalEdge
+    {
+        enum class Kind
+        {
+            Portal,
+            Bridge,
+            Pinch
+        } kind;
+        uint32_t u_idx = 0, v_idx = 0;      // Portal: CCW 有向出边 u→v; left=pu, right=pv
+        WorldPoint exit_pt {}, entry_pt {}; // Bridge: 出口/入口
+        WorldPoint pinch_pt {};             // Pinch:  收缩孔
     };
 
     std::vector<PortalEdge> edges;
@@ -928,18 +933,26 @@ std::optional<std::pair<std::vector<WorldPoint>, std::vector<size_t>>> BaseNavPl
             // 找 CCW 有向出边 u→v: (pos[u]+1)%3 == pos[v]
             int pos0 = 0, pos1 = 0;
             for (int k = 0; k < 3; ++k) {
-                if (va[k] == shared[0]) pos0 = k;
-                if (va[k] == shared[1]) pos1 = k;
+                if (va[k] == shared[0]) {
+                    pos0 = k;
+                }
+                if (va[k] == shared[1]) {
+                    pos1 = k;
+                }
             }
             PortalEdge e;
             e.kind = PortalEdge::Kind::Portal;
             if ((pos0 + 1) % 3 == pos1) {
-                e.u_idx = shared[0]; e.v_idx = shared[1];
-            } else {
-                e.u_idx = shared[1]; e.v_idx = shared[0];
+                e.u_idx = shared[0];
+                e.v_idx = shared[1];
+            }
+            else {
+                e.u_idx = shared[1];
+                e.v_idx = shared[0];
             }
             edges.push_back(e);
-        } else {
+        }
+        else {
             const auto bridge = closestEdgeBridgePoints(tri_a, tri_b);
             if (bridge) {
                 PortalEdge e;
@@ -950,7 +963,8 @@ std::optional<std::pair<std::vector<WorldPoint>, std::vector<size_t>>> BaseNavPl
                 if (!WptEqual(e.exit_pt, e.entry_pt)) {
                     bridge_pairs.push_back({ e.exit_pt, e.entry_pt });
                 }
-            } else {
+            }
+            else {
                 if (const auto m = sharedEdgeMidpoint(tri_a, tri_b)) {
                     PortalEdge e;
                     e.kind = PortalEdge::Kind::Pinch;
@@ -978,9 +992,11 @@ std::optional<std::pair<std::vector<WorldPoint>, std::vector<size_t>>> BaseNavPl
                 const WorldPoint pu { pack_vertices[e.u_idx].u, pack_vertices[e.u_idx].v };
                 const WorldPoint pv { pack_vertices[e.v_idx].u, pack_vertices[e.v_idx].v };
                 portals.push_back(swap == 0 ? std::make_pair(pu, pv) : std::make_pair(pv, pu));
-            } else if (e.kind == PortalEdge::Kind::Bridge) {
+            }
+            else if (e.kind == PortalEdge::Kind::Bridge) {
                 portals.push_back({ e.exit_pt, e.exit_pt });
-            } else {
+            }
+            else {
                 portals.push_back({ e.pinch_pt, e.pinch_pt });
             }
         }
@@ -1020,7 +1036,9 @@ std::optional<std::pair<std::vector<WorldPoint>, std::vector<size_t>>> BaseNavPl
         };
         bool valid = true;
         for (size_t k = 0; k + 1 < route_pts.size() && valid; ++k) {
-            if (is_break(k + 1)) continue;
+            if (is_break(k + 1)) {
+                continue;
+            }
             const WorldPoint& a = route_pts[k];
             const WorldPoint& b = route_pts[k + 1];
             const double seg_len = detail::Distance(a, b);
@@ -1033,7 +1051,9 @@ std::optional<std::pair<std::vector<WorldPoint>, std::vector<size_t>>> BaseNavPl
                 }
             }
         }
-        if (!valid) continue;
+        if (!valid) {
+            continue;
+        }
 
         // 计算路径总长度(不含 bridge 跳段;更短 = 更直 = 正确握手方向)
         double total_len = 0.0;
@@ -1231,4 +1251,4 @@ const char* ToString(BaseNavRouteStatus status)
     return "unknown";
 }
 
-}
+} // namespace navmesh

@@ -69,8 +69,7 @@ struct MapTrackerCoordinateTransform
 
     bool containsSourcePoint(double x, double y) const
     {
-        return source_bbox_.size() == 4 && source_bbox_[0] <= x && x <= source_bbox_[2] && source_bbox_[1] <= y
-               && y <= source_bbox_[3];
+        return source_bbox_.size() == 4 && source_bbox_[0] <= x && x <= source_bbox_[2] && source_bbox_[1] <= y && y <= source_bbox_[3];
     }
 
     double sourceArea() const

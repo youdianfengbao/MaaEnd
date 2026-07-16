@@ -52,8 +52,11 @@ private:
         double route_heading = 0.0,
         bool emit_interior_corners = false,
         bool reset_hard_progress = true);
-    bool TryApplyDynamicOverlayToNextAnchor(const char* reason, bool use_detour, double route_heading = 0.0,
-                                            bool reset_hard_progress = true);
+    bool TryApplyDynamicOverlayToNextAnchor(
+        const char* reason,
+        bool use_detour,
+        double route_heading = 0.0,
+        bool reset_hard_progress = true);
     bool HandleDynamicReplanRequest(const char* reason);
     bool TryEnterCrossTierEscape();
     bool PlanCrossTierEscapeCorridorFromHere(const char* reason);

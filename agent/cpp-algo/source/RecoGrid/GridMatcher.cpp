@@ -36,11 +36,7 @@ cv::Rect VisibleAlphaBounds(const cv::Mat& image)
     return cv::boundingRect(points);
 }
 
-void PrepareTemplateSource(
-    const cv::Mat& target,
-    const CellMaskRatios& maskRatios,
-    cv::Mat& templateBgr,
-    cv::Mat& matchMask)
+void PrepareTemplateSource(const cv::Mat& target, const CellMaskRatios& maskRatios, cv::Mat& templateBgr, cv::Mat& matchMask)
 {
     if (target.empty()) {
         throw std::invalid_argument("Cannot match an empty template");
@@ -230,12 +226,12 @@ std::vector<TemplateMatchResult> RankTemplateMatches(
                 bestScore = finalScore;
                 bestTemplateScore = maxScore;
                 bestHueScore = hueScore;
-                bestMatch =
-                    cv::Rect(clipped.x + maxLocation.x, clipped.y + maxLocation.y, templateSize.width, templateSize.height);
+                bestMatch = cv::Rect(clipped.x + maxLocation.x, clipped.y + maxLocation.y, templateSize.width, templateSize.height);
             }
         }
 
-        results.push_back({ candidate.cellIndex, candidate.cell, bestMatch, candidate.distance, bestScore, bestTemplateScore, bestHueScore });
+        results.push_back(
+            { candidate.cellIndex, candidate.cell, bestMatch, candidate.distance, bestScore, bestTemplateScore, bestHueScore });
     }
 
     std::sort(results.begin(), results.end(), [](const TemplateMatchResult& lhs, const TemplateMatchResult& rhs) {

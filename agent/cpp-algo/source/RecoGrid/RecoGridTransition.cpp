@@ -36,13 +36,8 @@ void ApplyClassification(
     int viewportStartRow)
 {
     const std::vector<std::size_t> occupiedIndices = CellIndices(cells);
-    GridClassificationResult classification = ClassifyGridCells(
-        recognition,
-        templates,
-        options.recognition,
-        classifyOptions,
-        imageSize,
-        occupiedIndices);
+    GridClassificationResult classification =
+        ClassifyGridCells(recognition, templates, options.recognition, classifyOptions, imageSize, occupiedIndices);
     ApplyClassifications(cells, classification, result.cols, viewportStartRow, options.unknownTemplateId);
 }
 
@@ -60,21 +55,9 @@ void CommitCurrentFrame(
 {
     const int previousViewportStartRow = session.viewportStartRow;
     const int currentViewportStartRow = previousViewportStartRow + resolvedRowOffset;
-    std::vector<GridScanCell> currentCells = PlaceGridCells(
-        currentViewportStartRow,
-        recognition,
-        options,
-        imageSize,
-        options.unknownTemplateId);
-    ApplyClassification(
-        currentCells,
-        result,
-        recognition,
-        templates,
-        options,
-        classifyOptions,
-        imageSize,
-        currentViewportStartRow);
+    std::vector<GridScanCell> currentCells =
+        PlaceGridCells(currentViewportStartRow, recognition, options, imageSize, options.unknownTemplateId);
+    ApplyClassification(currentCells, result, recognition, templates, options, classifyOptions, imageSize, currentViewportStartRow);
 
     HideSessionCells(session.cells);
     UpsertSessionCells(session.cells, currentCells);
@@ -107,9 +90,9 @@ void CommitCurrentFrame(
 
 bool IsStrongZeroOffset(const GridDeltaResult& delta, const GridScanResult& result, const GridScanOptions& options)
 {
-    return delta.rowOffset == 0 && delta.comparedCells >= result.cols * 2 &&
-           delta.averageDistance <= static_cast<double>(options.matchDistanceThreshold) &&
-           delta.matchRatio >= std::clamp(options.endMinMatchRatio, 0.0, 1.0);
+    return delta.rowOffset == 0 && delta.comparedCells >= result.cols * 2
+           && delta.averageDistance <= static_cast<double>(options.matchDistanceThreshold)
+           && delta.matchRatio >= std::clamp(options.endMinMatchRatio, 0.0, 1.0);
 }
 
 int VisibleSessionRowCount(const SessionState& session)
@@ -167,16 +150,12 @@ bool TryResolvePending(
         return false;
     }
 
-    const GridDeltaResult committedToPending = ComputeGridDelta(
-        session.snapshot,
-        session.pending->snapshot,
-        { options.matchDistanceThreshold, options.minMatchRatio });
-    const GridDeltaResult pendingToCurrent = ComputeGridDelta(
-        session.pending->snapshot,
-        currentSnapshot,
-        { options.matchDistanceThreshold, options.minMatchRatio });
-    if (!committedToPending.reliable || committedToPending.rowOffset <= 0 || !pendingToCurrent.reliable ||
-        pendingToCurrent.rowOffset <= 0) {
+    const GridDeltaResult committedToPending =
+        ComputeGridDelta(session.snapshot, session.pending->snapshot, { options.matchDistanceThreshold, options.minMatchRatio });
+    const GridDeltaResult pendingToCurrent =
+        ComputeGridDelta(session.pending->snapshot, currentSnapshot, { options.matchDistanceThreshold, options.minMatchRatio });
+    if (!committedToPending.reliable || committedToPending.rowOffset <= 0 || !pendingToCurrent.reliable
+        || pendingToCurrent.rowOffset <= 0) {
         result.resolverUsed = true;
         result.resolverSuccess = false;
         result.fallbackUsed = true;
@@ -241,17 +220,7 @@ void HandleBeamTransition(
 
     if (IsStrongZeroOffset(delta, result, options)) {
         if (HasZeroOffsetNewVisibleRows(session, recognition)) {
-            CommitCurrentFrame(
-                session,
-                result,
-                recognition,
-                templates,
-                options,
-                classifyOptions,
-                currentSnapshot,
-                imageSize,
-                0,
-                false);
+            CommitCurrentFrame(session, result, recognition, templates, options, classifyOptions, currentSnapshot, imageSize, 0, false);
             result.message = "Grid zero-offset committed expanded current frame";
             return;
         }
@@ -259,11 +228,7 @@ void HandleBeamTransition(
         ++session.endConfirmations;
         session.snapshot = currentSnapshot;
         const bool reachedEnd = session.endConfirmations >= kRequiredEndConfirmations;
-        KeepSessionResult(
-            result,
-            session,
-            reachedEnd,
-            reachedEnd ? "Grid delta reached end" : "Grid delta zero-offset confirmation");
+        KeepSessionResult(result, session, reachedEnd, reachedEnd ? "Grid delta reached end" : "Grid delta zero-offset confirmation");
         result.incrementalUsed = true;
         result.pendingStored = false;
         result.pendingResolved = false;
@@ -272,15 +237,7 @@ void HandleBeamTransition(
         return;
     }
 
-    if (TryResolvePending(
-            session,
-            result,
-            recognition,
-            templates,
-            options,
-            classifyOptions,
-            currentSnapshot,
-            imageSize)) {
+    if (TryResolvePending(session, result, recognition, templates, options, classifyOptions, currentSnapshot, imageSize)) {
         return;
     }
 

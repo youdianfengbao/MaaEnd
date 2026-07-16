@@ -332,7 +332,7 @@ The existing Wuling implementation is a mirror of Valley IV; you can directly di
 | Scanning stops even though dispatch tickets seem sufficient | `AutoStockTargetCompareValleyIV` expression and user input `{ReserveValleyIV}`                                                           |
 | Repeatedly clicking the same reached-target item            | Whether `{Item}RemoveFilter` and `ResetRecognitionParams` executed after Exclude                                                         |
 
-Log analysis can reference the skill: `.claude/skills/autostockstaple-log-analysis/SKILL.md`.
+Log analysis can reference the skill: `.agents/skills/autostockstaple-log-analysis/SKILL.md`.
 
 ## Differences from AutoStockpile
 
@@ -342,4 +342,4 @@ Log analysis can reference the skill: `.claude/skills/autostockstaple-log-analys
 | Item Location    | List time anchor + OCR offset chain | Template matching + OCR mapping      |
 | Quantity Control | Popup BetterSliding + expressions   | Go parses detail page to adjust      |
 
-Both have similar interfaces but independent logic; log analysis is in `.claude/skills/autostockstaple-log-analysis/SKILL.md`.
+Both have similar interfaces but independent logic; log analysis is in `.agents/skills/autostockstaple-log-analysis/SKILL.md`.

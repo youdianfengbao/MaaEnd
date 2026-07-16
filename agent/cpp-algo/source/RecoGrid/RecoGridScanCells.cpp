@@ -215,15 +215,13 @@ void AdjustLeadingPartialRowsForDelta(
             options.recognition,
             imageSize,
             options.unknownTemplateId);
-        shouldAdvance =
-            CountNewVisibleSessionKeys(*sessionCells, advancedCells) > CountNewVisibleSessionKeys(*sessionCells, currentCells);
+        shouldAdvance = CountNewVisibleSessionKeys(*sessionCells, advancedCells) > CountNewVisibleSessionKeys(*sessionCells, currentCells);
     }
     if (shouldAdvance) {
         delta.rowOffset += leadingPartialRows;
     }
-    delta.newCellIndices = NewCellIndicesForOffset(
-        MakeGridHashSnapshot(rows, cols, std::vector<Hash>(recognition.cellHashes)),
-        delta.rowOffset);
+    delta.newCellIndices =
+        NewCellIndicesForOffset(MakeGridHashSnapshot(rows, cols, std::vector<Hash>(recognition.cellHashes)), delta.rowOffset);
     delta.hasProgress = !delta.newCellIndices.empty();
 }
 

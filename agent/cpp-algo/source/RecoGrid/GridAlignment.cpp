@@ -22,8 +22,7 @@ bool IsBetterAlignment(const AlignmentResult& candidate, const AlignmentResult& 
         return true;
     }
 
-    const double candidateMatchRatio =
-        static_cast<double>(candidate.matchedCells) / static_cast<double>(candidate.comparedCells);
+    const double candidateMatchRatio = static_cast<double>(candidate.matchedCells) / static_cast<double>(candidate.comparedCells);
     const double bestMatchRatio = static_cast<double>(best.matchedCells) / static_cast<double>(best.comparedCells);
     if (candidateMatchRatio > bestMatchRatio + kDoubleEpsilon) {
         return true;
@@ -58,10 +57,7 @@ int CellDistance(const GridHashSnapshot& first, std::size_t firstIndex, const Gr
     return HammingDistance(first.hashes[firstIndex], second.hashes[secondIndex]);
 }
 
-AlignmentResult EstimateRowOffsetCore(
-    const GridHashSnapshot& first,
-    const GridHashSnapshot& second,
-    int matchDistanceThreshold)
+AlignmentResult EstimateRowOffsetCore(const GridHashSnapshot& first, const GridHashSnapshot& second, int matchDistanceThreshold)
 {
     if (first.rows == 0 || second.rows == 0 || first.cols == 0 || second.cols == 0) {
         throw std::invalid_argument("Cannot align empty grids");

@@ -68,16 +68,16 @@ bool HasLabelLikeText(const cv::Mat& gray)
     const int n = cv::connectedComponentsWithStats(joined, labels, stats, centroids, 8, CV_32S);
 
     int best_w = 0;
-    for (int i = 1; i < n; ++i) {  // 0 is the background component
+    for (int i = 1; i < n; ++i) { // 0 is the background component
         const int w = stats.at<int>(i, cv::CC_STAT_WIDTH);
         const int h = stats.at<int>(i, cv::CC_STAT_HEIGHT);
         const int area = stats.at<int>(i, cv::CC_STAT_AREA);
         if (h < kCollectLabelMinHeight || h > kCollectLabelMaxHeight) {
-            continue;  // too thin to be a glyph row, or too tall to be one
+            continue; // too thin to be a glyph row, or too tall to be one
         }
         const double fill = static_cast<double>(area) / (static_cast<double>(w) * static_cast<double>(h));
         if (fill > kCollectLabelMaxFill) {
-            continue;  // a near-solid block is a panel/icon, not sparse text
+            continue; // a near-solid block is a panel/icon, not sparse text
         }
         if (w > best_w) {
             best_w = w;
@@ -102,7 +102,7 @@ bool MatchesIcon(const cv::Mat& gray, const cv::Mat& templ)
     cv::matchTemplate(gray, templ, result, cv::TM_CCOEFF_NORMED);
     double max_val = 0.0;
     cv::minMaxLoc(result, nullptr, &max_val, nullptr, nullptr);
-    if (max_val >= 0.5) {  // log near matches to calibrate the threshold without flooding
+    if (max_val >= 0.5) { // log near matches to calibrate the threshold without flooding
         LogDebug << "CollectibleScanner icon match." << VAR(max_val);
     }
     return max_val >= kCollectIconMatchThreshold;
@@ -138,7 +138,7 @@ void CollectibleScanner::SubmitFrame(const cv::Mat& frame)
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        frame(roi).copyTo(pending_roi_);  // deep copy: the controller reuses the frame buffer after we return
+        frame(roi).copyTo(pending_roi_); // deep copy: the controller reuses the frame buffer after we return
         has_pending_ = true;
     }
     cv_.notify_one();

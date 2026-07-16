@@ -15,7 +15,6 @@
 // 因此 <WebView2.h> 不会被本头文件遮蔽，仍会解析到 WebView2 SDK 的头文件。
 #include <WebView2.h>
 
-
 // 内嵌 Microsoft Edge WebView2 控件的无边框窗口。
 //
 // 用法：

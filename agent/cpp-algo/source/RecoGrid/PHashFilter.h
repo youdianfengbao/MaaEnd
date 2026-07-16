@@ -31,16 +31,10 @@ struct Candidate
 
 Hash ComputeHash(const cv::Mat& image);
 int HammingDistance(Hash lhs, Hash rhs);
-std::vector<Hash> ComputeCellHashes(
-    const cv::Mat& roi,
-    const std::vector<cv::Rect>& cells,
-    const CellMaskRatios& maskRatios = {});
+std::vector<Hash> ComputeCellHashes(const cv::Mat& roi, const std::vector<cv::Rect>& cells, const CellMaskRatios& maskRatios = {});
 CellFeature ComputeCellFeature(const cv::Mat& image);
 int FeatureDistance(const CellFeature& lhs, const CellFeature& rhs);
-std::vector<CellFeature> ComputeCellFeatures(
-    const cv::Mat& roi,
-    const std::vector<cv::Rect>& cells,
-    const CellMaskRatios& maskRatios = {});
+std::vector<CellFeature> ComputeCellFeatures(const cv::Mat& roi, const std::vector<cv::Rect>& cells, const CellMaskRatios& maskRatios = {});
 Hash ComputeHashResizedTo(const cv::Mat& image, cv::Size size, const CellMaskRatios& maskRatios = {});
 std::vector<Candidate> FilterCandidates(
     const cv::Mat& roi,

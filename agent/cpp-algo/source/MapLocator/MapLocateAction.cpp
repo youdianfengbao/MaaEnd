@@ -135,10 +135,7 @@ LocateOutput BuildLocateOutput(const LocateResult& result)
     return output;
 }
 
-MapLocateAssertLocationOutput BuildAssertLocationOutput(
-    const LocateResult& result,
-    const MapLocateAssertLocationParam& param,
-    bool matched)
+MapLocateAssertLocationOutput BuildAssertLocationOutput(const LocateResult& result, const MapLocateAssertLocationParam& param, bool matched)
 {
     MapLocateAssertLocationOutput output;
     output.status = static_cast<int>(result.status);
@@ -277,21 +274,15 @@ std::string DetectControllerType(MaaContext* context)
 bool UsesAdbMinimapRoi(std::string_view controller_type)
 {
     auto equals_ignore_case = [controller_type](std::string_view candidate) {
-        return controller_type.size() == candidate.size() &&
-               std::ranges::equal(controller_type, candidate, [](char lhs, char rhs) {
-                   return std::tolower(static_cast<unsigned char>(lhs)) ==
-                          std::tolower(static_cast<unsigned char>(rhs));
+        return controller_type.size() == candidate.size() && std::ranges::equal(controller_type, candidate, [](char lhs, char rhs) {
+                   return std::tolower(static_cast<unsigned char>(lhs)) == std::tolower(static_cast<unsigned char>(rhs));
                });
     };
 
     return equals_ignore_case("adb") || equals_ignore_case("playcover") || equals_ignore_case("play_cover");
 }
 
-bool TryLocateOnMinimap(
-    MaaContext* context,
-    const MaaImageBuffer* image,
-    const LocateOptions& options,
-    LocateResult* out_result)
+bool TryLocateOnMinimap(MaaContext* context, const MaaImageBuffer* image, const LocateOptions& options, LocateResult* out_result)
 {
     if (out_result == nullptr) {
         return false;
@@ -462,8 +453,8 @@ MaaBool MAA_CALL MapLocateAssertLocationRun(
             window.clear();
         }
 
-        LogInfo << "MapLocateAssertLocation settling" << VAR(frame) << VAR(param.zone_id) << VAR(usable)
-                << VAR(window.size()) << VAR(result.debugMessage);
+        LogInfo << "MapLocateAssertLocation settling" << VAR(frame) << VAR(param.zone_id) << VAR(usable) << VAR(window.size())
+                << VAR(result.debugMessage);
         if (frame + 1 < kAssertSettleMaxFrames) {
             std::this_thread::sleep_for(kAssertSettlePollDelay);
         }
@@ -480,12 +471,10 @@ MaaBool MAA_CALL MapLocateAssertLocationRun(
     if (!matched) {
         if (settled) {
             LogInfo << "MapLocateAssertLocation miss (settled outside target)" << VAR(param.zone_id) << VAR(stable_pos.x)
-                    << VAR(stable_pos.y) << VAR(target_rect.x) << VAR(target_rect.y) << VAR(target_rect.width)
-                    << VAR(target_rect.height);
+                    << VAR(stable_pos.y) << VAR(target_rect.x) << VAR(target_rect.y) << VAR(target_rect.width) << VAR(target_rect.height);
         }
         else {
-            LogInfo << "MapLocateAssertLocation miss (not settled within budget)" << VAR(param.zone_id)
-                    << VAR(result.debugMessage);
+            LogInfo << "MapLocateAssertLocation miss (not settled within budget)" << VAR(param.zone_id) << VAR(result.debugMessage);
         }
         return MAA_FALSE;
     }

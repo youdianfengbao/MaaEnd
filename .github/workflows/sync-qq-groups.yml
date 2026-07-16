@@ -7,9 +7,17 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate MaaEndBot GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.MAAEND_BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MAAEND_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.MAAEND_BOT_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           show-progress: false
 
       - name: Sync QQ group references
@@ -26,4 +34,4 @@ jobs:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
             [skip changelog]"
-          github_token: ${{ secrets.MAAEND_BOT_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}

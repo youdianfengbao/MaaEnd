@@ -143,6 +143,7 @@
             "GiftOperatorSelect_Estella",
             "GiftOperatorSelect_Fluorite",
             "GiftOperatorSelect_Gilberta",
+            "GiftOperatorSelect_Jue",
             "GiftOperatorSelect_Laevatain",
             "GiftOperatorSelect_LastRite",
             "GiftOperatorSelect_Lifeng",
@@ -289,8 +290,8 @@
                 "method": 40,
                 "lower": [
                     27,
-                    240,
-                    240
+                    255,
+                    255
                 ],
                 "upper": [
                     30,
