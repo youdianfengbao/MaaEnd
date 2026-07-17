@@ -39,6 +39,13 @@
                         "SeizeDeliveryJobsRewardTestArea",
                         "SeizeDeliveryJobsSpecifyDeliveryPointTestArea"
                     ]
+                },
+                {
+                    "name": "CrossCity",
+                    "label": "$task.SeizeDeliveryJobsCommissionSource.cases.CrossCity.label",
+                    "option": [
+                        "SeizeDeliveryJobsRewardCrossCity"
+                    ]
                 }
             ]
         },
@@ -98,6 +105,29 @@
                             ],
                             "focus": {
                                 "Node.Recognition.Succeeded": "$task.SeizeDeliveryJobs.focus.testAreaOrFound"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "SeizeDeliveryJobsRewardCrossCity": {
+            "type": "select",
+            "default_case": "Sixteen3Fifteen9Fourteen5",
+            "label": "$task.SeizeDeliveryJobsRewardCrossCity.label",
+            "cases": [
+                {
+                    "name": "Sixteen3Fifteen9Fourteen5",
+                    "label": "$task.SeizeDeliveryJobsRewardCrossCity.cases.Sixteen3Fifteen9Fourteen5.label",
+                    "pipeline_override": {
+                        "SeizeDeliveryJobsFindTarget": {
+                            "any_of": [
+                                "__SeizeDeliveryJobsFindTarget16_3",
+                                "__SeizeDeliveryJobsFindTarget15_9",
+                                "__SeizeDeliveryJobsFindTarget14_5"
+                            ],
+                            "focus": {
+                                "Node.Recognition.Succeeded": "$task.SeizeDeliveryJobs.focus.crossCityFound"
                             }
                         }
                     }
