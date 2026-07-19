@@ -75,7 +75,7 @@ jobs:
       - id: mxu-latest-release
         uses: step-security/github-action-get-latest-release@v0.8.2
         with:
-          repository: MistEO/MXU
+          repository: youdianfengbao/MXU
           excludes: ${{ (steps.set_tag.outputs.is_release == 'true' && steps.set_tag.outputs.is_prerelease == 'false') && 'prerelease, draft' || 'draft' }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -162,7 +162,7 @@ jobs:
         if: ${{ !(matrix.os == 'linux' && matrix.arch == 'aarch64') }}
         uses: robinraju/release-downloader@v1
         with:
-          repository: MistEO/MXU
+          repository: youdianfengbao/MXU
           fileName: "*${{ matrix.os }}-${{ matrix.arch }}*"
           tag: ${{ needs.meta.outputs.mxu_version }}
           out-file-path: "downloads/MXU"
