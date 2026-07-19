@@ -76,15 +76,74 @@
                             "required": [
                                 "NoEnsureInitialMovementState"
                             ]
+                        },
+                        {
+                            "required": [
+                                "QuickTeleport"
+                            ]
                         }
                     ]
                 },
                 "then": {
                     "required": [
-                        "EnterMap",
                         "MapName",
-                        "MapAssert",
                         "CameraSwipeDirection"
+                    ],
+                    "allOf": [
+                        {
+                            "if": {
+                                "not": {
+                                    "allOf": [
+                                        {
+                                            "required": [
+                                                "QuickTeleport"
+                                            ],
+                                            "properties": {
+                                                "QuickTeleport": {
+                                                    "const": true
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "anyOf": [
+                                                {
+                                                    "required": [
+                                                        "MapTarget"
+                                                    ]
+                                                },
+                                                {
+                                                    "required": [
+                                                        "MapGoal"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            "then": {
+                                "required": [
+                                    "MapAssert"
+                                ]
+                            }
+                        }
+                    ],
+                    "anyOf": [
+                        {
+                            "required": [
+                                "EnterMap"
+                            ]
+                        },
+                        {
+                            "required": [
+                                "QuickTeleport"
+                            ],
+                            "properties": {
+                                "QuickTeleport": {
+                                    "const": true
+                                }
+                            }
+                        }
                     ],
                     "oneOf": [
                         {
@@ -147,7 +206,7 @@
             },
             "MapAssert": {
                 "type": "array",
-                "description": "初始位置判断矩形 [x, y, w, h]。使用 MapPath / MapGoal 时由 MapTrackerAssertLocation 判断；使用 MapTarget 时由 MapLocateAssertLocation 判断。仅 MapPath 在传送后再次复核，MapTarget / MapGoal 直接开始 NavMesh 寻路。",
+                "description": "初始位置判断矩形 [x, y, w, h]。普通传送路线和 MapPath 快捷传送路线必填；QuickTeleport 与 MapTarget / MapGoal 组合时传送后直接开始 NavMesh 寻路，可省略。",
                 "items": {
                     "type": "number"
                 },
@@ -245,6 +304,10 @@
             "NoEnsureInitialMovementState": {
                 "type": "boolean",
                 "description": "可选，默认 false。对应 MapTrackerMove 的 no_ensure_initial_movement_state 参数。一般只在路线起点紧贴桥边、悬崖边等危险地形时开启，用于跳过开局的冲刺准备动作，避免角色因为这一步直接掉下桥或掉下悬崖。"
+            },
+            "QuickTeleport": {
+                "type": "boolean",
+                "description": "可选，默认 false。启用后通过已追踪任务的地图界面依次点击“前往传送”和“传送”，不再通过 EnterMap 的 SceneManager 万能跳转前往传送点；此时 EnterMap 可省略。"
             }
         }
     }
