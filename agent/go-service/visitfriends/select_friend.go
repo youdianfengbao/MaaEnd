@@ -12,10 +12,12 @@ import (
 )
 
 const (
-	selectFriendRecognitionName = "VisitFriendsSelectFriendRecognition"
-	selectFriendCandidateNode   = "VisitFriendsRecognitionItemWithName"
-	selectFriendNameOCRNode     = "VisitFriendsRecognitionItemNameByEnterButton"
-	selectFriendAttachVisited   = "visited"
+	selectFriendRecognitionName            = "VisitFriendsSelectFriendRecognition"
+	selectFriendCandidateNode              = "VisitFriendsRecognitionItemWithName"
+	selectFriendNameOCRNode                = "VisitFriendsRecognitionItemNameByEnterButton"
+	selectFriendClueExchangeNode           = "VisitFriendsRecognitionItemClueExchangeByEnterButton"
+	selectFriendAttachVisited              = "visited"
+	selectFriendAttachClueExchangeExhausted = "clue_exchange_exhausted"
 )
 
 // normalizeFriendName 清洗 OCR 识别到的好友名，去除尾部噪声：
@@ -116,7 +118,8 @@ func (r *VisitFriendsSelectFriendRecognition) Run(ctx *maa.Context, arg *maa.Cus
 		return nil, false
 	}
 
-	var selected *selectFriendDetail
+	// 收集所有有效候选（不立即 break）
+	var candidates []selectFriendDetail
 	for i := range nameHits {
 		rawName := strings.TrimSpace(nameHits[i].Text)
 		if rawName == "" {
@@ -139,20 +142,68 @@ func (r *VisitFriendsSelectFriendRecognition) Run(ctx *maa.Context, arg *maa.Cus
 			continue
 		}
 
-		selected = &selectFriendDetail{
+		candidates = append(candidates, selectFriendDetail{
 			NameText:  name,
 			ButtonBox: buttonBox,
-		}
-		break
+		})
 	}
-	if selected == nil {
+	if len(candidates) == 0 {
 		log.Info().Str("component", selectFriendRecognitionName).Strs("visited", visited).Msg("no unvisited friend on screen")
 		return nil, false
 	}
 
+	// 读取翻页穷尽标志（由 ScrollFinish 的 PipelineOverrideAction 设置）
+	exhausted := loadClueExchangeExhausted(ctx, nodeName)
+
+	var selected *selectFriendDetail
+	if !exhausted {
+		// 情报交流优先级：逐个候选检测情报交流图标
+		for i := range candidates {
+			override := map[string]any{
+				selectFriendClueExchangeNode: map[string]any{
+					"roi": candidates[i].ButtonBox,
+				},
+			}
+			detail, err := ctx.RunRecognition(selectFriendClueExchangeNode, arg.Img, override)
+			if err == nil && detail != nil && detail.Hit {
+				selected = &candidates[i]
+				log.Debug().
+					Str("component", selectFriendRecognitionName).
+					Str("name", candidates[i].NameText).
+					Msg("found clue exchange friend")
+				break
+			}
+		}
+		if selected == nil {
+			// 当前页无情报交流好友，触发翻页
+			log.Info().
+				Str("component", selectFriendRecognitionName).
+				Int("candidates", len(candidates)).
+				Msg("no clue exchange friend on current page, need scroll")
+			return nil, false
+		}
+	}
+
+	// 回落：已穷尽时取第一个候选
+	if selected == nil {
+		selected = &candidates[0]
+		log.Debug().
+			Str("component", selectFriendRecognitionName).
+			Str("name", selected.NameText).
+			Msg("fallback: clue exchange exhausted, pick first candidate")
+	}
+
 	newVisited := append(append([]string{}, visited...), selected.NameText)
-	if err := saveSelectFriendVisited(ctx, nodeName, newVisited); err != nil {
-		log.Error().Err(err).Str("component", selectFriendRecognitionName).Str("name", selected.NameText).Msg("save attach.visited failed")
+	// 保存 visited 并清除 clue_exchange_exhausted，避免死循环
+	if err := ctx.OverridePipeline(map[string]any{
+		nodeName: map[string]any{
+			"attach": map[string]any{
+				selectFriendAttachVisited:              newVisited,
+				selectFriendAttachClueExchangeExhausted: false,
+			},
+		},
+	}); err != nil {
+		log.Error().Err(err).Str("component", selectFriendRecognitionName).Str("name", selected.NameText).Msg("save attach failed")
 		return nil, false
 	}
 
@@ -315,14 +366,22 @@ func loadSelectFriendVisited(ctx *maa.Context, nodeName string) ([]string, error
 	return out, nil
 }
 
-func saveSelectFriendVisited(ctx *maa.Context, nodeName string, visited []string) error {
-	return ctx.OverridePipeline(map[string]any{
-		nodeName: map[string]any{
-			"attach": map[string]any{
-				selectFriendAttachVisited: visited,
-			},
-		},
-	})
+// loadClueExchangeExhausted 读取 attach.clue_exchange_exhausted 标志，
+// 该标志由 ScrollFinish 的 PipelineOverrideAction 在滚动到底时设为 true。
+func loadClueExchangeExhausted(ctx *maa.Context, nodeName string) bool {
+	raw, err := ctx.GetNodeJSON(nodeName)
+	if err != nil {
+		return false
+	}
+	var wrapper struct {
+		Attach struct {
+			ClueExchangeExhausted bool `json:"clue_exchange_exhausted"`
+		} `json:"attach"`
+	}
+	if err := json.Unmarshal([]byte(raw), &wrapper); err != nil {
+		return false
+	}
+	return wrapper.Attach.ClueExchangeExhausted
 }
 
 func selectFriendVisitedContains(visited []string, name string) bool {

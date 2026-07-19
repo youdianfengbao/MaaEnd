@@ -10,7 +10,7 @@
             "VisitFriendsMenuScanFriendsFull",
             "[JumpBack]VisitFriendsMenuScanTargetFriendOpen",
             "[JumpBack]VisitFriendsMenuScanScrollList",
-            "VisitFriendsMenuScanScrollFinish"
+            "[JumpBack]VisitFriendsMenuScanScrollFinish"
         ]
     },
     "VisitFriendsAssistFullInit": {
@@ -54,11 +54,23 @@
         ]
     },
     "VisitFriendsMenuScanScrollFinish": {
-        "desc": "滚动完成,滑动后仍然无其他目标",
+        "desc": "滚动完成，无更多情报交流好友，回落选取第一个好友",
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "PipelineOverrideAction",
+        "custom_action_param": {
+            "patch": {
+                "VisitFriendsMenuScanTargetFriendOpen": {
+                    "attach": {
+                        "clue_exchange_exhausted": true
+                    }
+                }
+            }
+        },
         "post_delay": 0,
         "focus": {
-            "Node.Recognition.Succeeded": "好友列表已滚动到底部，拜访完成"
+            "Node.Recognition.Succeeded": "好友列表已滚动到底部，拜访完成",
+            "Node.Action.Succeeded": "情报交流已穷尽，回落选取第一个好友"
         }
     },
     "VisitFriendsMenuScanFriendsFull": {

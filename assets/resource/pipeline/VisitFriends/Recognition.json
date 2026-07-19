@@ -117,6 +117,15 @@
         "template": "VisitFriends/DetailMFGCabinAssist.png",
         "threshold": 0.9
     },
+    "VisitFriendsRecognitionItemClueExchangeByEnterButton": {
+        "desc": "根据进入按钮偏移识别情报交流图标（由 select_friend 动态覆盖 roi 到候选按钮框）",
+        "recognition": "TemplateMatch",
+        "template": "VisitFriends/ClueExchangeAvailable.png",
+        "threshold": 0.9,
+        "roi": [0, 0, 1, 1],
+        "roi_offset": [24, -15, 4, 5],
+        "order_by": "Vertical"
+    },
     "VisitFriendsRecognitionItemDetailGrowthChamberAssist": {
         "desc": "在详情界面识别培养舱",
         "recognition": "TemplateMatch",
