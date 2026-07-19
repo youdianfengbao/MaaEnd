@@ -147,13 +147,26 @@ func (r *VisitFriendsSelectFriendRecognition) Run(ctx *maa.Context, arg *maa.Cus
 			ButtonBox: buttonBox,
 		})
 	}
+	// 读取翻页穷尽标志（由 ScrollFinish 的 PipelineOverrideAction 设置）
+	exhausted := loadClueExchangeExhausted(ctx, nodeName)
+
 	if len(candidates) == 0 {
+		if exhausted {
+			// 到底且无未访问好友：强制 FriendsFull 命中以终止循环
+			log.Info().Str("component", selectFriendRecognitionName).Strs("visited", visited).Msg("no unvisited friend, exhausted, terminating via FriendsFull")
+			if err := ctx.OverridePipeline(map[string]any{
+				"VisitFriendsAssistCountZero":      map[string]any{"recognition": "DirectHit"},
+				"VisitFriendsClueExchangeCountZero": map[string]any{"recognition": "DirectHit"},
+				"VisitFriendsAssistFull":            map[string]any{"enabled": false},
+				"VisitFriendsClueExchangeFull":      map[string]any{"enabled": false},
+			}); err != nil {
+				log.Error().Err(err).Str("component", selectFriendRecognitionName).Msg("terminate override failed")
+			}
+			return nil, false
+		}
 		log.Info().Str("component", selectFriendRecognitionName).Strs("visited", visited).Msg("no unvisited friend on screen")
 		return nil, false
 	}
-
-	// 读取翻页穷尽标志（由 ScrollFinish 的 PipelineOverrideAction 设置）
-	exhausted := loadClueExchangeExhausted(ctx, nodeName)
 
 	var selected *selectFriendDetail
 	if !exhausted {
@@ -194,12 +207,11 @@ func (r *VisitFriendsSelectFriendRecognition) Run(ctx *maa.Context, arg *maa.Cus
 	}
 
 	newVisited := append(append([]string{}, visited...), selected.NameText)
-	// 保存 visited 并清除 clue_exchange_exhausted，避免死循环
+	// 保存 visited；不重置 clue_exchange_exhausted，保留到底标志避免重复翻页
 	if err := ctx.OverridePipeline(map[string]any{
 		nodeName: map[string]any{
 			"attach": map[string]any{
-				selectFriendAttachVisited:              newVisited,
-				selectFriendAttachClueExchangeExhausted: false,
+				selectFriendAttachVisited: newVisited,
 			},
 		},
 	}); err != nil {
