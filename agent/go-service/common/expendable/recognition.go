@@ -36,6 +36,18 @@ type params struct {
 	// KeyRegex 可选。对 OCR 原文做匹配，命中后用第 1 捕获组（若有）否则用整段匹配作为
 	// 写入 attach.visited 的 key；未配置则用原文。配置后黑名单会额外容忍 key 后的非数字尾噪。
 	KeyRegex string `json:"key_regex"`
+	// PriorityRecognition 可选。若配置，则在提取文案前先用 CombinedResult 中各候选框
+	// 覆盖该识别节点的 roi，逐个检测优先级标志（如情报交流图标）；命中则优先选取。
+	PriorityRecognition string `json:"priority_recognition"`
+	// PriorityCombinedIndex 指定 CombinedResult 中用于取候选框的索引（默认 0）。
+	PriorityCombinedIndex int `json:"priority_combined_index"`
+	// ExhaustedFlagNode 指定读取 attach.clue_exchange_exhausted 标志的节点名。
+	ExhaustedFlagNode string `json:"exhausted_flag_node"`
+}
+
+type priorityCandidate struct {
+	Box  []int
+	Text string
 }
 
 // Run implements maa.CustomRecognitionRunner.
@@ -82,12 +94,82 @@ func (r *Recognition) Run(ctx *maa.Context, arg *maa.CustomRecognitionArg) (*maa
 		return nil, false
 	}
 	if detail == nil || !detail.Hit {
+		// 防死循环：若已标记穷尽且无未访问候选，强制终止管线。
+		if p.PriorityRecognition != "" {
+			exhaustedNode := p.ExhaustedFlagNode
+			if exhaustedNode == "" {
+				exhaustedNode = visitedOwner
+			}
+			if loadExhausted(ctx, exhaustedNode) {
+				log.Info().
+					Str("component", componentName).
+					Str("candidate", p.Candidate).
+					Strs("visited", visited).
+					Msg("no unvisited candidates and clue exchange exhausted, terminating via FriendsFull")
+				_ = ctx.OverridePipeline(map[string]any{
+					"VisitFriendsAssistCountZero":      map[string]any{"recognition": "DirectHit"},
+					"VisitFriendsClueExchangeCountZero": map[string]any{"recognition": "DirectHit"},
+					"VisitFriendsAssistFull":            map[string]any{"enabled": false},
+					"VisitFriendsClueExchangeFull":      map[string]any{"enabled": false},
+				})
+			}
+		}
 		log.Info().Str("component", componentName).Str("candidate", p.Candidate).Strs("visited", visited).Msg("no unvisited candidate")
 		return nil, false
 	}
 
-	text, ok := extractText(ctx, p.Candidate, detail)
-	if !ok || text == "" {
+	var text string
+	var textOK bool
+
+	// 情报交流优先级：在提取文案前先用 CombinedResult 中各候选框检测优先级标志。
+	if p.PriorityRecognition != "" {
+		exhaustedNode := p.ExhaustedFlagNode
+		if exhaustedNode == "" {
+			exhaustedNode = visitedOwner
+		}
+		exhausted := loadExhausted(ctx, exhaustedNode)
+
+		if !exhausted {
+			// 解析 candidate 的 box_index，定位 CombinedResult 中文案子索引。
+			raw, boxErr := ctx.GetNodeJSON(p.Candidate)
+			if boxErr != nil {
+				log.Error().Err(boxErr).Str("component", componentName).Str("candidate", p.Candidate).Msg("get candidate json for box_index")
+				return nil, false
+			}
+			textIdx, isAnd, boxErr := recogtarget.ResolveAndBoxIndex(raw)
+			if boxErr != nil || !isAnd {
+				log.Error().Err(boxErr).Str("component", componentName).Str("candidate", p.Candidate).Msg("resolve candidate box_index for priority")
+				return nil, false
+			}
+
+			pri, found := selectPriorityCandidate(ctx, arg, detail, p.PriorityRecognition, p.PriorityCombinedIndex, textIdx)
+			if !found {
+				log.Info().
+					Str("component", componentName).
+					Str("candidate", p.Candidate).
+					Msg("no priority candidate on current page, need scroll")
+				return nil, false
+			}
+
+			// 重定向 detail 到优先级候选
+			if len(pri.Box) >= 4 {
+				detail.Box = maa.Rect{pri.Box[0], pri.Box[1], pri.Box[2], pri.Box[3]}
+			}
+			text = strings.TrimSpace(pri.Text)
+			textOK = text != ""
+
+			log.Debug().
+				Str("component", componentName).
+				Str("text", text).
+				Msg("selected priority candidate, redirect detail")
+		}
+		// exhausted → 走原逻辑取第一个候选，不覆盖 text/textOK
+	}
+
+	if !textOK {
+		text, textOK = extractText(ctx, p.Candidate, detail)
+	}
+	if !textOK || text == "" {
 		log.Warn().Str("component", componentName).Str("candidate", p.Candidate).Msg("hit but text missing")
 		return nil, false
 	}
@@ -441,4 +523,99 @@ func saveVisited(ctx *maa.Context, nodeName string, visited []string) error {
 	return ctx.OverridePipeline(map[string]any{
 		nodeName: map[string]any{"attach": wrapper.Attach},
 	})
+}
+
+// loadExhausted 读取 nodeName 的 attach.clue_exchange_exhausted 标志。
+// 该标志由 PipelineOverrideAction（如 ScrollFinish）在扫到底时设置。
+func loadExhausted(ctx *maa.Context, nodeName string) bool {
+	if nodeName == "" {
+		return false
+	}
+	raw, err := ctx.GetNodeJSON(nodeName)
+	if err != nil {
+		return false
+	}
+	var wrapper struct {
+		Attach struct {
+			ClueExchangeExhausted bool `json:"clue_exchange_exhausted"`
+		} `json:"attach"`
+	}
+	if err := json.Unmarshal([]byte(raw), &wrapper); err != nil {
+		return false
+	}
+	return wrapper.Attach.ClueExchangeExhausted
+}
+
+// selectPriorityCandidate 从 CombinedResult 中逐个候选检测优先级标志。
+// priorityCombinedIndex 指定取候选框的 CombinedResult 子索引（如按钮框）。
+// textIdx 指定取文案的 CombinedResult 子索引（如名字 OCR）。
+// 返回第一个命中优先级识别的候选（名字框 + 文案）。
+func selectPriorityCandidate(ctx *maa.Context, arg *maa.CustomRecognitionArg, detail *maa.RecognitionDetail, priorityRecognition string, priorityCombinedIndex int, textIdx int) (*priorityCandidate, bool) {
+	if detail == nil || detail.CombinedResult == nil {
+		return nil, false
+	}
+	if priorityCombinedIndex < 0 || priorityCombinedIndex >= len(detail.CombinedResult) {
+		return nil, false
+	}
+	if textIdx < 0 || textIdx >= len(detail.CombinedResult) {
+		return nil, false
+	}
+
+	priChild := detail.CombinedResult[priorityCombinedIndex]
+	if priChild == nil || priChild.DetailJson == "" {
+		return nil, false
+	}
+
+	var priParsed struct {
+		Filtered []struct {
+			Box []int `json:"box"`
+		} `json:"filtered"`
+	}
+	if err := json.Unmarshal([]byte(priChild.DetailJson), &priParsed); err != nil {
+		return nil, false
+	}
+
+	txtChild := detail.CombinedResult[textIdx]
+	if txtChild == nil || txtChild.DetailJson == "" {
+		return nil, false
+	}
+
+	var txtParsed struct {
+		Filtered []struct {
+			Box  []int  `json:"box"`
+			Text string `json:"text"`
+		} `json:"filtered"`
+	}
+	if err := json.Unmarshal([]byte(txtChild.DetailJson), &txtParsed); err != nil {
+		return nil, false
+	}
+
+	for i, c := range priParsed.Filtered {
+		if len(c.Box) < 4 {
+			continue
+		}
+		override := map[string]any{
+			priorityRecognition: map[string]any{
+				"roi": c.Box,
+			},
+		}
+		pd, err := ctx.RunRecognition(priorityRecognition, arg.Img, override)
+		if err != nil || pd == nil || !pd.Hit {
+			continue
+		}
+
+		if i >= len(txtParsed.Filtered) {
+			continue
+		}
+		tc := txtParsed.Filtered[i]
+		if tc.Text == "" {
+			continue
+		}
+
+		return &priorityCandidate{
+			Box:  tc.Box,
+			Text: tc.Text,
+		}, true
+	}
+	return nil, false
 }

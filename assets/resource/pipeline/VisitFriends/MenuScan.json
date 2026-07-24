@@ -61,7 +61,10 @@
             "candidate": "VisitFriendsRecognitionItemWithName",
             "visited_node": "VisitFriendsMenuScanVisited",
             // 普通形如 Alice#1001；截到 #数字，去掉 UID 后 OCR 尾噪（Alice#1001小）。
-            "key_regex": ".*?\\#\\d+"
+            "key_regex": ".*?\\#\\d+",
+            "priority_recognition": "VisitFriendsRecognitionItemClueExchangeByEnterButton",
+            "priority_combined_index": 0,
+            "exhausted_flag_node": "VisitFriendsMenuScanVisited"
         }
     },
     "VisitFriendsMenuScanTargetFriendOpenRemark": {
@@ -119,6 +122,7 @@
         "post_delay": 0,
         "next": [
             "VisitFriendsMenuScanRemarkFallback",
+            "VisitFriendsMenuScanPriorityExhaustedFallback",
             "VisitFriendsMenuScanScrollFinishDone"
         ]
     },
@@ -168,6 +172,53 @@
         }
     },
     "VisitFriendsMenuScanRemarkFallbackReopen": {
+        "desc": "退出至大世界后重新打开好友列表，使列表回到顶部后再进入扫描",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SubTask",
+        "custom_action_param": {
+            "sub": [
+                "SceneAnyEnterWorld",
+                "SceneEnterMenuFriendsList"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "VisitFriendsMenu"
+        ]
+    },
+    "VisitFriendsMenuScanPriorityExhaustedFallback": {
+        "desc": "情报交流优先级回退：首轮仅找情报交流好友扫到底后标记穷尽，清滚动指纹后重开列表回落取剩余未访问好友；max_hit=1 只回退一次",
+        "enabled": true,
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "PipelineOverrideAction",
+        "custom_action_param": {
+            "patch": {
+                "VisitFriendsMenuScanVisited": {
+                    "attach": {
+                        "clue_exchange_exhausted": true
+                    }
+                },
+                "VisitFriendsMenuScanScrollList": {
+                    "attach": {
+                        "last_text": "",
+                        "unchanged_count": 0
+                    }
+                }
+            }
+        },
+        "post_delay": 0,
+        "next": [
+            "VisitFriendsMenuScanPriorityExhaustedFallbackReopen"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": "情报交流好友已扫完，重新打开列表并拜访任意好友"
+        }
+    },
+    "VisitFriendsMenuScanPriorityExhaustedFallbackReopen": {
         "desc": "退出至大世界后重新打开好友列表，使列表回到顶部后再进入扫描",
         "pre_delay": 0,
         "action": "Custom",
