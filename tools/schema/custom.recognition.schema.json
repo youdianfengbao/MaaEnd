@@ -154,6 +154,24 @@
                                 "minLength": 1,
                                 "title": "Key Regex",
                                 "description": "Optional. Regex applied to OCR text to derive the visited key (capture group 1 if present, otherwise the full match; fall back to raw text on no match). Without it, store/exclude the raw OCR string exactly. With it, the blacklist also tolerates non-digit OCR tail noise after the key. Game-specific truncation (e.g. remark cut at first ')', normal name cut at '#UID') belongs in Pipeline, not in this component."
+                            },
+                            "priority_recognition": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Priority Recognition",
+                                "description": "Fork 扩展：情报交流优先级识别节点名称。"
+                            },
+                            "priority_combined_index": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "title": "Priority Combined Index",
+                                "description": "Fork 扩展：情报交流优先级组合索引。"
+                            },
+                            "exhausted_flag_node": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Exhausted Flag Node",
+                                "description": "Fork 扩展：情报交流耗尽标记节点名称。"
                             }
                         }
                     }
