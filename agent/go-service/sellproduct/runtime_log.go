@@ -3,6 +3,7 @@ package sellproduct
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/i18n"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/maafocus"
@@ -20,10 +21,19 @@ type runtimeLocationPlan struct {
 	RestoreOperator    string
 	Items              []runtimeLocationPlanItem
 	ExcludedOutOfStock []string
+	ExcludedByUser     []string
 }
 
 func printRuntimeLocationEntered(ctx *maa.Context, location string) {
 	maafocus.Print(ctx, i18n.T("sellproduct.runtime.location_entered", runtimeLocationName(location)))
+}
+
+func printRuntimeOnlyPreferredEnabled(ctx *maa.Context) {
+	maafocus.Print(ctx, runtimeOnlyPreferredEnabledMessage())
+}
+
+func runtimeOnlyPreferredEnabledMessage() string {
+	return i18n.T("sellproduct.runtime.only_preferred_enabled")
 }
 
 func printRuntimeLocationPlan(ctx *maa.Context, location string) error {
@@ -66,9 +76,10 @@ func buildRuntimeLocationPlan(location string) (runtimeLocationPlan, error) {
 	if err != nil {
 		return runtimeLocationPlan{}, fmt.Errorf("load item priorities: %w", err)
 	}
-	groups := prioritizeItemGroups(groupsByLocation[location], priorityItemsSnapshot())
+	policy := priorityPolicySnapshot()
+	groups := prioritizeItemGroups(groupsByLocation[location], policy.Preferred, policy.OnlyPreferred)
 	reserveRules := reserveRulesSnapshot()
-	items, excludedOutOfStock := buildRuntimeLocationPlanItems(
+	items, excludedOutOfStock, excludedByUser := buildRuntimeLocationPlanItems(
 		groups,
 		reserveRules,
 		priorityOutOfStockSnapshot(),
@@ -78,6 +89,7 @@ func buildRuntimeLocationPlan(location string) (runtimeLocationPlan, error) {
 		LocationName:       runtimeLocationName(location),
 		Items:              items,
 		ExcludedOutOfStock: excludedOutOfStock,
+		ExcludedByUser:     excludedByUser,
 	}
 	if len(targetCandidates) > 0 {
 		plan.TargetOperator = runtimeOperatorName(targetCandidates[0])
@@ -92,10 +104,15 @@ func buildRuntimeLocationPlanItems(
 	groups []itemPriorityGroup,
 	reserveRules map[string]int,
 	outOfStock map[string]struct{},
-) ([]runtimeLocationPlanItem, []string) {
+) ([]runtimeLocationPlanItem, []string, []string) {
 	items := make([]runtimeLocationPlanItem, 0, len(groups))
 	excludedOutOfStock := make([]string, 0, len(outOfStock))
+	excludedByUser := make([]string, 0)
 	for _, group := range groups {
+		if reserveRules[group.ItemID] == reserveBlacklistQuantity {
+			excludedByUser = append(excludedByUser, group.DisplayName)
+			continue
+		}
 		if _, unavailable := outOfStock[group.ItemID]; unavailable {
 			excludedOutOfStock = append(excludedOutOfStock, group.DisplayName)
 			continue
@@ -105,7 +122,7 @@ func buildRuntimeLocationPlanItems(
 			ReserveQuantity: reserveRules[group.ItemID],
 		})
 	}
-	return items, excludedOutOfStock
+	return items, excludedOutOfStock, excludedByUser
 }
 
 func runtimeLocationPlanMessage(plan runtimeLocationPlan) string {
@@ -124,6 +141,7 @@ func runtimeLocationPlanMessage(plan runtimeLocationPlan) string {
 
 	itemOrder := runtimePlanTextOrNone(strings.Join(itemNames, " → "))
 	excludedOutOfStock := runtimePlanTextOrNone(strings.Join(plan.ExcludedOutOfStock, i18n.Separator()))
+	excludedByUser := runtimePlanTextOrNone(strings.Join(plan.ExcludedByUser, i18n.Separator()))
 	reservePlan := i18n.T("sellproduct.runtime.plan.no_reserve")
 	if len(reserveDescriptions) > 0 {
 		reservePlan = strings.Join(reserveDescriptions, i18n.Separator())
@@ -135,6 +153,7 @@ func runtimeLocationPlanMessage(plan runtimeLocationPlan) string {
 		runtimePlanTextOrNone(plan.RestoreOperator),
 		itemOrder,
 		excludedOutOfStock,
+		excludedByUser,
 		reservePlan,
 	)
 }
@@ -214,16 +233,25 @@ func printRuntimeOperatorUnavailable(ctx *maa.Context, location string, usage st
 	))
 }
 
-func printRuntimeOperatorCacheStatus(ctx *maa.Context, ready bool) {
-	maafocus.Print(ctx, runtimeOperatorCacheStatusMessage(ready))
+func printRuntimeOperatorCacheStatus(ctx *maa.Context, status operatorCacheStatus) {
+	maafocus.Print(ctx, runtimeOperatorCacheStatusMessage(status))
 }
 
-func runtimeOperatorCacheStatusMessage(ready bool) string {
-	key := "sellproduct.runtime.operator_cache_scanning"
-	if ready {
-		key = "sellproduct.runtime.operator_cache_loaded"
+func runtimeOperatorCacheStatusMessage(status operatorCacheStatus) string {
+	if !status.Ready {
+		return i18n.T("sellproduct.runtime.operator_cache_scanning")
 	}
-	return i18n.T(key)
+	return i18n.T(
+		"sellproduct.runtime.operator_cache_loaded",
+		runtimeLocalCacheUpdatedAt(status.UpdatedAt),
+	)
+}
+
+func runtimeLocalCacheUpdatedAt(updatedAt time.Time) string {
+	if updatedAt.IsZero() {
+		return i18n.T("sellproduct.runtime.operator_cache_time_unknown")
+	}
+	return updatedAt.Local().Format("2006-01-02 15:04:05")
 }
 
 func printRuntimeOperatorScanFailed(ctx *maa.Context, location string, usage string) {

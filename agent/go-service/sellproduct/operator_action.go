@@ -150,15 +150,15 @@ func (r *OperatorCacheReadyRecognition) Run(
 		log.Error().Err(err).Str("component", operatorCacheReadyRecognitionName).Msg("invalid params")
 		return nil, false
 	}
-	ready, err := operatorCacheReadyForSelection(p)
+	status, err := operatorCacheStatusForSelection(p)
 	if err != nil {
 		log.Error().Err(err).Str("component", operatorCacheReadyRecognitionName).Msg("read operator cache failed")
 		return nil, false
 	}
 	if operatorSessionClaimCacheNotice() {
-		printRuntimeOperatorCacheStatus(ctx, ready)
+		printRuntimeOperatorCacheStatus(ctx, status)
 	}
-	if ready {
+	if status.Ready {
 		return &maa.CustomRecognitionResult{Detail: "cache_ready"}, true
 	}
 	return nil, false
@@ -201,7 +201,7 @@ func (r *OperatorListBottomRecognition) Run(
 		operatorListStateSet(state)
 		return nil, false
 	}
-	observed := observedOperatorCacheNames(items, scanCandidates)
+	observed := observedOperatorIDs(items, scanCandidates)
 	state.Observed = append(state.Observed, observed...)
 	signature := operatorListSignature(observed)
 	// Pipeline 在每次识别失败后继续向下滚动；相邻两帧内容一致说明已经到达底部。
@@ -229,7 +229,7 @@ func (r *OperatorListBottomRecognition) Run(
 	candidates := candidatesForOwnership(selectionParam, ownership)
 	setPlannedRestoreCandidate(selectionParam, candidates)
 	configuredCandidates := configuredCandidatesForOutcome(selectionParam)
-	state.ExpectedCandidates = operatorCandidateCacheNames(configuredCandidates)
+	state.ExpectedCandidates = operatorCandidateIDs(configuredCandidates)
 	state.ObservedCandidates = observedConfiguredOperatorNames(configuredCandidates, state.Observed)
 	state.Completed = true
 	state.HasCandidate = len(candidates) > 0
@@ -310,17 +310,18 @@ func resolveOperatorSelectionParam(p *operatorActionParam) (*operatorSelectionPa
 		}
 	}
 	result := &operatorSelectionParam{
-		Usage:                      p.Usage,
-		Location:                   p.Location,
-		TargetCandidatesByLocation: data.TargetCandidates,
-		RestoreGroups:              normalizeOperatorCandidateGroups(data.RestoreGroups),
-		ScanCandidates:             scanCandidates,
-		KnownOperators:             data.KnownOperators,
-		ActiveLocations:            session.ActiveLocations,
-		CompletedRestoreLocations:  session.CompletedRestoreLocations,
-		TargetAssignments:          session.TargetAssignments,
-		LockedRestoreAssignments:   session.LockedRestoreAssignments,
-		ExcludedOperators:          session.ExcludedOperators,
+		Usage:                         p.Usage,
+		Location:                      p.Location,
+		TargetCandidatesByLocation:    data.TargetCandidates,
+		RestoreGroups:                 normalizeOperatorCandidateGroups(data.RestoreGroups),
+		ScanCandidates:                scanCandidates,
+		KnownOperators:                data.KnownOperators,
+		ActiveLocations:               session.ActiveLocations,
+		CompletedRestoreLocations:     session.CompletedRestoreLocations,
+		TargetAssignments:             session.TargetAssignments,
+		LockedRestoreAssignments:      session.LockedRestoreAssignments,
+		ExcludedOperators:             session.ExcludedOperators,
+		OutpostProsperityMaxLocations: session.OutpostProsperityMaxLocations,
 	}
 	switch p.Usage {
 	case operatorActionUsageTarget:
@@ -386,30 +387,41 @@ var operatorListScanStates = map[string]operatorListScanState{}
 
 // loadOperatorOwnershipForSelection 读取当前账号完整快照中的拥有干员集合。
 func loadOperatorOwnershipForSelection() (operatorOwnership, error) {
-	uid := currentOperatorCacheUID()
-	path := resolveOperatorCachePathFunc(uid)
-	cache, err := readOperatorCache(path)
+	uid := currentSellProductCacheUID()
+	path := resolveSellProductCachePathFunc()
+	cache, err := readSellProductCache(path)
 	if err != nil {
 		return operatorOwnership{}, err
 	}
 	return operatorOwnership{
-		Operators: operatorNameSet(operatorCacheOperatorsForUID(cache, uid)),
+		Operators: operatorIDSet(cachedOperatorIDsForUID(cache, uid)),
 	}, nil
 }
 
-// operatorCacheReadyForSelection 判断当前模式下缓存是否已经达到可消费状态。
+type operatorCacheStatus struct {
+	Ready     bool
+	UpdatedAt time.Time
+}
+
+// operatorCacheStatusForSelection 返回当前缓存是否可消费，以及实际复用缓存的更新时间。
 // cache 模式仅复用完整快照，没有快照时先扫描全部干员；refresh 模式始终等待本次任务完成扫描。
-func operatorCacheReadyForSelection(p *operatorActionParam) (bool, error) {
+func operatorCacheStatusForSelection(p *operatorActionParam) (operatorCacheStatus, error) {
 	if p.Mode == operatorCacheModeRefresh {
-		return operatorSessionRefreshed(), nil
+		return operatorCacheStatus{Ready: operatorSessionRefreshed()}, nil
 	}
-	uid := currentOperatorCacheUID()
-	path := resolveOperatorCachePathFunc(uid)
-	cache, err := readOperatorCache(path)
+	uid := currentSellProductCacheUID()
+	path := resolveSellProductCachePathFunc()
+	cache, err := readSellProductCache(path)
 	if err != nil {
-		return false, err
+		return operatorCacheStatus{}, err
 	}
-	return operatorCacheHasSnapshot(cache, uid), nil
+	if !sellProductCacheHasOperatorSnapshot(cache, uid) {
+		return operatorCacheStatus{}, nil
+	}
+	return operatorCacheStatus{
+		Ready:     true,
+		UpdatedAt: cachedOperatorUpdatedAtForUID(cache, uid),
+	}, nil
 }
 
 // replaceObservedOperators 仅在全局首次扫描或主动刷新时写入当前账号的完整快照。
@@ -421,9 +433,11 @@ func replaceObservedOperators(
 	if p == nil {
 		return fmt.Errorf("operator action param is nil")
 	}
-	uid := currentOperatorCacheUID()
-	path := resolveOperatorCachePathFunc(uid)
-	cache, err := readOperatorCache(path)
+	uid := currentSellProductCacheUID()
+	path := resolveSellProductCachePathFunc()
+	sellProductCacheMu.Lock()
+	defer sellProductCacheMu.Unlock()
+	cache, err := readSellProductCache(path)
 	if err != nil {
 		return err
 	}
@@ -436,8 +450,8 @@ func replaceObservedOperators(
 			Msg("operator cache write skipped")
 		return nil
 	}
-	cache = mergeOperatorCache(cache, uid, scanCandidates, observed, time.Now())
-	if err := writeOperatorCacheFile(path, cache); err != nil {
+	cache = mergeOperatorSnapshot(cache, uid, scanCandidates, observed, time.Now())
+	if err := writeSellProductCache(path, cache); err != nil {
 		return err
 	}
 	operatorSessionMarkRefreshed()
@@ -447,7 +461,7 @@ func replaceObservedOperators(
 // shouldWriteOperatorCacheSnapshot 限制缓存只能由全局完整扫描创建或主动刷新。
 func shouldWriteOperatorCacheSnapshot(
 	p *operatorActionParam,
-	cache operatorCacheFile,
+	cache sellProductCache,
 	uid string,
 ) bool {
 	if p == nil || p.Usage != operatorActionUsageAll || p.Location != "global" {
@@ -456,15 +470,15 @@ func shouldWriteOperatorCacheSnapshot(
 	if p.Mode == operatorCacheModeRefresh {
 		return true
 	}
-	return p.Mode == operatorCacheModeCache && !operatorCacheHasSnapshot(cache, uid)
+	return p.Mode == operatorCacheModeCache && !sellProductCacheHasOperatorSnapshot(cache, uid)
 }
 
-// observedOperatorCacheNames 将一帧 OCR 结果映射成去重、排序后的缓存键集合。
-func observedOperatorCacheNames(items []ocrItem, candidates []operatorCandidate) []string {
+// observedOperatorIDs 将一帧 OCR 结果映射成去重、排序后的干员 ID 集合。
+func observedOperatorIDs(items []ocrItem, candidates []operatorCandidate) []string {
 	observedSet := map[string]struct{}{}
 	for _, candidate := range candidates {
 		if findBestMatch(items, candidate.Expected) != nil {
-			observedSet[operatorCandidateCacheName(candidate)] = struct{}{}
+			observedSet[candidate.Name] = struct{}{}
 		}
 	}
 	return sortedSetValues(observedSet)
@@ -652,20 +666,20 @@ func configuredCandidatesForOutcome(p *operatorSelectionParam) []operatorCandida
 	return nil
 }
 
-func operatorCandidateCacheNames(candidates []operatorCandidate) []string {
+func operatorCandidateIDs(candidates []operatorCandidate) []string {
 	names := make([]string, 0, len(candidates))
 	for _, candidate := range candidates {
-		names = append(names, operatorCandidateCacheName(candidate))
+		names = append(names, candidate.Name)
 	}
 	return uniqueNonEmptyStrings(names)
 }
 
 // observedConfiguredOperatorNames 按候选优先级返回本次完整扫描实际观察到的候选。
 func observedConfiguredOperatorNames(candidates []operatorCandidate, observed []string) []string {
-	observedSet := operatorNameSet(observed)
+	observedSet := operatorIDSet(observed)
 	names := make([]string, 0, len(candidates))
 	for _, candidate := range candidates {
-		name := operatorCandidateCacheName(candidate)
+		name := candidate.Name
 		if _, ok := observedSet[name]; ok {
 			names = append(names, name)
 		}
@@ -704,7 +718,7 @@ func operatorScanOutcomeDetailJSON(p *operatorActionParam, state operatorListSca
 // operatorListScanStateKey 为一次具体的列表扫描生成进程内隔离键。
 func operatorListScanStateKey(p *operatorActionParam) string {
 	return strings.Join([]string{
-		currentOperatorCacheUID(),
+		currentSellProductCacheUID(),
 		p.Mode,
 		p.Usage,
 		p.Location,

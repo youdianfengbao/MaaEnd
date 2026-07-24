@@ -35,13 +35,13 @@ type selectionDataItem struct {
 }
 
 type selectionDataOperator struct {
-	CacheName string            `json:"cache_name"`
-	Names     map[string]string `json:"names"`
+	Names map[string]string `json:"names"`
 }
 
 type selectionDataTargetOperator struct {
-	Name      string `json:"name"`
-	BonusTier int    `json:"bonus_tier"`
+	Name                          string `json:"name"`
+	BonusTier                     int    `json:"bonus_tier"`
+	OutpostProsperityMaxBonusTier int    `json:"outpost_prosperity_max_bonus_tier"`
 }
 
 type selectionDataLocation struct {
@@ -132,6 +132,7 @@ func selectionOperatorCandidate(
 	name string,
 	priority int,
 	bonusTier int,
+	outpostProsperityMaxBonusTier int,
 ) (operatorCandidate, error) {
 	name = strings.TrimSpace(name)
 	operator, ok := data.Operators[name]
@@ -139,12 +140,12 @@ func selectionOperatorCandidate(
 		return operatorCandidate{}, fmt.Errorf("operator %q not found", name)
 	}
 	candidate := operatorCandidate{
-		Name:        name,
-		CacheName:   operator.CacheName,
-		DisplayName: localizedSelectionName(operator.Names, name),
-		Expected:    selectionExpectedNames(operator.Names),
-		Priority:    priority,
-		BonusTier:   bonusTier,
+		Name:                          name,
+		DisplayName:                   localizedSelectionName(operator.Names, name),
+		Expected:                      selectionExpectedNames(operator.Names),
+		Priority:                      priority,
+		BonusTier:                     bonusTier,
+		OutpostProsperityMaxBonusTier: outpostProsperityMaxBonusTier,
 	}
 	normalized := normalizeOperatorCandidates([]operatorCandidate{candidate})
 	if len(normalized) == 0 {

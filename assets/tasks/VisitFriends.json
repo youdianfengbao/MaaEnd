@@ -29,20 +29,28 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
+                        "VisitFriendsMenuScanTargetFriendOpenRemark": {
+                            "enabled": true
+                        },
                         "VisitFriendsMenuScanTargetFriendOpen": {
-                            "custom_recognition_param": {
-                                "only_remark_friends": true
-                            }
+                            "enabled": false
+                        },
+                        "VisitFriendsMenuScanRemarkFallback": {
+                            "enabled": true
                         }
                     }
                 },
                 {
                     "name": "No",
                     "pipeline_override": {
+                        "VisitFriendsMenuScanTargetFriendOpenRemark": {
+                            "enabled": false
+                        },
                         "VisitFriendsMenuScanTargetFriendOpen": {
-                            "custom_recognition_param": {
-                                "only_remark_friends": false
-                            }
+                            "enabled": true
+                        },
+                        "VisitFriendsMenuScanRemarkFallback": {
+                            "enabled": false
                         }
                     }
                 }

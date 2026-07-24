@@ -1,6 +1,7 @@
 package sellproduct
 
 import (
+	"os"
 	"testing"
 
 	maa "github.com/MaaXYZ/maa-framework-go/v4"
@@ -42,7 +43,7 @@ func TestOperatorSessionExcludesSelectedOperators(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			resetOperatorSessionForTest(t, operatorCacheModeCache)
 			location := "RefugeeCamp"
-			candidate := operatorCandidate{Name: "Perlica", CacheName: "佩丽卡"}
+			candidate := operatorCandidate{Name: "Perlica"}
 			test.prepare(location, candidate)
 
 			excluded, ok := operatorSessionExcludeSelected(test.usage, location)
@@ -50,8 +51,8 @@ func TestOperatorSessionExcludesSelectedOperators(t *testing.T) {
 				t.Fatalf("排除结果 = %+v，成功状态 = %v", excluded, ok)
 			}
 			session := operatorSessionSnapshot()
-			if _, ok := session.ExcludedOperators[candidate.CacheName]; !ok {
-				t.Fatalf("临时排除集合中缺少 %q", candidate.CacheName)
+			if _, ok := session.ExcludedOperators[candidate.Name]; !ok {
+				t.Fatalf("临时排除集合中缺少 %q", candidate.Name)
 			}
 			if test.remaining(session, location) {
 				t.Fatal("派驻冲突后仍残留待确认的干员分配")
@@ -116,9 +117,89 @@ func TestOperatorSessionSkipsInactiveRegistration(t *testing.T) {
 	}
 }
 
+func TestOperatorSessionRecordsOutpostProsperityMax(t *testing.T) {
+	resetOperatorSessionForTest(t, operatorCacheModeCache)
+	location := "XiranflowCloudseederStation"
+	if ok := (&OperatorSessionAction{}).Run(nil, &maa.CustomActionArg{
+		CustomActionParam: `{"operation":"enter_location","location":"XiranflowCloudseederStation","outpost_prosperity_max":true}`,
+	}); !ok {
+		t.Fatal("recording outpost prosperity max should succeed")
+	}
+	if _, ok := operatorSessionSnapshot().OutpostProsperityMaxLocations[location]; !ok {
+		t.Fatal("outpost prosperity max location should be recorded")
+	}
+	cachePath := resolveSellProductCachePathFunc()
+	cache, err := readSellProductCache(cachePath)
+	if err != nil {
+		t.Fatalf("读取据点发展值缓存失败：%v", err)
+	}
+	if reached, ok := outpostProsperityStatusesForUID(cache, currentSellProductCacheUID())[location]; !ok || !reached {
+		t.Fatalf("满级状态缓存 = %v, %v，期望 true", reached, ok)
+	}
+	if ok := (&OperatorSessionAction{}).Run(nil, &maa.CustomActionArg{
+		CustomActionParam: `{"operation":"enter_location","location":"XiranflowCloudseederStation","outpost_prosperity_max":false}`,
+	}); !ok {
+		t.Fatal("recording available outpost prosperity should succeed")
+	}
+	if _, ok := operatorSessionSnapshot().OutpostProsperityMaxLocations[location]; ok {
+		t.Fatal("available outpost prosperity should clear the max marker")
+	}
+	cache, err = readSellProductCache(cachePath)
+	if err != nil {
+		t.Fatalf("重新读取据点发展值缓存失败：%v", err)
+	}
+	if reached, ok := outpostProsperityStatusesForUID(cache, currentSellProductCacheUID())[location]; !ok || reached {
+		t.Fatalf("未满状态缓存 = %v, %v，期望明确保存 false", reached, ok)
+	}
+}
+
+func TestOperatorSessionResetLoadsOutpostProsperityCache(t *testing.T) {
+	resetOperatorSessionForTest(t, operatorCacheModeCache)
+	uid := currentSellProductCacheUID()
+	path := resolveSellProductCachePathFunc()
+	if err := writeSellProductCache(path, sellProductCache{
+		Accounts: map[string]sellProductCacheAccount{
+			uid: {
+				Locations: map[string]bool{
+					"RefugeeCamp":      true,
+					"ReconstructionHQ": false,
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("准备据点发展值缓存失败：%v", err)
+	}
+
+	operatorSessionReset(operatorCacheModeCache)
+	maxLocations := operatorSessionSnapshot().OutpostProsperityMaxLocations
+	if len(maxLocations) != 1 {
+		t.Fatalf("初始化后的满级据点 = %#v，期望仅包含 RefugeeCamp", maxLocations)
+	}
+	if _, ok := maxLocations["RefugeeCamp"]; !ok {
+		t.Fatal("会话初始化未加载 RefugeeCamp 的满级状态")
+	}
+}
+
+func TestOperatorSessionUsesObservedStatusWhenProsperityCacheCannotBeWritten(t *testing.T) {
+	resetOperatorSessionForTest(t, operatorCacheModeCache)
+	path := resolveSellProductCachePathFunc()
+	if err := os.MkdirAll(path, 0755); err != nil {
+		t.Fatalf("准备不可写缓存路径失败：%v", err)
+	}
+	location := "RefugeeCamp"
+	if ok := (&OperatorSessionAction{}).Run(nil, &maa.CustomActionArg{
+		CustomActionParam: `{"operation":"enter_location","location":"RefugeeCamp","outpost_prosperity_max":true}`,
+	}); !ok {
+		t.Fatal("缓存写入失败不应阻断据点状态更新")
+	}
+	if _, ok := operatorSessionSnapshot().OutpostProsperityMaxLocations[location]; !ok {
+		t.Fatal("缓存写入失败后会话仍应使用本次识别到的满级状态")
+	}
+}
+
 func TestOperatorSessionLocksCompletedRestoreAssignment(t *testing.T) {
 	resetOperatorSessionForTest(t, operatorCacheModeCache)
-	candidate := operatorCandidate{Name: "Perlica", CacheName: "佩丽卡"}
+	candidate := operatorCandidate{Name: "Perlica"}
 	operatorSessionSetPlannedRestore("ReconstructionCommand", candidate, true)
 	completed, ok := operatorSessionCompleteRestore("ReconstructionCommand")
 	if !ok || completed.Name != candidate.Name {

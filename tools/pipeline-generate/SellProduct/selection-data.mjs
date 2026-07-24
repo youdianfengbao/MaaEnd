@@ -57,17 +57,6 @@ export function buildLocalizedNames(names = {}) {
     return completeLocalizedNames(localizedNamesFromSource(names));
 }
 
-function operatorCacheName(operator) {
-    return (
-        operator.name?.CN ||
-        operator.name?.TC ||
-        operator.name?.EN ||
-        operator.name?.JP ||
-        operator.name?.KR ||
-        operator.charId
-    );
-}
-
 function parseOperatorCharId(operator) {
     const charId = operator?.charId?.trim() || "";
     const match = OPERATOR_CHAR_ID_PATTERN.exec(charId);
@@ -112,7 +101,6 @@ function registerOperator(operators, operator) {
 
     const previous = operators[name];
     operators[name] = {
-        cache_name: previous?.cache_name || operatorCacheName(operator) || name,
         names: {
             ...(previous?.names || {}),
             ...names,
@@ -129,9 +117,13 @@ function targetBonusTier(entry) {
     const hasExp = entry.bonusTypes.has("expProfit");
     const hasMoney = entry.bonusTypes.has("moneyProfit");
     if (hasExp && hasMoney) return 0;
-    if (hasMoney) return 1;
-    if (hasExp) return 2;
+    if (hasExp) return 1;
+    if (hasMoney) return 2;
     return 3;
+}
+
+function outpostProsperityMaxBonusTier(entry) {
+    return entry.bonusTypes.has("moneyProfit") ? 0 : 1;
 }
 
 export function buildLocationOperatorOrder(settlement, acceptedBonusTypes, operators, targetUsage) {
@@ -167,6 +159,7 @@ export function buildLocationOperatorOrder(settlement, acceptedBonusTypes, opera
         return sorted.map((entry) => ({
             name: entry.name,
             bonus_tier: targetBonusTier(entry),
+            outpost_prosperity_max_bonus_tier: outpostProsperityMaxBonusTier(entry),
         }));
     }
     return sorted.map((entry) => entry.name);

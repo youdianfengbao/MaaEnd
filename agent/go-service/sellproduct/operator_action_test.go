@@ -2,6 +2,7 @@ package sellproduct
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -36,8 +37,8 @@ func TestOperatorListReachedBottomWhenSignatureUnchanged(t *testing.T) {
 
 func TestOperatorListSignatureIgnoresNonOperatorOCRNoise(t *testing.T) {
 	candidates := []operatorCandidate{
-		{Name: "ChenQianyu", CacheName: "陈千语", Expected: []string{"陈千语"}},
-		{Name: "Xaihi", CacheName: "赛希", Expected: []string{"赛希"}},
+		{Name: "ChenQianyu", Expected: []string{"陈千语"}},
+		{Name: "Xaihi", Expected: []string{"赛希"}},
 	}
 	firstItems := []ocrItem{
 		{text: "赛希", box: maa.Rect{100, 100, 80, 20}},
@@ -50,8 +51,8 @@ func TestOperatorListSignatureIgnoresNonOperatorOCRNoise(t *testing.T) {
 		{text: "N", box: maa.Rect{200, 100, 30, 20}},
 	}
 
-	first := operatorListSignature(observedOperatorCacheNames(firstItems, candidates))
-	second := operatorListSignature(observedOperatorCacheNames(secondItems, candidates))
+	first := operatorListSignature(observedOperatorIDs(firstItems, candidates))
+	second := operatorListSignature(observedOperatorIDs(secondItems, candidates))
 	if first != second {
 		t.Fatalf("non-operator OCR noise changed signature: first %q, second %q", first, second)
 	}
@@ -59,8 +60,8 @@ func TestOperatorListSignatureIgnoresNonOperatorOCRNoise(t *testing.T) {
 
 func TestFindBestVisibleOperatorUsesCandidatePriority(t *testing.T) {
 	candidates := []operatorCandidate{
-		{Name: "Best", CacheName: "最优", Expected: []string{"最优"}, Priority: 0},
-		{Name: "Fallback", CacheName: "备选", Expected: []string{"备选"}, Priority: 1},
+		{Name: "Best", Expected: []string{"最优"}, Priority: 0},
+		{Name: "Fallback", Expected: []string{"备选"}, Priority: 1},
 	}
 	items := []ocrItem{
 		{text: "备选", box: maa.Rect{100, 100, 80, 20}},
@@ -81,8 +82,8 @@ func TestFindBestVisibleOperatorUsesCandidatePriority(t *testing.T) {
 
 func TestFindBestVisibleOperatorDoesNotFallBackOnCurrentPage(t *testing.T) {
 	candidates := []operatorCandidate{
-		{Name: "Best", CacheName: "最优", Expected: []string{"最优"}, Priority: 0},
-		{Name: "Fallback", CacheName: "备选", Expected: []string{"备选"}, Priority: 1},
+		{Name: "Best", Expected: []string{"最优"}, Priority: 0},
+		{Name: "Fallback", Expected: []string{"备选"}, Priority: 1},
 	}
 	items := []ocrItem{{text: "备选", box: maa.Rect{100, 100, 80, 20}}}
 
@@ -93,10 +94,10 @@ func TestFindBestVisibleOperatorDoesNotFallBackOnCurrentPage(t *testing.T) {
 
 func TestFindCurrentBestOperatorRequiresTopBonusTier(t *testing.T) {
 	allCandidates := []operatorCandidate{
-		{Name: "Best", CacheName: "最优", Expected: []string{"最优"}, Priority: 0, BonusTier: 0},
-		{Name: "Fallback", CacheName: "备选", Expected: []string{"备选"}, Priority: 1, BonusTier: 1},
+		{Name: "Best", Expected: []string{"最优"}, Priority: 0, BonusTier: 0},
+		{Name: "Fallback", Expected: []string{"备选"}, Priority: 1, BonusTier: 1},
 	}
-	candidates := bestBonusTierCandidates(allCandidates)
+	candidates := bestBonusTierCandidates(allCandidates, false)
 	fallbackItems := []ocrItem{
 		{text: "备选", box: maa.Rect{100, 100, 80, 20}},
 	}
@@ -121,8 +122,8 @@ func TestFindCurrentBestOperatorRequiresTopBonusTier(t *testing.T) {
 
 func TestFindCurrentBestOperatorAcceptsEquivalentBonusTier(t *testing.T) {
 	candidates := []operatorCandidate{
-		{Name: "Lifeng", CacheName: "黎风", Expected: []string{"黎风"}, Priority: 0, BonusTier: 0},
-		{Name: "Arcane", CacheName: "诀", Expected: []string{"诀"}, Priority: 1, BonusTier: 0},
+		{Name: "Lifeng", Expected: []string{"黎风"}, Priority: 0, BonusTier: 0},
+		{Name: "Arcane", Expected: []string{"诀"}, Priority: 1, BonusTier: 0},
 	}
 	items := []ocrItem{{text: "诀", box: maa.Rect{260, 569, 29, 23}}}
 
@@ -177,32 +178,32 @@ func TestFindCurrentBestOperatorRejectsAmbiguousLongerKnownName(t *testing.T) {
 func TestAllOperatorScanCandidatesUsesCompleteKnownOperatorList(t *testing.T) {
 	data := &operatorSelectionData{
 		KnownOperators: []operatorCandidate{
-			{Name: "Other", CacheName: "其他干员", Expected: []string{"其他干员"}, Priority: 2},
-			{Name: "Perlica", CacheName: "佩丽卡", Expected: []string{"佩丽卡"}, Priority: 0},
-			{Name: "Avywenna", CacheName: "陈千语", Expected: []string{"陈千语"}, Priority: 1},
+			{Name: "Other", Expected: []string{"其他干员"}, Priority: 2},
+			{Name: "Perlica", Expected: []string{"佩丽卡"}, Priority: 0},
+			{Name: "Avywenna", Expected: []string{"陈千语"}, Priority: 1},
 		},
 		TargetCandidates: map[string][]operatorCandidate{
-			"A": {{Name: "Perlica", CacheName: "佩丽卡", Expected: []string{"佩丽卡"}, Priority: 2}},
-			"B": {{Name: "Avywenna", CacheName: "陈千语", Expected: []string{"陈千语"}, Priority: 1}},
+			"A": {{Name: "Perlica", Expected: []string{"佩丽卡"}, Priority: 2}},
+			"B": {{Name: "Avywenna", Expected: []string{"陈千语"}, Priority: 1}},
 		},
 		RestoreGroups: []operatorCandidateGroup{
 			{
 				Location: "A",
 				Candidates: []operatorCandidate{
-					{Name: "Restore", CacheName: "恢复干员", Expected: []string{"恢复干员"}, Priority: 3},
+					{Name: "Restore", Expected: []string{"恢复干员"}, Priority: 3},
 				},
 			},
 		},
 	}
 
 	got := allOperatorScanCandidates(data)
-	want := []string{"佩丽卡", "陈千语", "其他干员"}
+	want := []string{"Perlica", "Avywenna", "Other"}
 	if len(got) != len(want) {
 		t.Fatalf("candidate count = %d, want %d: %#v", len(got), len(want), got)
 	}
 	for i, candidate := range got {
-		if candidate.CacheName != want[i] {
-			t.Fatalf("candidate[%d] = %q, want %q", i, candidate.CacheName, want[i])
+		if candidate.Name != want[i] {
+			t.Fatalf("candidate[%d] = %q, want %q", i, candidate.Name, want[i])
 		}
 	}
 }
@@ -211,16 +212,16 @@ func TestCandidatesForOwnershipUsesCachedOperatorsOnly(t *testing.T) {
 	p := &operatorSelectionParam{
 		Usage: operatorActionUsageTarget,
 		Candidates: []operatorCandidate{
-			{Name: "Best", CacheName: "最优", Expected: []string{"最优"}, Priority: 0},
-			{Name: "Observed", CacheName: "已观察", Expected: []string{"已观察"}, Priority: 1},
+			{Name: "Best", Expected: []string{"最优"}, Priority: 0},
+			{Name: "Observed", Expected: []string{"已观察"}, Priority: 1},
 		},
 		ScanCandidates: []operatorCandidate{
-			{Name: "Best", CacheName: "最优", Expected: []string{"最优"}, Priority: 0},
-			{Name: "Observed", CacheName: "已观察", Expected: []string{"已观察"}, Priority: 1},
+			{Name: "Best", Expected: []string{"最优"}, Priority: 0},
+			{Name: "Observed", Expected: []string{"已观察"}, Priority: 1},
 		},
 	}
 	candidates := candidatesForOwnership(p, operatorOwnership{
-		Operators: operatorNameSet([]string{"已观察"}),
+		Operators: operatorIDSet([]string{"Observed"}),
 	})
 	if len(candidates) != 1 || candidates[0].Name != "Observed" {
 		t.Fatalf("candidates = %#v, want cached Observed", candidates)
@@ -231,12 +232,12 @@ func TestCandidatesForOwnershipUsesBestOwnedOperator(t *testing.T) {
 	p := &operatorSelectionParam{
 		Usage: operatorActionUsageTarget,
 		Candidates: []operatorCandidate{
-			{Name: "Best", CacheName: "最优", Expected: []string{"最优"}, Priority: 0},
-			{Name: "Observed", CacheName: "已观察", Expected: []string{"已观察"}, Priority: 1},
+			{Name: "Best", Expected: []string{"最优"}, Priority: 0},
+			{Name: "Observed", Expected: []string{"已观察"}, Priority: 1},
 		},
 	}
 	candidates := candidatesForOwnership(p, operatorOwnership{
-		Operators: operatorNameSet([]string{"已观察"}),
+		Operators: operatorIDSet([]string{"Observed"}),
 	})
 	if len(candidates) != 1 || candidates[0].Name != "Observed" {
 		t.Fatalf("candidates = %#v, want observed candidate", candidates)
@@ -244,35 +245,47 @@ func TestCandidatesForOwnershipUsesBestOwnedOperator(t *testing.T) {
 }
 
 func TestOperatorCacheReadyForSelectionCacheModeRequiresCompleteSnapshot(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "SellProductOwnedOperators.json")
-	setOperatorCachePathForTest(t, path)
+	path := filepath.Join(t.TempDir(), sellProductCacheFileName)
+	setSellProductCachePathForTest(t, path)
 	p := &operatorActionParam{
 		Mode:     operatorCacheModeCache,
 		Usage:    operatorActionUsageTarget,
 		Location: "TestLocation",
 	}
-	ready, err := operatorCacheReadyForSelection(p)
+	status, err := operatorCacheStatusForSelection(p)
 	if err != nil {
-		t.Fatalf("operatorCacheReadyForSelection: %v", err)
+		t.Fatalf("operatorCacheStatusForSelection: %v", err)
 	}
-	if ready {
+	if status.Ready {
 		t.Fatal("cache mode should scan before selling when no complete snapshot exists")
 	}
+	if err := os.WriteFile(path, []byte(`{"accounts":{"unknown":{"operators":["佩丽卡"]}}}`), 0644); err != nil {
+		t.Fatalf("write incompatible cache: %v", err)
+	}
+	status, err = operatorCacheStatusForSelection(p)
+	if err != nil {
+		t.Fatalf("operatorCacheStatusForSelection with incompatible cache: %v", err)
+	}
+	if status.Ready {
+		t.Fatal("cache mode should rescan when the persisted cache is incompatible")
+	}
 	updatedAt := time.Now().UTC().Format(time.RFC3339)
-	if err := writeOperatorCacheFile(path, operatorCacheFile{
-		UpdatedAt: updatedAt,
-		Accounts: map[string]operatorCacheAccount{
-			currentOperatorCacheUID(): {UpdatedAt: updatedAt, Operators: []string{"佩丽卡"}},
+	if err := writeSellProductCache(path, sellProductCache{
+		Accounts: map[string]sellProductCacheAccount{
+			currentSellProductCacheUID(): {Operators: testOperatorSnapshotAt(updatedAt, "Perlica")},
 		},
 	}); err != nil {
-		t.Fatalf("writeOperatorCacheFile: %v", err)
+		t.Fatalf("writeSellProductCache: %v", err)
 	}
-	ready, err = operatorCacheReadyForSelection(p)
+	status, err = operatorCacheStatusForSelection(p)
 	if err != nil {
-		t.Fatalf("operatorCacheReadyForSelection: %v", err)
+		t.Fatalf("operatorCacheStatusForSelection: %v", err)
 	}
-	if !ready {
+	if !status.Ready {
 		t.Fatal("cache mode should reuse an existing complete snapshot")
+	}
+	if status.UpdatedAt.Format(time.RFC3339) != updatedAt {
+		t.Fatalf("cache updated_at = %q, want %q", status.UpdatedAt, updatedAt)
 	}
 }
 
@@ -284,20 +297,23 @@ func TestOperatorCacheReadyForSelectionRefreshModeWaitsForScanComplete(t *testin
 		Usage:    operatorActionUsageTarget,
 		Location: "TestLocation",
 	}
-	ready, err := operatorCacheReadyForSelection(p)
+	status, err := operatorCacheStatusForSelection(p)
 	if err != nil {
-		t.Fatalf("operatorCacheReadyForSelection: %v", err)
+		t.Fatalf("operatorCacheStatusForSelection: %v", err)
 	}
-	if ready {
+	if status.Ready {
 		t.Fatal("refresh mode should not be ready before scan completion")
 	}
 	operatorSessionMarkRefreshed()
-	ready, err = operatorCacheReadyForSelection(p)
+	status, err = operatorCacheStatusForSelection(p)
 	if err != nil {
-		t.Fatalf("operatorCacheReadyForSelection: %v", err)
+		t.Fatalf("operatorCacheStatusForSelection: %v", err)
 	}
-	if !ready {
+	if !status.Ready {
 		t.Fatal("refresh mode should be ready after scan completion")
+	}
+	if !status.UpdatedAt.IsZero() {
+		t.Fatalf("refresh mode should not report a persisted cache time: %q", status.UpdatedAt)
 	}
 }
 
@@ -310,27 +326,27 @@ func TestOperatorCacheReadyForSelectionRefreshModeUsesGlobalScanCompletion(t *te
 		Location: "SkyKingFlats",
 	}
 	operatorSessionMarkRefreshed()
-	ready, err := operatorCacheReadyForSelection(targetSelection)
+	status, err := operatorCacheStatusForSelection(targetSelection)
 	if err != nil {
-		t.Fatalf("operatorCacheReadyForSelection: %v", err)
+		t.Fatalf("operatorCacheStatusForSelection: %v", err)
 	}
-	if !ready {
+	if !status.Ready {
 		t.Fatal("refresh mode selection should reuse the global operator scan completion")
 	}
 }
 
 func TestShouldWriteOperatorCacheSnapshotOnlyForGlobalInitializationOrRefresh(t *testing.T) {
-	uid := "test_uid"
-	existing := operatorCacheFile{
-		Accounts: map[string]operatorCacheAccount{
-			uid: {Operators: []string{"狼卫"}},
+	uid := testCacheUID
+	existing := sellProductCache{
+		Accounts: map[string]sellProductCacheAccount{
+			uid: {Operators: testOperatorSnapshot("Wulfgard")},
 		},
 	}
 
 	tests := []struct {
 		name  string
 		param *operatorActionParam
-		cache operatorCacheFile
+		cache sellProductCache
 		want  bool
 	}{
 		{
@@ -340,7 +356,7 @@ func TestShouldWriteOperatorCacheSnapshotOnlyForGlobalInitializationOrRefresh(t 
 				Usage:    operatorActionUsageAll,
 				Location: "global",
 			},
-			cache: operatorCacheFile{},
+			cache: sellProductCache{},
 			want:  true,
 		},
 		{
@@ -385,14 +401,13 @@ func TestShouldWriteOperatorCacheSnapshotOnlyForGlobalInitializationOrRefresh(t 
 }
 
 func TestReplaceObservedOperatorsKeepsExistingCacheDuringLocalScan(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "SellProductOwnedOperators.json")
-	setOperatorCachePathForTest(t, path)
-	uid := currentOperatorCacheUID()
+	path := filepath.Join(t.TempDir(), sellProductCacheFileName)
+	setSellProductCachePathForTest(t, path)
+	uid := currentSellProductCacheUID()
 	updatedAt := time.Now().UTC().Format(time.RFC3339)
-	if err := writeOperatorCacheFile(path, operatorCacheFile{
-		UpdatedAt: updatedAt,
-		Accounts: map[string]operatorCacheAccount{
-			uid: {UpdatedAt: updatedAt, Operators: []string{"狼卫"}},
+	if err := writeSellProductCache(path, sellProductCache{
+		Accounts: map[string]sellProductCacheAccount{
+			uid: {Operators: testOperatorSnapshotAt(updatedAt, "Wulfgard")},
 		},
 	}); err != nil {
 		t.Fatalf("写入初始干员缓存失败：%v", err)
@@ -405,19 +420,19 @@ func TestReplaceObservedOperatorsKeepsExistingCacheDuringLocalScan(t *testing.T)
 			Usage:    operatorActionUsageRestore,
 			Location: "SkyKingFlatsConstructionSite",
 		},
-		[]operatorCandidate{{Name: "Wulfgard", CacheName: "狼卫"}},
+		[]operatorCandidate{{Name: "Wulfgard"}},
 		nil,
 	); err != nil {
 		t.Fatalf("处理据点局部扫描失败：%v", err)
 	}
 
-	cache, err := readOperatorCache(path)
+	cache, err := readSellProductCache(path)
 	if err != nil {
 		t.Fatalf("读取干员缓存失败：%v", err)
 	}
-	operators := operatorCacheOperatorsForUID(cache, uid)
-	if len(operators) != 1 || operators[0] != "狼卫" {
-		t.Fatalf("据点局部扫描后缓存 = %#v，期望仍保留狼卫", operators)
+	operators := cachedOperatorIDsForUID(cache, uid)
+	if len(operators) != 1 || operators[0] != "Wulfgard" {
+		t.Fatalf("据点局部扫描后缓存 = %#v，期望仍保留 Wulfgard", operators)
 	}
 }
 
@@ -542,20 +557,24 @@ func resetOperatorSessionForTest(t *testing.T, mode string) {
 	previousSession := operatorSession
 	previousStates := operatorListScanStates
 	operatorStateMu.Unlock()
+	previousCachePath := resolveSellProductCachePathFunc
+	cachePath := filepath.Join(t.TempDir(), sellProductCacheFileName)
+	resolveSellProductCachePathFunc = func() string { return cachePath }
 	operatorSessionReset(mode)
 	t.Cleanup(func() {
 		operatorStateMu.Lock()
 		operatorSession = previousSession
 		operatorListScanStates = previousStates
 		operatorStateMu.Unlock()
+		resolveSellProductCachePathFunc = previousCachePath
 	})
 }
 
-func setOperatorCachePathForTest(t *testing.T, path string) {
+func setSellProductCachePathForTest(t *testing.T, path string) {
 	t.Helper()
-	previous := resolveOperatorCachePathFunc
-	resolveOperatorCachePathFunc = func(string) string { return path }
+	previous := resolveSellProductCachePathFunc
+	resolveSellProductCachePathFunc = func() string { return path }
 	t.Cleanup(func() {
-		resolveOperatorCachePathFunc = previous
+		resolveSellProductCachePathFunc = previous
 	})
 }

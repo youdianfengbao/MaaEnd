@@ -8,8 +8,7 @@ package sellproduct
 //   - target（售卖）：先取当前据点的最高售卖档，再优先选择同时满足恢复条件的完美候选；
 //   - restore（恢复）：把所有启用且尚未恢复的据点放在一起，计算互不重复的全局分配方案。
 
-// 当前账号完整缓存中的拥有干员集合。
-// Operators 的键是跨语言稳定的 CacheName。
+// 当前账号完整缓存中的拥有干员 ID 集合。
 type operatorOwnership struct {
 	Operators map[string]struct{}
 }
@@ -33,6 +32,7 @@ func equivalentTargetCandidatesForOwnership(
 		available,
 		p.Location,
 		p.RestoreGroups,
+		p.OutpostProsperityMaxLocations,
 	)
 }
 
@@ -50,6 +50,7 @@ func candidatesForCurrentSelection(p *operatorSelectionParam, owned map[string]s
 			availableOwned,
 			p.Location,
 			p.RestoreGroups,
+			p.OutpostProsperityMaxLocations,
 		)
 		if len(candidates) == 0 {
 			return nil
@@ -71,7 +72,7 @@ func candidatesForCurrentSelection(p *operatorSelectionParam, owned map[string]s
 	// 恢复阶段同时规划所有启用且尚未完成恢复的据点。
 	available := cloneStringSet(availableOwned)
 	for _, candidate := range p.LockedRestoreAssignments {
-		delete(available, operatorCandidateCacheName(candidate))
+		delete(available, candidate.Name)
 	}
 	preferred, reusable := restorePlanPreferences(p, availableOwned)
 	plan := buildRestoreAssignmentPlanWithPreferencesAndTargets(
@@ -114,22 +115,34 @@ func removeOtherLockedRestoreOperators(
 		if location == currentLocation {
 			continue
 		}
-		delete(available, operatorCandidateCacheName(candidate))
+		delete(available, candidate.Name)
 	}
 }
 
-// 从已经按 BonusTier 排序的列表中截取最高售卖档。
-// BonusTier 数值越小收益越高，因此第一项的档位就是当前最高档。
-func bestBonusTierCandidates(candidates []operatorCandidate) []operatorCandidate {
+// 从候选列表中保留当前据点状态下的最高售卖档，并维持原有游戏列表顺序。
+func bestBonusTierCandidates(candidates []operatorCandidate, outpostProsperityMax bool) []operatorCandidate {
 	if len(candidates) == 0 {
 		return nil
 	}
-	bestTier := candidates[0].BonusTier
-	count := 1
-	for count < len(candidates) && candidates[count].BonusTier == bestTier {
-		count++
+	bonusTier := func(candidate operatorCandidate) int {
+		if outpostProsperityMax {
+			return candidate.OutpostProsperityMaxBonusTier
+		}
+		return candidate.BonusTier
 	}
-	return candidates[:count]
+	bestTier := bonusTier(candidates[0])
+	best := make([]operatorCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		tier := bonusTier(candidate)
+		if tier < bestTier {
+			bestTier = tier
+			best = best[:0]
+		}
+		if tier == bestTier {
+			best = append(best, candidate)
+		}
+	}
+	return best
 }
 
 // 在同档售卖候选中选择最有利于全局恢复的干员。
@@ -172,7 +185,7 @@ func restorePlanForTargetCandidate(
 
 	available := cloneStringSet(owned)
 	for _, lockedCandidate := range p.LockedRestoreAssignments {
-		delete(available, operatorCandidateCacheName(lockedCandidate))
+		delete(available, lockedCandidate.Name)
 	}
 	preferred, reusable := restorePlanPreferences(&selection, owned)
 	return buildRestoreAssignmentPlanWithPreferencesAndTargets(
@@ -191,8 +204,10 @@ func preferredTargetCandidates(
 	owned map[string]struct{},
 	location string,
 	restoreGroups []operatorCandidateGroup,
+	outpostProsperityMaxLocations map[string]struct{},
 ) []operatorCandidate {
-	bestSelling := bestBonusTierCandidates(filterOwnedCandidates(candidates, owned))
+	_, outpostProsperityMax := outpostProsperityMaxLocations[location]
+	bestSelling := bestBonusTierCandidates(filterOwnedCandidates(candidates, owned), outpostProsperityMax)
 	if len(bestSelling) == 0 {
 		return nil
 	}
@@ -241,6 +256,7 @@ func restorePlanPreferences(
 			owned,
 			location,
 			p.RestoreGroups,
+			p.OutpostProsperityMaxLocations,
 		)
 		if len(available) == 0 {
 			continue
@@ -248,7 +264,7 @@ func restorePlanPreferences(
 		preferred[location] = available[0]
 		names := make(map[string]struct{}, len(available))
 		for _, candidate := range available {
-			names[operatorCandidateCacheName(candidate)] = struct{}{}
+			names[candidate.Name] = struct{}{}
 		}
 		reusable[location] = names
 	}
@@ -353,7 +369,7 @@ func buildRestoreAssignmentPlanWithPreferencesAndTargets(
 			}
 			reusable := reusableCount
 			if names := reusableTargets[group.Location]; names != nil {
-				if _, ok := names[operatorCandidateCacheName(candidate)]; ok {
+				if _, ok := names[candidate.Name]; ok {
 					reusable++
 				}
 			}

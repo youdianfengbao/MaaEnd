@@ -25,29 +25,32 @@ const (
 // CompletedRestoreLocations 排除已恢复或已确认无法恢复的据点；
 // TargetAssignments 记录各据点本轮实际使用的售卖干员，供恢复规划减少无收益切换；
 // LockedRestoreAssignments 则固定成功恢复的结果，后续重新规划不能挪用这些干员；
-// ExcludedOperators 临时排除已在其他据点派驻且不应被抢占的干员。
+// ExcludedOperators 临时排除已在其他据点派驻且不应被抢占的干员；
+// OutpostProsperityMaxLocations 记录据点发展值已达上限的据点，供售卖候选忽略发展值加成。
 type operatorSessionState struct {
-	UID                       string
-	Mode                      string
-	ActiveLocations           map[string]struct{}
-	CompletedRestoreLocations map[string]struct{}
-	EnteredLocations          map[string]struct{}
-	TargetAssignments         map[string]operatorCandidate
-	PlannedRestoreAssignments map[string]operatorCandidate
-	LockedRestoreAssignments  map[string]operatorCandidate
-	ExcludedOperators         map[string]struct{}
-	RetriedSelections         map[string]struct{}
-	CacheNoticePrinted        bool
-	Refreshed                 bool
+	UID                           string
+	Mode                          string
+	ActiveLocations               map[string]struct{}
+	CompletedRestoreLocations     map[string]struct{}
+	EnteredLocations              map[string]struct{}
+	TargetAssignments             map[string]operatorCandidate
+	PlannedRestoreAssignments     map[string]operatorCandidate
+	LockedRestoreAssignments      map[string]operatorCandidate
+	ExcludedOperators             map[string]struct{}
+	OutpostProsperityMaxLocations map[string]struct{}
+	RetriedSelections             map[string]struct{}
+	CacheNoticePrinted            bool
+	Refreshed                     bool
 }
 
 type operatorSessionActionParam struct {
-	Operation string `json:"operation"`
-	Mode      string `json:"mode,omitempty"`
-	Usage     string `json:"usage,omitempty"`
-	Location  string `json:"location,omitempty"`
-	Changed   bool   `json:"changed,omitempty"`
-	Active    bool   `json:"active,omitempty"`
+	Operation            string `json:"operation"`
+	Mode                 string `json:"mode,omitempty"`
+	Usage                string `json:"usage,omitempty"`
+	Location             string `json:"location,omitempty"`
+	Changed              bool   `json:"changed,omitempty"`
+	Active               bool   `json:"active,omitempty"`
+	OutpostProsperityMax bool   `json:"outpost_prosperity_max,omitempty"`
 }
 
 // OperatorSessionAction 由 Pipeline 在任务入口和恢复完成节点调用。
@@ -80,6 +83,14 @@ func (a *OperatorSessionAction) Run(ctx *maa.Context, arg *maa.CustomActionArg) 
 		}
 		operatorSessionRegisterLocation(p.Location)
 	case operatorSessionOperationEnterLocation:
+		uid := operatorSessionSetOutpostProsperityMax(p.Location, p.OutpostProsperityMax)
+		if _, err := persistOutpostProsperityStatus(uid, p.Location, p.OutpostProsperityMax); err != nil {
+			log.Warn().Err(err).
+				Str("component", operatorSessionActionName).
+				Str("location", p.Location).
+				Bool("outpost_prosperity_max", p.OutpostProsperityMax).
+				Msg("failed to persist outpost prosperity status")
+		}
 		if operatorSessionEnterLocation(p.Location) {
 			if err := printRuntimeLocationPlan(ctx, p.Location); err != nil {
 				log.Warn().Err(err).
@@ -120,7 +131,7 @@ func (a *OperatorSessionAction) Run(ctx *maa.Context, arg *maa.CustomActionArg) 
 		log.Warn().Str("component", operatorSessionActionName).
 			Str("usage", p.Usage).
 			Str("location", p.Location).
-			Str("operator", operatorCandidateCacheName(candidate)).
+			Str("operator", candidate.Name).
 			Msg("operator excluded after already assigned prompt")
 		printRuntimeOperatorConflict(ctx, p.Location, p.Usage, candidate)
 	default:
@@ -165,19 +176,22 @@ func parseOperatorSessionActionParam(arg *maa.CustomActionArg) (*operatorSession
 }
 
 func operatorSessionReset(mode string) {
+	uid := currentSellProductCacheUID()
+	outpostProsperityMaxLocations := cachedOutpostProsperityMaxLocations(uid)
 	operatorStateMu.Lock()
 	defer operatorStateMu.Unlock()
 	operatorSession = operatorSessionState{
-		UID:                       currentOperatorCacheUID(),
-		Mode:                      mode,
-		ActiveLocations:           map[string]struct{}{},
-		CompletedRestoreLocations: map[string]struct{}{},
-		EnteredLocations:          map[string]struct{}{},
-		TargetAssignments:         map[string]operatorCandidate{},
-		PlannedRestoreAssignments: map[string]operatorCandidate{},
-		LockedRestoreAssignments:  map[string]operatorCandidate{},
-		ExcludedOperators:         map[string]struct{}{},
-		RetriedSelections:         map[string]struct{}{},
+		UID:                           uid,
+		Mode:                          mode,
+		ActiveLocations:               map[string]struct{}{},
+		CompletedRestoreLocations:     map[string]struct{}{},
+		EnteredLocations:              map[string]struct{}{},
+		TargetAssignments:             map[string]operatorCandidate{},
+		PlannedRestoreAssignments:     map[string]operatorCandidate{},
+		LockedRestoreAssignments:      map[string]operatorCandidate{},
+		ExcludedOperators:             map[string]struct{}{},
+		OutpostProsperityMaxLocations: outpostProsperityMaxLocations,
+		RetriedSelections:             map[string]struct{}{},
 	}
 	operatorListScanStates = map[string]operatorListScanState{}
 }
@@ -194,18 +208,19 @@ func operatorSessionSnapshot() operatorSessionState {
 	defer operatorStateMu.Unlock()
 	ensureOperatorSessionLocked()
 	return operatorSessionState{
-		UID:                       operatorSession.UID,
-		Mode:                      operatorSession.Mode,
-		ActiveLocations:           cloneStringSet(operatorSession.ActiveLocations),
-		CompletedRestoreLocations: cloneStringSet(operatorSession.CompletedRestoreLocations),
-		EnteredLocations:          cloneStringSet(operatorSession.EnteredLocations),
-		TargetAssignments:         cloneRestoreAssignments(operatorSession.TargetAssignments),
-		PlannedRestoreAssignments: cloneRestoreAssignments(operatorSession.PlannedRestoreAssignments),
-		LockedRestoreAssignments:  cloneRestoreAssignments(operatorSession.LockedRestoreAssignments),
-		ExcludedOperators:         cloneStringSet(operatorSession.ExcludedOperators),
-		RetriedSelections:         cloneStringSet(operatorSession.RetriedSelections),
-		CacheNoticePrinted:        operatorSession.CacheNoticePrinted,
-		Refreshed:                 operatorSession.Refreshed,
+		UID:                           operatorSession.UID,
+		Mode:                          operatorSession.Mode,
+		ActiveLocations:               cloneStringSet(operatorSession.ActiveLocations),
+		CompletedRestoreLocations:     cloneStringSet(operatorSession.CompletedRestoreLocations),
+		EnteredLocations:              cloneStringSet(operatorSession.EnteredLocations),
+		TargetAssignments:             cloneRestoreAssignments(operatorSession.TargetAssignments),
+		PlannedRestoreAssignments:     cloneRestoreAssignments(operatorSession.PlannedRestoreAssignments),
+		LockedRestoreAssignments:      cloneRestoreAssignments(operatorSession.LockedRestoreAssignments),
+		ExcludedOperators:             cloneStringSet(operatorSession.ExcludedOperators),
+		OutpostProsperityMaxLocations: cloneStringSet(operatorSession.OutpostProsperityMaxLocations),
+		RetriedSelections:             cloneStringSet(operatorSession.RetriedSelections),
+		CacheNoticePrinted:            operatorSession.CacheNoticePrinted,
+		Refreshed:                     operatorSession.Refreshed,
 	}
 }
 
@@ -233,6 +248,18 @@ func operatorSessionEnterLocation(location string) bool {
 	}
 	operatorSession.EnteredLocations[location] = struct{}{}
 	return true
+}
+
+func operatorSessionSetOutpostProsperityMax(location string, reached bool) string {
+	operatorStateMu.Lock()
+	defer operatorStateMu.Unlock()
+	ensureOperatorSessionLocked()
+	if reached {
+		operatorSession.OutpostProsperityMaxLocations[location] = struct{}{}
+		return operatorSession.UID
+	}
+	delete(operatorSession.OutpostProsperityMaxLocations, location)
+	return operatorSession.UID
 }
 
 func operatorSessionSetPlannedRestore(location string, candidate operatorCandidate, ok bool) {
@@ -268,7 +295,7 @@ func operatorSessionExcludeSelected(usage string, location string) (operatorCand
 	if !ok {
 		return operatorCandidate{}, false
 	}
-	operatorSession.ExcludedOperators[operatorCandidateCacheName(candidate)] = struct{}{}
+	operatorSession.ExcludedOperators[candidate.Name] = struct{}{}
 	return candidate, true
 }
 
@@ -338,7 +365,7 @@ func operatorSessionRefreshed() bool {
 }
 
 func ensureOperatorSessionLocked() {
-	uid := currentOperatorCacheUID()
+	uid := currentSellProductCacheUID()
 	if operatorSession.UID == uid && operatorSession.ActiveLocations != nil {
 		if operatorSession.EnteredLocations == nil {
 			operatorSession.EnteredLocations = map[string]struct{}{}
@@ -346,20 +373,37 @@ func ensureOperatorSessionLocked() {
 		if operatorSession.ExcludedOperators == nil {
 			operatorSession.ExcludedOperators = map[string]struct{}{}
 		}
+		if operatorSession.OutpostProsperityMaxLocations == nil {
+			operatorSession.OutpostProsperityMaxLocations = map[string]struct{}{}
+		}
 		return
 	}
+	outpostProsperityMaxLocations := cachedOutpostProsperityMaxLocations(uid)
 	operatorSession = operatorSessionState{
-		UID:                       uid,
-		Mode:                      operatorCacheModeCache,
-		ActiveLocations:           map[string]struct{}{},
-		CompletedRestoreLocations: map[string]struct{}{},
-		EnteredLocations:          map[string]struct{}{},
-		TargetAssignments:         map[string]operatorCandidate{},
-		PlannedRestoreAssignments: map[string]operatorCandidate{},
-		LockedRestoreAssignments:  map[string]operatorCandidate{},
-		ExcludedOperators:         map[string]struct{}{},
-		RetriedSelections:         map[string]struct{}{},
+		UID:                           uid,
+		Mode:                          operatorCacheModeCache,
+		ActiveLocations:               map[string]struct{}{},
+		CompletedRestoreLocations:     map[string]struct{}{},
+		EnteredLocations:              map[string]struct{}{},
+		TargetAssignments:             map[string]operatorCandidate{},
+		PlannedRestoreAssignments:     map[string]operatorCandidate{},
+		LockedRestoreAssignments:      map[string]operatorCandidate{},
+		ExcludedOperators:             map[string]struct{}{},
+		OutpostProsperityMaxLocations: outpostProsperityMaxLocations,
+		RetriedSelections:             map[string]struct{}{},
 	}
+}
+
+func cachedOutpostProsperityMaxLocations(uid string) map[string]struct{} {
+	locations, err := loadOutpostProsperityMaxLocations(uid)
+	if err != nil {
+		log.Warn().Err(err).
+			Str("component", operatorSessionActionName).
+			Str("uid", uid).
+			Msg("failed to load outpost prosperity cache")
+		return map[string]struct{}{}
+	}
+	return locations
 }
 
 func cloneStringSet(src map[string]struct{}) map[string]struct{} {

@@ -82,6 +82,28 @@ The `FalseAction` implementation is located in `agent/go-service/common/falseact
 
 - Parameters: None.
 
+### RepeatUntilFoundAction / RepeatUntilNotFoundAction
+
+Both are implemented in `agent/go-service/common/repeataction`. They repeatedly run a built-in or custom action, wait, then check recognition. They succeed when the wait condition is met, and fail after `repeat_count` attempts without success.
+
+- `RepeatUntilFoundAction`: succeeds when **any** `wait_nodes` entry hits.
+- `RepeatUntilNotFoundAction`: succeeds when `wait_node` misses.
+
+- Shared parameters:
+    - `action: string`: Built-in action type (e.g. `Click`). Mutually exclusive with `custom_action`.
+    - `custom_action?: string`: Registered custom action name (e.g. `AutoAltClickAction`). Mutually exclusive with `action`.
+    - `custom_action_param?: object`: Forwarded to the nested custom action.
+    - `repeat_count?: int`: Maximum attempts. Defaults to `3` when omitted or `<= 0`.
+    - `interval_ms?: int`: Wait after each attempt before recognition, in milliseconds. Defaults to `1000` when omitted or `0`. Negative values are invalid.
+- `RepeatUntilFoundAction` extra:
+    - `wait_nodes: string[]`: Pipeline node names to wait for. Required.
+- `RepeatUntilNotFoundAction` extra:
+    - `wait_node: string`: Single Pipeline node name to wait until it disappears. Required.
+
+The target position always uses the recognition `box` that triggered this Action (optionally adjusted by outer `target` / `target_offset`). The loop aborts immediately and returns failure when the tasker reports stopping.
+
+Example file: [`RepeatUntilFoundAction.json`](../../../assets/resource/pipeline/Interface/Example/RepeatUntilFoundAction.json)
+
 ### PipelineOverride
 
 The `PipelineOverride` implementation is located in `agent/go-service/common/pipelineoverride` and is used at runtime to merge **node-organized partial JSON** into the current Pipeline (`ctx.OverridePipeline`). It is suitable for dynamically toggling node switches or adjusting recognition/action parameters **without changing the static flow topology**.
@@ -146,13 +168,6 @@ The `AutoAltClickAction` implementation is located in `agent/go-service/common/a
     - `target_offset?: [int, int, int, int]`: Optional. Format like `[dx, dy, dw, dh]`, overlaid onto `box` before clicking the center; semantics are consistent with the `target_offset` of the built-in `Click` action. If omitted, it directly clicks the center of `box`.
 
 The default target position is determined by the `box` of the Pipeline node.
-
-### AutoAltLongPressAction
-
-The `AutoAltLongPressAction` implementation is located in `agent/go-service/common/autoalt`. It performs an Alt + Long Press operation at a specified position.
-
-- Parameters:
-    - `duration: int`: Long press duration in milliseconds. Required.
 
 ### AutoAltSwipeAction
 
@@ -247,21 +262,23 @@ Important Notes:
 
 ### ListCompleteRecognition
 
-The `ListCompleteRecognition` implementation is located in `agent/go-service/common/listcomplete`. It detects whether a list is still updating by checking whether OCR text has changed (commonly used to detect when a scrollable list has reached the end).
+The `ListCompleteRecognition` implementation is located in `agent/go-service/common/listcomplete`. It detects whether a list is still updating by checking whether an OCR fingerprint has changed (commonly used to detect when a scrollable list has reached the end).
 
 Parameters:
 
 - `node: string`: Required. An OCR node name, or an `And` node name whose `box_index` target must be OCR.
+- `retry: int`: Optional, default `0`. After the current fingerprint equals `attach.last_text`, keep returning a match this many times; treat the list as complete only when consecutive unchanged hits `unchanged_count > retry`. `0` means no retry (first unchanged hit completes the list).
 
 Behavior:
 
 1. Run recognition on `node`; return no match if it misses or no OCR text can be extracted.
-2. Read `attach.last_text` from the current custom recognition node itself.
-3. If `last_text` is empty (first success): return a match, with the box set to the OCR text position, and write the current text into `attach.last_text`.
-4. If the current text equals `last_text`: return no match (treat as list complete / unchanged).
-5. If the current text differs from `last_text`: update `attach.last_text` and return a match.
+2. Collect OCR hits from the target result (`Filtered`, else `All`), sort by vertical then horizontal position, and fingerprint only the first and last hits joined with a newline (or the single hit if there is only one); the returned box is the topmost hit. This still detects “top unchanged, bottom scrolled” better than `Best` alone, while staying more stable than joining every on-screen string.
+3. Read `attach.last_text` / `attach.unchanged_count` from the current custom recognition node itself.
+4. If `last_text` is empty (first success): return a match, write the current fingerprint into `attach.last_text`, and reset `unchanged_count` to `0`.
+5. If the current fingerprint equals `last_text`: increment `unchanged_count`; if `unchanged_count > retry` return no match (list complete), otherwise still return a match (confirmation retry).
+6. If the current fingerprint differs from `last_text`: update `attach.last_text`, reset `unchanged_count` to `0`, and return a match.
 
-For `And` nodes, target resolution is shared with `ExpressionRecognition` via `pkg/recogtarget`: first run the `And` node itself, then read the corresponding sub-recognition result from this run's `CombinedResult` using that node's native `box_index` (default `0`), and extract OCR text/box from that selected child. Node definition validation also requires the `box_index` target to contain OCR.
+For `And` nodes, target resolution is shared with `ExpressionRecognition` via `pkg/recogtarget`: first run the `And` node itself, then read the corresponding sub-recognition result from this run's `CombinedResult` using that node's native `box_index` (default `0`), and extract OCR from that selected child. Node definition validation also requires the `box_index` target to contain OCR.
 
 Example file: [`ListCompleteRecognition.json`](../../../assets/resource/pipeline/Interface/Example/ListCompleteRecognition.json)
 
@@ -272,7 +289,8 @@ Example file: [`ListCompleteRecognition.json`](../../../assets/resource/pipeline
         "param": {
             "custom_recognition": "ListCompleteRecognition",
             "custom_recognition_param": {
-                "node": "SomeListAnchorOCR"
+                "node": "SomeListAnchorOCR",
+                "retry": 1
             }
         }
     }
@@ -281,9 +299,56 @@ Example file: [`ListCompleteRecognition.json`](../../../assets/resource/pipeline
 
 Notes:
 
-- State is stored in `attach.last_text` on the **current Custom recognition node**, not on the OCR/`And` node referenced by `node`.
-- To restart a list scan, clear that Custom node's `attach.last_text` (for example via `PipelineOverride`).
-- This recognizer only answers "did the text change"; scrolling/clicking still belong in Pipeline.
+- State is stored in `attach.last_text` / `attach.unchanged_count` on the **current Custom recognition node**, not on the OCR/`And` node referenced by `node`.
+- To restart a list scan, clear that Custom node's `attach.last_text` (preferably also reset `unchanged_count` to `0`, for example via `PipelineOverride`).
+- This recognizer only answers "did the first/last OCR fingerprint change"; scrolling/clicking still belong in Pipeline.
+
+### ExpendableRecognition
+
+The `ExpendableRecognition` implementation is located in `agent/go-service/common/expendable`. It implements one-shot consumption of list items (visit once, then exclude via `attach.visited`), such as unread event-center entries or friends in a visit list.
+
+Parameters:
+
+- `candidate: string`: Required. An `OCR` node, or an `And` whose `box_index` points at the text OCR. Only that named OCR is patched; the candidate hit box is returned for `Click`.
+- `visited_node: string`: Optional. Read/write `attach.visited` on this node instead of the current Custom node. Multiple consumable nodes can share one blacklist (e.g. remark-first + any-friend).
+- `key_regex: string`: Optional. Extract the visited key from OCR text (capture group 1 if present, otherwise the full match; fall back to the raw text on no match). Without it, behavior matches the original exact full-string store/exclude. With it, the blacklist also tolerates non-digit OCR tail noise after the key. Game-specific rules (e.g. cut remark names at the first `)`, cut normal names at `#UID`) stay in Pipeline.
+
+Behavior:
+
+1. Load `attach.visited` from `visited_node` (or the current Custom node).
+2. Resolve the key OCR from `candidate` (`And.box_index`), read its `expected`, rebuild a negative blacklist from `visited`, and override only `expected` (`order_by` and other fields stay as-is).
+3. Run `candidate`; miss means no match.
+4. Extract OCR text from the hit; if `key_regex` is set, derive the key first, then append to that node's `attach.visited`, and return the hit box.
+
+Candidate layout, click target, remark priority (multi `expected` + `order_by: Expected`, or two consumable nodes + shared `visited_node`), and how OCR text becomes a key stay in Pipeline.
+
+Example file: [`ExpendableRecognition.json`](../../../assets/resource/pipeline/Interface/Example/ExpendableRecognition.json)
+
+```json
+{
+    "recognition": {
+        "type": "Custom",
+        "param": {
+            "custom_recognition": "ExpendableRecognition",
+            "custom_recognition_param": {
+                "candidate": "SomeCandidateAnd",
+                "key_regex": ".*?[)）]"
+            }
+        }
+    },
+    "attach": {
+        "visited": []
+    }
+}
+```
+
+Notes:
+
+- State lives in `attach.visited` on `visited_node` (default: the current Custom recognition node).
+- Clear that node's `attach.visited` before a fresh scan (task re-entry or `PipelineOverride`).
+- `expected` on key OCR nodes is fully replaced with "base patterns + visited blacklist"; bases come from the node before override (previous exclusion prefixes are stripped).
+- Key OCR leaves must be **named node refs** (`And.box_index` must not point at an inline OCR object).
+- `key_regex` only runs caller-declared truncation; the shared component never embeds game-specific copy rules.
 
 ### ScheduleRecognition
 
@@ -310,14 +375,16 @@ When writing a Pipeline, the built-in `TemplateMatch` / `OCR` / `Click` / `Swipe
 | Run a series of subtasks in order        | `SubTask`                     |
 | Clear hit count of a node                | `ClearHitCount`               |
 | Force an Action to fail                  | `FalseAction`                 |
+| Repeat an action until a node appears    | `RepeatUntilFoundAction`      |
+| Repeat an action until a node disappears | `RepeatUntilNotFoundAction`   |
 | Actively stop the current task           | `PostStop`                    |
 | Change node parameters at runtime        | `PipelineOverride`            |
 | Write keywords as regex back to OCR node | `AttachToExpectedRegexAction` |
 | Evaluate OCR numerical expressions       | `ExpressionRecognition`       |
 | Detect whether list OCR text changed     | `ListCompleteRecognition`     |
+| Consumable pick (visited exclusion)      | `ExpendableRecognition`       |
 | Gate subsequent nodes by day of week     | `ScheduleRecognition`         |
 | Alt + Click at specified position        | `AutoAltClickAction`          |
-| Alt + Long Press at specified position   | `AutoAltLongPressAction`      |
 | Alt + Swipe                              | `AutoAltSwipeAction`          |
 
 All Custom Go code implementations are located under `agent/go-service/`. Pipeline authors do not need to concern themselves with this; just write the JSON according to the documentation parameters.

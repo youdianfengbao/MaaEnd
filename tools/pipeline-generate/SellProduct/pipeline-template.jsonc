@@ -23,12 +23,6 @@
             "SellProductIn${LocationId}"
         ],
         "pre_delay": 0,
-        "action": "Custom",
-        "custom_action": "SellProductOperatorSession",
-        "custom_action_param": {
-            "operation": "enter_location",
-            "location": "${LocationId}"
-        },
         "anchor": {
             "SellProductZeroMoneyHandler": "SellProductZeroMoneyWithTip",
             "SellProductSelectPriorityItem": "SellProduct${LocationId}SelectPriorityItem",
@@ -36,6 +30,48 @@
             "SellProductCommitPriorityItem": "SellProduct${LocationId}CommitPriorityItem",
             "SellProductMarkOutOfStock": "SellProduct${LocationId}MarkOutOfStock",
             "SellProductBetterSliding": "SellProduct${LocationId}ApplyReserve"
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SellProduct${LocationId}OutpostProsperityAvailable",
+            "SellProduct${LocationId}OutpostProsperityMax"
+        ]
+    },
+    "SellProduct${LocationId}OutpostProsperityAvailable": {
+        "desc": "${LocationDesc}据点发展值未达上限",
+        "recognition": "And",
+        "all_of": [
+            "SellProductIn${LocationId}",
+            "SellProductOutpostProsperityAvailable"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SellProductOperatorSession",
+        "custom_action_param": {
+            "operation": "enter_location",
+            "location": "${LocationId}",
+            "outpost_prosperity_max": false
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SellProduct${LocationId}SetOperatorAnchors"
+        ]
+    },
+    "SellProduct${LocationId}OutpostProsperityMax": {
+        "desc": "${LocationDesc}据点发展值已达上限",
+        "recognition": "And",
+        "all_of": [
+            "SellProductIn${LocationId}"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SellProductOperatorSession",
+        "custom_action_param": {
+            "operation": "enter_location",
+            "location": "${LocationId}",
+            "outpost_prosperity_max": true
         },
         "post_delay": 0,
         "rate_limit": 0,

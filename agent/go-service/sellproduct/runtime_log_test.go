@@ -1,8 +1,10 @@
 package sellproduct
 
 import (
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/i18n"
 )
@@ -24,7 +26,7 @@ func TestRuntimeMessagesContainCurrentState(t *testing.T) {
 		{
 			name:     "完整扫描后重新规划",
 			message:  runtimeOperatorReplannedMessage("TestLocation", operatorActionUsageRestore, candidate),
-			expected: []string{"恢复干员", "测试干员", "TestLocation"},
+			expected: []string{"售后生产干员", "测试干员", "TestLocation"},
 		},
 		{
 			name:     "货品切换",
@@ -37,18 +39,29 @@ func TestRuntimeMessagesContainCurrentState(t *testing.T) {
 			expected: []string{"缺货", "test_item", "TestLocation"},
 		},
 		{
+			name:     "仅售卖优先产品",
+			message:  runtimeOnlyPreferredEnabledMessage(),
+			expected: []string{"仅售卖优先产品", "其他产品不会售卖", "已开启地区优先售卖配置"},
+		},
+		{
 			name:     "全量缓存扫描失败",
 			message:  runtimeOperatorScanFailedMessage("global", operatorActionUsageAll),
 			expected: []string{"干员缓存扫描失败"},
 		},
 		{
-			name:     "加载干员缓存",
-			message:  runtimeOperatorCacheStatusMessage(true),
-			expected: []string{"已加载干员列表缓存"},
+			name: "加载干员缓存",
+			message: runtimeOperatorCacheStatusMessage(operatorCacheStatus{
+				Ready:     true,
+				UpdatedAt: time.Date(2026, 7, 20, 2, 56, 13, 0, time.UTC),
+			}),
+			expected: []string{
+				"已加载干员列表缓存",
+				time.Date(2026, 7, 20, 2, 56, 13, 0, time.UTC).Local().Format("2006-01-02 15:04:05"),
+			},
 		},
 		{
 			name:     "扫描干员缓存",
-			message:  runtimeOperatorCacheStatusMessage(false),
+			message:  runtimeOperatorCacheStatusMessage(operatorCacheStatus{}),
 			expected: []string{"正在扫描并缓存干员列表"},
 		},
 	}
@@ -64,6 +77,13 @@ func TestRuntimeMessagesContainCurrentState(t *testing.T) {
 	}
 }
 
+func TestRuntimeLocalCacheUpdatedAtFallsBackForInvalidTimestamp(t *testing.T) {
+	i18n.Init()
+	if got := runtimeLocalCacheUpdatedAt(time.Time{}); got != "未知" {
+		t.Fatalf("无效缓存时间 = %q，期望未知", got)
+	}
+}
+
 func TestRuntimeLocationPlanMessage(t *testing.T) {
 	i18n.Init()
 	message := runtimeLocationPlanMessage(runtimeLocationPlan{
@@ -75,6 +95,7 @@ func TestRuntimeLocationPlanMessage(t *testing.T) {
 			{Name: "物品乙", ReserveQuantity: 10},
 		},
 		ExcludedOutOfStock: []string{"物品丙"},
+		ExcludedByUser:     []string{"物品丁"},
 	})
 
 	for _, expected := range []string{
@@ -83,6 +104,7 @@ func TestRuntimeLocationPlanMessage(t *testing.T) {
 		"恢复干员",
 		"物品甲 → 物品乙",
 		"缺货排除：物品丙",
+		"用户排除：物品丁",
 		"物品乙保留 10",
 	} {
 		if !strings.Contains(message, expected) {
@@ -100,7 +122,7 @@ func TestBuildRuntimeLocationPlanItemsSeparatesOutOfStock(t *testing.T) {
 		{ItemID: "item_a", DisplayName: "物品甲"},
 		{ItemID: "item_b", DisplayName: "物品乙"},
 	}
-	items, excluded := buildRuntimeLocationPlanItems(
+	items, excludedOutOfStock, excludedByUser := buildRuntimeLocationPlanItems(
 		groups,
 		map[string]int{"item_a": 10, "item_b": 20},
 		map[string]struct{}{"item_b": {}, "other_location_item": {}},
@@ -108,8 +130,32 @@ func TestBuildRuntimeLocationPlanItemsSeparatesOutOfStock(t *testing.T) {
 	if len(items) != 1 || items[0].Name != "物品甲" || items[0].ReserveQuantity != 10 {
 		t.Fatalf("可售计划 = %+v，期望仅保留物品甲及其保留规则", items)
 	}
-	if len(excluded) != 1 || excluded[0] != "物品乙" {
-		t.Fatalf("缺货排除 = %v，期望仅包含当前据点的物品乙", excluded)
+	if len(excludedOutOfStock) != 1 || excludedOutOfStock[0] != "物品乙" {
+		t.Fatalf("缺货排除 = %v，期望仅包含当前据点的物品乙", excludedOutOfStock)
+	}
+	if len(excludedByUser) != 0 {
+		t.Fatalf("用户排除 = %v，期望为空", excludedByUser)
+	}
+}
+
+func TestBuildRuntimeLocationPlanItemsSeparatesBlacklist(t *testing.T) {
+	groups := []itemPriorityGroup{
+		{ItemID: "item_a", DisplayName: "物品甲"},
+		{ItemID: "item_b", DisplayName: "物品乙"},
+	}
+	items, excludedOutOfStock, excludedByUser := buildRuntimeLocationPlanItems(
+		groups,
+		map[string]int{"item_a": reserveBlacklistQuantity, "item_b": 20},
+		map[string]struct{}{"item_a": {}},
+	)
+	if len(items) != 1 || items[0].Name != "物品乙" || items[0].ReserveQuantity != 20 {
+		t.Fatalf("可售计划 = %+v，期望仅包含物品乙", items)
+	}
+	if len(excludedOutOfStock) != 0 {
+		t.Fatalf("黑名单物品不应被记为缺货：%v", excludedOutOfStock)
+	}
+	if !reflect.DeepEqual(excludedByUser, []string{"物品甲"}) {
+		t.Fatalf("用户排除 = %v，期望包含物品甲", excludedByUser)
 	}
 }
 

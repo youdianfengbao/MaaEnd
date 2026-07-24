@@ -216,7 +216,7 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "PoolLotusNotAdapted"
+            "GoToPoolLotus"
         ]
     },
     "AlreadyTrackedPoolLotus": {
@@ -230,7 +230,7 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "PoolLotusNotAdapted"
+            "GoToPoolLotus"
         ]
     },
     "PoolLotusOpenTrackedMissionMap": {
@@ -304,7 +304,7 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "GoToPoolLotusStartPos"
+            "GoToPoolLotusMove"
         ]
     },
     "PoolLotusNotAdapted": {
@@ -340,12 +340,12 @@
         "custom_recognition_param": {
             "expected": [
                 {
-                    "map_name": "^map\\d+_lv\\d+$",
+                    "map_name": "map02_lv004",
                     "target": [
-                        0,
-                        0,
-                        1,
-                        1
+                        602.8,
+                        325,
+                        9.7,
+                        8.1
                     ]
                 }
             ]
@@ -358,35 +358,49 @@
         ]
     },
     "GoToPoolLotusNotAtStartPos": {
-        "desc": "不在小池荷任务开始位置附近，先传送再检查落点",
+        "desc": "不在小池荷任务开始位置附近，先传送再继续寻路",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "SubTask",
         "custom_action_param": {
             "sub": [
-                "SceneAnyEnterWorld"
+                "SceneEnterWorldWulingMarkerStone3"
             ]
         },
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "GoToPoolLotusStartPos"
+            "GoToPoolLotusMove"
         ]
     },
     "GoToPoolLotusMove": {
         "desc": "自动寻路前往小池荷",
         "pre_delay": 0,
         "action": "Custom",
-        "custom_action": "MapTrackerMove",
+        "custom_action": "MapTrackerGoal",
         "custom_action_param": {
-            "map_name": "^map\\d+_lv\\d+$",
-            "path": [
-                [
-                    0,
-                    0
-                ]
-            ]
+            "map_name": "map02_lv004",
+            "target": [
+                581.4,
+                305.1
+            ],
+            "on_finish": {
+                "action": "Custom",
+                "custom_action": "MapTrackerToward",
+                "custom_action_param": {
+                    "angle": 180
+                }
+            }
         },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "PoolLotusTakePhoto"
+        ]
+    },
+    "PoolLotusTakePhoto": {
+        "desc": "在小池荷任务拍照点开始拍照",
+        "pre_delay": 0,
         "anchor": {
             "EnvironmentMonitoringBackToTerminal": "EnvironmentMonitoringGoToMarkerStoneMonitoringTerminal",
             "EnvironmentMonitoringAdjustCamera": "PoolLotusAdjustCamera"
@@ -399,12 +413,12 @@
     },
     "PoolLotusAdjustCamera": {
         "desc": "小池荷任务中调整朝向",
-        "max_hit": 2,
+        "max_hit": 4,
         "pre_delay": 0,
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "EnvironmentMonitoringSwipeScreenUp"
+            "EnvironmentMonitoringSwipeScreenDown"
         ]
     }
 }
