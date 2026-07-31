@@ -2,7 +2,7 @@
     "interface_version": 2,
     "name": "MaaEnd",
     "description": "$description.file",
-    "version": "v2.22.0-rc.1",
+    "version": "v2.22.0",
     "contact": "$contact.file",
     "license": "locales/LICENSE_SHORT.md",
     "welcome": "https://end.maafw.com/anno.md",
