@@ -10,10 +10,10 @@ This document explains how to use the **MapNavigator** related nodes and how to 
 
 MapNavigator offers two ways to specify "where to go". **Determining which one your scenario belongs to first can save a great deal of work**:
 
-| Workflow                     | What you need to provide   | Applicable scenario                                                                                         |
+| Workflow | What you need to provide | Applicable scenario |
 | ---------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Target-based pathfinding** | A single target coordinate | The target point is inherently walkable, with no special mechanisms along the way                           |
-| **Recorded path**            | The full waypoint sequence | The route involves interactions, map transitions, jump platforms, external teleports, and similar semantics |
+| **Target-based pathfinding** | A single target coordinate | The target point is inherently walkable, with no special mechanisms along the way |
+| **Recorded path** | The full waypoint sequence | The route involves interactions, map transitions, jump platforms, external teleports, and similar semantics |
 
 #### Target-based: `NAVMESH`
 
@@ -397,10 +397,10 @@ After recording starts, switch back to the game and simply **walk through once a
 
 During recording, you can use the following shortcut keys:
 
-| Shortcut Key | Function                                                                                                                        |
+| Shortcut Key | Function |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `G`          | 📋 **Copy the current coordinates to the clipboard** in `[x, y]` format (does not affect recorded data, can be pressed anytime) |
-| `X`          | 📌 **Force insert a strict arrival (strict) path point** at the current precise location into the recorded data                 |
+| `G` | 📋 **Copy the current coordinates to the clipboard** in `[x, y]` format (does not affect recorded data, can be pressed anytime) |
+| `X` | 📌 **Force insert a strict arrival (strict) path point** at the current precise location into the recorded data |
 
 > [!TIP]
 >
@@ -553,12 +553,12 @@ In `custom_action_param.path`, change the third element of the target coordinate
 
 ### Files Path Authors Need to Care About
 
-| File                                                          | Responsibility                                                                       | When Changes Are Needed                                          |
+| File | Responsibility | When Changes Are Needed |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `assets/resource/pipeline/AutoCollect/AutoCollectRoute*.json` | Path definitions, containing `MapNavigateAction` nodes and collection coordinates    | Add new routes, adjust coordinates, add/remove collection points |
-| `assets/resource/pipeline/AutoCollect/AutoCollectClick.json`  | OCR and click subtask triggered by `COLLECT`, entry point is `AutoCollectClickStart` | Add or delete OCR-recognized collection object names             |
-| `assets/resource/pipeline/AutoCollect/AutoCollectDig.json`    | Digging subtask triggered by `DIG`, entry point is `AutoCollectDigStart`             | When digging interaction logic changes                           |
-| `assets/resource/pipeline/AutoCollect.json`                   | Route iteration, failure collection, and backpack storage before/after collection    | Add route entries or adjust the overall flow                     |
+| `assets/resource/pipeline/AutoCollect/AutoCollectRoute*.json` | Path definitions, containing `MapNavigateAction` nodes and collection coordinates | Add new routes, adjust coordinates, add/remove collection points |
+| `assets/resource/pipeline/AutoCollect/AutoCollectClick.json` | OCR and click subtask triggered by `COLLECT`, entry point is `AutoCollectClickStart` | Add or delete OCR-recognized collection object names |
+| `assets/resource/pipeline/AutoCollect/AutoCollectDig.json` | Digging subtask triggered by `DIG`, entry point is `AutoCollectDigStart` | When digging interaction logic changes |
+| `assets/resource/pipeline/AutoCollect.json` | Route iteration, failure collection, and backpack storage before/after collection | Add route entries or adjust the overall flow |
 
 **In most cases, path authors only need to modify `AutoCollectRoute*.json`.**
 

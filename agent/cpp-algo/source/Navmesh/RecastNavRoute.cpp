@@ -31,6 +31,9 @@ struct WindowInfo
     std::vector<WorldPoint> wP0;
     std::vector<WorldPoint> wP1;
     WallCsr wcsr;
+    StepBarrier sev;
+    std::vector<WorldPoint> segA;
+    std::vector<WorldPoint> segB;
 };
 
 struct RouteDiag
@@ -46,6 +49,7 @@ std::optional<WindowInfo> buildWindow(
     const ZoneClean& zc,
     WallOracle& wo,
     const WorldPoint& s,
+    const WorldPoint& s_snap,
     double h0,
     double x0,
     double y0,
@@ -72,10 +76,17 @@ std::optional<WindowInfo> buildWindow(
     }
     const std::vector<uint8_t> dead = StampWalls(p0, p1, hh, x0, y0, nx, ny, st);
 
-    const int64_t gx = static_cast<int64_t>((s.x - x0) / kCS);
-    const int64_t gy = static_cast<int64_t>((s.y - y0) / kCS);
-    const int64_t cell0 = gy * nx + gx;
-    const auto occ_it = std::lower_bound(st.occ.begin(), st.occ.end(), cell0);
+    int64_t gx = static_cast<int64_t>((s.x - x0) / kCS);
+    int64_t gy = static_cast<int64_t>((s.y - y0) / kCS);
+    int64_t cell0 = gy * nx + gx;
+    auto occ_it = std::lower_bound(st.occ.begin(), st.occ.end(), cell0);
+    if (occ_it == st.occ.end() || *occ_it != cell0) {
+        // 起点离网时其所在格无体素,退用按楼层吸附过的起点定种子
+        gx = static_cast<int64_t>((s_snap.x - x0) / kCS);
+        gy = static_cast<int64_t>((s_snap.y - y0) / kCS);
+        cell0 = gy * nx + gx;
+        occ_it = std::lower_bound(st.occ.begin(), st.occ.end(), cell0);
+    }
     if (occ_it == st.occ.end() || *occ_it != cell0) {
         err = "起点格无体素 (gx=" + std::to_string(gx) + ",gy=" + std::to_string(gy) + ")";
         return std::nullopt;
@@ -171,6 +182,8 @@ std::optional<WindowInfo> buildWindow(
         }
     }
 
+    info.sev = StepBreaks(st, vis, info.lay, x0, y0);
+
     const std::vector<uint8_t> keep = WallsAtLayer(p0, p1, hh, info.lh, x0, y0);
     for (size_t i = 0; i < keep.size(); ++i) {
         if (keep[i] != 0) {
@@ -179,6 +192,10 @@ std::optional<WindowInfo> buildWindow(
         }
     }
     info.wcsr = BuildWallIndex(info.wP0, info.wP1, x0, y0, nx, ny);
+    info.segA = info.wP0;
+    info.segA.insert(info.segA.end(), info.sev.p0.begin(), info.sev.p0.end());
+    info.segB = info.wP1;
+    info.segB.insert(info.segB.end(), info.sev.p1.begin(), info.sev.p1.end());
     info.dist = Clearance(info.core);
     return info;
 }
@@ -194,6 +211,8 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
         walk.v[i] = static_cast<uint8_t>(info.core.v[i] != 0 && info.lay.v[i] != 0);
     }
     const auto bn = BannedSteps(info.lay, info.wcsr, info.wP0, info.wP1, x0, y0);
+    std::unordered_set<int64_t> blocked_steps = bn;
+    blocked_steps.insert(info.sev.steps.begin(), info.sev.steps.end());
     // 亏欠越多单价越高;脊线保底只进几何口径 prefg,禁入 mult
     const Grid<float> pref = PrefField(info.dist, false);
     const Grid<float> prefg = PrefField(info.dist, true);
@@ -202,6 +221,26 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
         const float c = std::min(std::max((pref.v[i] - info.dist.v[i]) / pref.v[i], 0.0F), 1.0F);
         mult.v[i] = 1.0F + static_cast<float>(kLam) * c;
     }
+    // 几何口径的净空: 掩膜距离场对跨越约束的墙无感, 取真墙距离的下确界补上
+    Mask wfree(nx, ny, 0);
+    for (size_t i = 0; i < wfree.v.size(); ++i) {
+        wfree.v[i] = info.wcsr.start[i + 1] > info.wcsr.start[i] ? 0 : 1;
+    }
+    const Grid<float> wdist = Clearance(wfree);
+    Grid<float> dgeo(nx, ny, 0.0F);
+    for (size_t i = 0; i < dgeo.v.size(); ++i) {
+        dgeo.v[i] = std::min(info.dist.v[i], wdist.v[i]);
+    }
+    // 几何口径的余量目标: 通道半宽封顶 kGeoR, 供绿段重寻与拉直判定
+    const Grid<float> tgt = TargetField(dgeo);
+    Grid<float> multg(nx, ny, 0.0F);
+    Grid<float> cf(nx, ny, 0.0F);
+    for (size_t i = 0; i < multg.v.size(); ++i) {
+        const float c = std::min(std::max((tgt.v[i] - dgeo.v[i]) / tgt.v[i], 0.0F), 1.0F);
+        multg.v[i] = 1.0F + static_cast<float>(kLam) * c;
+        cf.v[i] = std::min(dgeo.v[i], tgt.v[i]);
+    }
+    const ClearanceFloor cfl(&cf, &multg, x0, y0, kCS);
 
     const CellPt sc { static_cast<int64_t>((s.x - x0) / kCS), static_cast<int64_t>((s.y - y0) / kCS) };
     const CellPt gc { static_cast<int64_t>((g.x - x0) / kCS), static_cast<int64_t>((g.y - y0) / kCS) };
@@ -244,11 +283,11 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
         q = std::vector<CellPt> { *as_ };
     }
     else {
-        q = CostAstar(walk, *as_, *ag_, mult, &bn, &BIGP);
+        q = CostAstar(walk, *as_, *ag_, mult, &blocked_steps, &BIGP);
     }
     if (!q.has_value()) {
         used = &info.core;
-        q = CostAstar(info.core, *as_, *ag_, mult, &bn, &BIGP);
+        q = CostAstar(info.core, *as_, *ag_, mult, &blocked_steps, &BIGP);
         if (q.has_value()) {
             dg.warn.push_back("walk 断开→退回 core");
         }
@@ -258,15 +297,23 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
         return std::nullopt;
     }
     const int64_t NC = nx * ny;
+    std::vector<size_t> bad;
     for (size_t k = 1; k < q->size(); ++k) {
         const int64_t ca = (*q)[k - 1].y * nx + (*q)[k - 1].x;
         const int64_t cb = (*q)[k].y * nx + (*q)[k].x;
+        if (!blocked_steps.contains(ca * NC + cb)) {
+            continue;
+        }
+        bad.push_back(k);
         if (bn.contains(ca * NC + cb)) {
             dg.xwall.push_back({ x0 + (static_cast<double>((*q)[k].x) + 0.5) * kCS, y0 + (static_cast<double>((*q)[k].y) + 0.5) * kCS });
         }
     }
     if (!dg.xwall.empty()) {
         dg.warn.push_back("不可避穿墙 " + std::to_string(dg.xwall.size()) + " 步");
+    }
+    if (bad.size() > dg.xwall.size()) {
+        dg.warn.push_back("不可避立面 " + std::to_string(bad.size() - dg.xwall.size()) + " 步");
     }
 
     const auto cen = [&](const std::vector<CellPt>& P) {
@@ -293,7 +340,7 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
 
     const auto loops_core = toWorld(TraceContours(info.core));
     const Blockers::OnMask onm { used, x0, y0, kCS };
-    const Blockers blk_gray(loops_core, &info.wP0, &info.wP1, onm);
+    const Blockers blk_gray(loops_core, &info.segA, &info.segB, onm);
 
     std::vector<uint8_t> grn(q->size());
     for (size_t i = 0; i < q->size(); ++i) {
@@ -341,7 +388,6 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
     }
     const std::vector<Run> mg = merge(runs);
 
-    const Grid<float> ones(nx, ny, 1.0F);
     std::vector<WorldPoint> taut;
     for (const auto& run : mg) {
         const int64_t iend = std::min(run.i1 + 1, static_cast<int64_t>(q->size()) - 1);
@@ -383,7 +429,31 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
                             || pm.at(y, x) != 0);
                     }
                 }
-                const auto q2 = CostAstar(er, cells.front(), cells.back(), ones, &bn, nullptr);
+                // 重寻硬禁穿墙步,不可避穿墙处切开逐子段重寻,原步原样保留
+                std::vector<size_t> cuts;
+                for (const size_t k : bad) {
+                    if (k > static_cast<size_t>(run.i0) && k <= static_cast<size_t>(run.i0) + cells.size() - 1) {
+                        cuts.push_back(k - static_cast<size_t>(run.i0));
+                    }
+                }
+                cuts.push_back(cells.size());
+                std::optional<std::vector<CellPt>> q2 = std::vector<CellPt> {};
+                size_t a2 = 0;
+                for (const size_t c2 : cuts) {
+                    const size_t b2 = c2 - 1;
+                    if (a2 == b2) {
+                        q2->push_back(cells[a2]);
+                    }
+                    else {
+                        const auto r2 = CostAstar(er, cells[a2], cells[b2], multg, &blocked_steps, nullptr);
+                        if (!r2.has_value()) {
+                            q2.reset();
+                            break;
+                        }
+                        q2->insert(q2->end(), r2->begin(), r2->end());
+                    }
+                    a2 = c2;
+                }
                 if (q2.has_value()) {
                     double l1 = 0.0;
                     double l2 = 0.0;
@@ -407,9 +477,9 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
                 }
                 auto lw = toWorld(lp);
                 lw.insert(lw.end(), loops_core.begin(), loops_core.end());
-                blk_green.emplace(lw, &info.wP0, &info.wP1, onm);
+                blk_green.emplace(lw, &info.segA, &info.segB, onm);
             }
-            pp = StringPull(pp, blk_green.has_value() ? *blk_green : blk_gray);
+            pp = StringPull(pp, blk_green.has_value() ? *blk_green : blk_gray, &cfl);
         }
         if (!taut.empty() && !pp.empty() && std::hypot(pp.front().x - taut.back().x, pp.front().y - taut.back().y) < 1e-9) {
             pp.erase(pp.begin());
@@ -436,7 +506,7 @@ std::optional<std::vector<WorldPoint>> routeWindow(const WindowInfo& info, const
     }
     std::vector<WorldPoint> out = DropLoops(ded);
     if (kSlimEps > 0 && out.size() > 2) {
-        out = Slim(out, blk_gray, kSlimEps);
+        out = Slim(out, blk_gray, kSlimEps, &cfl);
     }
     return out;
 }
@@ -529,7 +599,7 @@ RecastPlanResult RecastNavEngine::planLocked(
             return res;
         }
         std::string err;
-        const auto info = buildWindow(zc, wo, start, h0, x0, y0, x1, y1, blocked_local, blocked_points, err);
+        const auto info = buildWindow(zc, wo, start, ss->point, h0, x0, y0, x1, y1, blocked_local, blocked_points, err);
         if (info.has_value()) {
             RouteDiag dg;
             const auto line = routeWindow(*info, start, goal, dg);

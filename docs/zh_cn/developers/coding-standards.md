@@ -240,12 +240,12 @@ MaaEnd 使用 maa-tools 进行节点测试，详见[节点测试文档](./node-t
 
 ## 常见坑
 
-| 坑                                  | 处理                                                                                    |
+| 坑 | 处理 |
 | ----------------------------------- | --------------------------------------------------------------------------------------- |
-| `pnpm check` / `pnpm test` 跑不起来 | `pnpm install`                                                                          |
-| 模型或 C++ 依赖目录缺失             | `git submodule update --init --recursive` 或 `python tools/setup_workspace.py --update` |
-| 改了 Go 却没生效                    | 忘了 `python tools/build_and_install.py`                                                |
-| 直接引用了 `__ScenePrivate*` 节点   | 应引用 `Interface` 目录暴露的场景接口节点                                               |
-| 只顾主线，不处理弹窗/加载           | 把弹窗、加载、中间态视为正常情况                                                        |
-| 改了任务但没补文案                  | 文案放到 `assets/locales/`                                                              |
-| 本地能跑但是其他人不行              | 开滤镜了/帧数不同/GPU不同颜色有轻微偏差,RGB卡太死了                                     |
+| `pnpm check` / `pnpm test` 跑不起来 | `pnpm install` |
+| 模型或 C++ 依赖目录缺失 | `git submodule update --init --recursive` 或 `python tools/setup_workspace.py --update` |
+| 改了 Go 却没生效 | 忘了 `python tools/build_and_install.py` |
+| 直接引用了 `__ScenePrivate*` 节点 | 应引用 `Interface` 目录暴露的场景接口节点 |
+| 只顾主线，不处理弹窗/加载 | 把弹窗、加载、中间态视为正常情况 |
+| 改了任务但没补文案 | 文案放到 `assets/locales/` |
+| 本地能跑但是其他人不行 | 开滤镜了/帧数不同/GPU不同颜色有轻微偏差,RGB卡太死了 |

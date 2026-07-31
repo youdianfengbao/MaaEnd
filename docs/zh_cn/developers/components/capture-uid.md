@@ -9,11 +9,11 @@
 
 当前实现位于 `agent/go-service/captureuid/`：
 
-| 文件          | 职责                                                            |
+| 文件 | 职责 |
 | ------------- | --------------------------------------------------------------- |
-| `action.go`   | CustomAction 入口，反序列化参数，调用 `Capture` 或 `ClearCache` |
-| `capture.go`  | 核心逻辑：截屏、OCR、哈希、缓存                                 |
-| `register.go` | 向 MaaFramework 注册 `CaptureUid` 自定义动作                    |
+| `action.go` | CustomAction 入口，反序列化参数，调用 `Capture` 或 `ClearCache` |
+| `capture.go` | 核心逻辑：截屏、OCR、哈希、缓存 |
+| `register.go` | 向 MaaFramework 注册 `CaptureUid` 自定义动作 |
 
 ## 在 Pipeline 中调用
 
@@ -57,12 +57,12 @@
 
 ## 参数说明
 
-| 字段                     | 类型   | 默认值  | 说明                                                                                     |
+| 字段 | 类型 | 默认值 | 说明 |
 | ------------------------ | ------ | ------- | ---------------------------------------------------------------------------------------- |
-| `use_cache`              | `bool` | `true`  | 缓存中有 UID 时直接返回，不再截屏 OCR。                                                  |
-| `stay_on_current_screen` | `bool` | `true`  | 是否在当前画面截屏 OCR。为 `false` 时先导航至 `SceneEnterMenuOperationalManual` 再截屏。 |
-| `allow_unknown`          | `bool` | `true`  | OCR 失败时返回 `"unknown"` 而非报错。为 `false` 时 OCR 失败将导致动作失败。              |
-| `clear_cache`            | `bool` | `false` | 清空 UID 缓存并立即返回，不执行截屏 OCR。                                                |
+| `use_cache` | `bool` | `true` | 缓存中有 UID 时直接返回，不再截屏 OCR。 |
+| `stay_on_current_screen` | `bool` | `true` | 是否在当前画面截屏 OCR。为 `false` 时先导航至 `SceneEnterMenuOperationalManual` 再截屏。 |
+| `allow_unknown` | `bool` | `true` | OCR 失败时返回 `"unknown"` 而非报错。为 `false` 时 OCR 失败将导致动作失败。 |
+| `clear_cache` | `bool` | `false` | 清空 UID 缓存并立即返回，不执行截屏 OCR。 |
 
 > [!note]
 > `clear_cache` 为 `true` 时，其余参数均不生效——动作仅清空缓存后直接返回成功。
@@ -111,9 +111,9 @@ captureuid.ClearCache()
 
 ## 现有集成
 
-| 使用方                 | 文件                                                                                 | 方式                      | 用途                     |
+| 使用方 | 文件 | 方式 | 用途 |
 | ---------------------- | ------------------------------------------------------------------------------------ | ------------------------- | ------------------------ |
-| AutoStockpile          | `assets/resource/pipeline/AutoStockpile/Main.json`（`AutoStockpileGetUid` 节点）     | Pipeline                  | 获取并缓存 UID           |
-| AutoStockpile selector | `agent/go-service/autostockpile/selector.go`                                         | Go API（`GetCachedUID`）  | 关联物价数据与伪匿名身份 |
-| CreditShopping         | `agent/go-service/creditshopping/action_record.go`                                   | Go API（`Capture`）       | 记录货架快照时关联 UID   |
-| AccountSwitch          | `assets/resource/pipeline/AccountSwitch.json`（`__AccountSwitchClearUidCache` 节点） | Pipeline（`clear_cache`） | 切换账号后清空缓存       |
+| AutoStockpile | `assets/resource/pipeline/AutoStockpile/Main.json`（`AutoStockpileGetUid` 节点） | Pipeline | 获取并缓存 UID |
+| AutoStockpile selector | `agent/go-service/autostockpile/selector.go` | Go API（`GetCachedUID`） | 关联物价数据与伪匿名身份 |
+| CreditShopping | `agent/go-service/creditshopping/action_record.go` | Go API（`Capture`） | 记录货架快照时关联 UID |
+| AccountSwitch | `assets/resource/pipeline/AccountSwitch.json`（`__AccountSwitchClearUidCache` 节点） | Pipeline（`clear_cache`） | 切换账号后清空缓存 |

@@ -17,8 +17,8 @@ pnpm fetch:zmdmap
 # 如果已经更新过 zmdmap 缓存，也可以在生成器目录单独渲染
 cd tools/pipeline-generate/EnvironmentMonitoring/generator
 node sync-routes.mjs
-npx @joebao/maa-pipeline-generate
-npx @joebao/maa-pipeline-generate --config terminals-config.json
+pnpm exec maa-pipeline-generate
+pnpm exec maa-pipeline-generate --config terminals-config.json
 ```
 
 ## 新增/更新观察点
@@ -107,13 +107,13 @@ npx @joebao/maa-pipeline-generate --config terminals-config.json
 
 所有完整适配条目都需要元数据、`CameraSwipeDirection`，以及 `EnterMap` / `QuickTeleport: true` 中的一种传送入口。其余字段按路线类型填写：
 
-| 类型          | 地图与路线字段                                                         | `MapAssert`                  | 生成流程                                   |
+| 类型 | 地图与路线字段 | `MapAssert` | 生成流程 |
 | ------------- | ---------------------------------------------------------------------- | ---------------------------- | ------------------------------------------ |
-| metadata-only | 仅 `MissionId` / `Name` / `Id`                                         | 不填                         | 仅接取并追踪，不传送或拍照                 |
-| 传送后直拍    | 不填 `MapName` 和任何寻路字段；`Heading` 可选                          | 不填                         | 传送 → 可选 `MapTrackerToward` → 拍照      |
-| `MapPath`     | `MapName` + `MapPath`；可选 `Heading` / `NoEnsureInitialMovementState` | 默认传送和快捷传送都必填     | 断言固定起点 → `MapTrackerMove` → 拍照     |
-| `MapTarget`   | `MapName` + `MapTarget`；跨层时可加 `MapTargetTier`                    | 默认传送必填；快捷传送可省略 | `MapNavigateAction` 的 NAVMESH 寻路 → 拍照 |
-| `MapGoal`     | `MapName` + `MapGoal`；可选 `Heading` / `NoEnsureInitialMovementState` | 默认传送必填；快捷传送可省略 | `MapTrackerGoal` 自动寻路 → 拍照           |
+| metadata-only | 仅 `MissionId` / `Name` / `Id` | 不填 | 仅接取并追踪，不传送或拍照 |
+| 传送后直拍 | 不填 `MapName` 和任何寻路字段；`Heading` 可选 | 不填 | 传送 → 可选 `MapTrackerToward` → 拍照 |
+| `MapPath` | `MapName` + `MapPath`；可选 `Heading` / `NoEnsureInitialMovementState` | 默认传送和快捷传送都必填 | 断言固定起点 → `MapTrackerMove` → 拍照 |
+| `MapTarget` | `MapName` + `MapTarget`；跨层时可加 `MapTargetTier` | 默认传送必填；快捷传送可省略 | `MapNavigateAction` 的 NAVMESH 寻路 → 拍照 |
+| `MapGoal` | `MapName` + `MapGoal`；可选 `Heading` / `NoEnsureInitialMovementState` | 默认传送必填；快捷传送可省略 | `MapTrackerGoal` 自动寻路 → 拍照 |
 
 `CameraMaxHit` 和 `Replace` 可用于所有已适配路线，不改变路线类型。直拍必须经过游戏实测确认，不能用来代替尚未录制的路线数据。
 

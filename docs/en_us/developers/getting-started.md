@@ -35,13 +35,13 @@ pnpm install
 
 **Common parameters for `setup_workspace.py`:**
 
-| Parameter             | Description                                                                                                      |
+| Parameter | Description |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| (No parameters)       | First-time initialization, skips already installed components                                                    |
-| `--update`            | Force update all installed dependencies to the latest version                                                    |
-| `--clean-cache`       | Clean the download cache directory                                                                               |
-| `--cpp-algo-pr <N>`   | Download cpp-algo from the latest successful CI run of a specified PR (for quick testing of unmerged PR changes) |
-| `--cpp-algo-run <ID>` | Download cpp-algo from a specified workflow run ID                                                               |
+| (No parameters) | First-time initialization, skips already installed components |
+| `--update` | Force update all installed dependencies to the latest version |
+| `--clean-cache` | Clean the download cache directory |
+| `--cpp-algo-pr <N>` | Download cpp-algo from the latest successful CI run of a specified PR (for quick testing of unmerged PR changes) |
+| `--cpp-algo-run <ID>` | Download cpp-algo from a specified workflow run ID |
 
 > `--cpp-algo-pr` and `--cpp-algo-run` are mutually exclusive; choose one. If not specified, defaults to downloading from the latest push build of the `v2` branch.
 
@@ -51,10 +51,10 @@ We recommend using [Visual Studio Code](https://code.visualstudio.com/) (VS Code
 
 **Install Recommended Extensions:**
 
-1.  **Open Workspace**: Menu **File → Open Folder…**, select the cloned repository root directory.
-2.  **Notification Bar Installation**: If prompted in the bottom right corner with "This workspace has extension recommendations" or similar, choose **Install** / **Install All**.
-3.  **Extensions View**: Press `Ctrl+Shift+X` (macOS: `Cmd+Shift+X`) to open the Extensions sidebar, type `@recommended` in the search box, expand **Workspace Recommendations**, and click **Install** for the needed extensions.
-4.  **Command Palette**: `Ctrl+Shift+P` (macOS: `Cmd+Shift+P`) → Run **`Extensions: Show Recommended Extensions`**, and install from the list.
+1. **Open Workspace**: Menu **File → Open Folder…**, select the cloned repository root directory.
+2. **Notification Bar Installation**: If prompted in the bottom right corner with "This workspace has extension recommendations" or similar, choose **Install** / **Install All**.
+3. **Extensions View**: Press `Ctrl+Shift+X` (macOS: `Cmd+Shift+X`) to open the Extensions sidebar, type `@recommended` in the search box, expand **Workspace Recommendations**, and click **Install** for the needed extensions.
+4. **Command Palette**: `Ctrl+Shift+P` (macOS: `Cmd+Shift+P`) → Run **`Extensions: Show Recommended Extensions`**, and install from the list.
 
 For more complete instructions, see the VS Code documentation: [Workspace Recommended Extensions](https://code.visualstudio.com/docs/editor/extension-marketplace#_workspace-recommended-extensions).
 
@@ -282,10 +282,10 @@ It is recommended to directly call existing scene transition nodes. After comple
 
 Common reusable entry points are listed below:
 
-| Node           | Description                                                                   | Documentation                            |
+| Node | Description | Documentation |
 | -------------- | ----------------------------------------------------------------------------- | ---------------------------------------- |
-| Common Buttons | White/yellow confirm, cancel, close, teleport, etc.                           | [common-buttons.md](./common-buttons.md) |
-| SceneManager   | Universal jump: automatically navigate to the target scene from any interface | [scene-manager.md](./scene-manager.md)   |
+| Common Buttons | White/yellow confirm, cancel, close, teleport, etc. | [common-buttons.md](./common-buttons.md) |
+| SceneManager | Universal jump: automatically navigate to the target scene from any interface | [scene-manager.md](./scene-manager.md) |
 
 ## 5. Debugging and Testing
 
@@ -395,17 +395,17 @@ Congratulations, you've completed your first task!
 
 <details>
 
-1.  Fully clone the project and sub-repositories.
+1. Fully clone the project and sub-repositories.
 
-2.  Download [MaaFramework](https://github.com/MaaXYZ/MaaFramework/releases) and extract its contents into the `deps` folder.
+2. Download [MaaFramework](https://github.com/MaaXYZ/MaaFramework/releases) and extract its contents into the `deps` folder.
 
-3.  Download MaaDeps pre-built.
+3. Download MaaDeps pre-built.
 
     ```bash
     python tools/maadeps-download.py
     ```
 
-4.  Compile go-service and configure paths.
+4. Compile go-service and configure paths.
 
     ```bash
     python tools/build_and_install.py
@@ -417,8 +417,8 @@ Congratulations, you've completed your first task!
     > python tools/build_and_install.py --cpp-algo
     > ```
 
-5.  Copy the contents of `deps/bin` extracted in Step 2 to `install/maafw/`.
+5. Copy the contents of `deps/bin` extracted in Step 2 to `install/maafw/`.
 
-6.  Download [MXU](https://github.com/MistEO/MXU/releases) and extract it to `install/`.
+6. Download [MXU](https://github.com/MistEO/MXU/releases) and extract it to `install/`.
 
 </details>

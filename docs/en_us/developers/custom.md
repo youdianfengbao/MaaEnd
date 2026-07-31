@@ -84,7 +84,7 @@ The `FalseAction` implementation is located in `agent/go-service/common/falseact
 
 ### RepeatUntilFoundAction / RepeatUntilNotFoundAction
 
-Both are implemented in `agent/go-service/common/repeataction`. They repeatedly run a built-in or custom action, wait, then check recognition. They succeed when the wait condition is met, and fail after `repeat_count` attempts without success.
+Both are implemented in `agent/go-service/common/repeataction`. They repeatedly run a built-in or custom action, then poll recognition inside a wait window. They succeed when the wait condition is met, and fail after `repeat_count` attempts without success.
 
 - `RepeatUntilFoundAction`: succeeds when **any** `wait_nodes` entry hits.
 - `RepeatUntilNotFoundAction`: succeeds when `wait_node` misses.
@@ -94,7 +94,7 @@ Both are implemented in `agent/go-service/common/repeataction`. They repeatedly 
     - `custom_action?: string`: Registered custom action name (e.g. `AutoAltClickAction`). Mutually exclusive with `action`.
     - `custom_action_param?: object`: Forwarded to the nested custom action.
     - `repeat_count?: int`: Maximum attempts. Defaults to `3` when omitted or `<= 0`.
-    - `interval_ms?: int`: Wait after each attempt before recognition, in milliseconds. Defaults to `1000` when omitted or `0`. Negative values are invalid.
+    - `interval_ms?: int`: Wait window after each action, in milliseconds. Within the window, screencap/recognize every `500ms` and succeed early on a hit. Defaults to `3000` when omitted or `0`. Negative values are invalid.
 - `RepeatUntilFoundAction` extra:
     - `wait_nodes: string[]`: Pipeline node names to wait for. Required.
 - `RepeatUntilNotFoundAction` extra:
@@ -103,6 +103,12 @@ Both are implemented in `agent/go-service/common/repeataction`. They repeatedly 
 The target position always uses the recognition `box` that triggered this Action (optionally adjusted by outer `target` / `target_offset`). The loop aborts immediately and returns failure when the tasker reports stopping.
 
 Example file: [`RepeatUntilFoundAction.json`](../../../assets/resource/pipeline/Interface/Example/RepeatUntilFoundAction.json)
+
+### CharacterSearchAction
+
+`CharacterSearchAction` lives in `agent/go-service/common/charactercontroller`. When an interact point cannot be found, it walks a fixed WASD circle to fine-tune position and recognize target nodes. See [CharacterController reference](./components/character-controller.md#action-charactersearchaction) for parameters and path details.
+
+Example file: [`CharacterController.json`](../../../assets/resource/pipeline/Interface/Example/CharacterController.json)
 
 ### PipelineOverride
 
@@ -370,21 +376,21 @@ When a weekday flag is omitted, it defaults to `false` (do not execute that day)
 
 When writing a Pipeline, the built-in `TemplateMatch` / `OCR` / `Click` / `Swipe` can handle most needs. When they fall short—for example, comparing two OCR values, dynamically adjusting parameters at runtime, or batch running subtasks—then refer to this document to see if there's an existing Custom action or recognition to use.
 
-| Scenario                                 | Use                           |
+| Scenario | Use |
 | ---------------------------------------- | ----------------------------- |
-| Run a series of subtasks in order        | `SubTask`                     |
-| Clear hit count of a node                | `ClearHitCount`               |
-| Force an Action to fail                  | `FalseAction`                 |
-| Repeat an action until a node appears    | `RepeatUntilFoundAction`      |
-| Repeat an action until a node disappears | `RepeatUntilNotFoundAction`   |
-| Actively stop the current task           | `PostStop`                    |
-| Change node parameters at runtime        | `PipelineOverride`            |
+| Run a series of subtasks in order | `SubTask` |
+| Clear hit count of a node | `ClearHitCount` |
+| Force an Action to fail | `FalseAction` |
+| Repeat an action until a node appears | `RepeatUntilFoundAction` |
+| Repeat an action until a node disappears | `RepeatUntilNotFoundAction` |
+| Actively stop the current task | `PostStop` |
+| Change node parameters at runtime | `PipelineOverride` |
 | Write keywords as regex back to OCR node | `AttachToExpectedRegexAction` |
-| Evaluate OCR numerical expressions       | `ExpressionRecognition`       |
-| Detect whether list OCR text changed     | `ListCompleteRecognition`     |
-| Consumable pick (visited exclusion)      | `ExpendableRecognition`       |
-| Gate subsequent nodes by day of week     | `ScheduleRecognition`         |
-| Alt + Click at specified position        | `AutoAltClickAction`          |
-| Alt + Swipe                              | `AutoAltSwipeAction`          |
+| Evaluate OCR numerical expressions | `ExpressionRecognition` |
+| Detect whether list OCR text changed | `ListCompleteRecognition` |
+| Consumable pick (visited exclusion) | `ExpendableRecognition` |
+| Gate subsequent nodes by day of week | `ScheduleRecognition` |
+| Alt + Click at specified position | `AutoAltClickAction` |
+| Alt + Swipe | `AutoAltSwipeAction` |
 
 All Custom Go code implementations are located under `agent/go-service/`. Pipeline authors do not need to concern themselves with this; just write the JSON according to the documentation parameters.

@@ -82,8 +82,8 @@
                     "Direction": "right",
                     "IncreaseButton": "AutoStockpile/IncreaseButton.png",
                     "GreenMask": true,
-                    "Target": 1,
-                    "Quantity": {
+                    "TargetQuantity": 1,
+                    "SliderQuantity": {
                         "Box": [
                             360,
                             480,
@@ -104,7 +104,7 @@
                             "method": 40
                         }
                     },
-                    "ClampTargetToMax": true
+                    "ClampTargetToSliderMax": true
                 }
             }
         },
@@ -197,8 +197,10 @@
             "type": "And",
             "param": {
                 "all_of": [
-                    "CloseRewardsButton"
-                ]
+                    "CloseRewardsButton",
+                    "CloseRewardsButtonColor"
+                ],
+                "box_index": 1
             }
         },
         "pre_wait_freezes": 80,
@@ -210,6 +212,24 @@
         "rate_limit": 0,
         "focus": {
             "Node.Action.Succeeded": "购买成功"
+        }
+    },
+    "CloseRewardsButtonColor": {
+        "desc": "关闭奖励按钮颜色",
+        "recognition": {
+            "type": "ColorMatch",
+            "param": {
+                "roi": "CloseRewardsButton",
+                "method": 6,
+                "lower": [
+                    250
+                ],
+                "upper": [
+                    255
+                ],
+                "connected": true,
+                "count": 200
+            }
         }
     },
     "AutoStockpileCancelBuy": {

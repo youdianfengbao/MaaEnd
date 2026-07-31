@@ -517,6 +517,122 @@ std::unordered_set<int64_t> BannedSteps(
     return out;
 }
 
+StepBarrier StepBreaks(const SpanTable& st, const std::vector<uint8_t>& vis, const Mask& lay, double ox, double oy)
+{
+    StepBarrier out;
+    const int64_t nx = lay.nx, ny = lay.ny, NC = nx * ny, K = st.K;
+    if (K <= 0) {
+        return out;
+    }
+    constexpr float kInf = std::numeric_limits<float>::infinity();
+    std::vector<float> T(static_cast<size_t>(NC * K), kInf);
+    for (size_t j = 0; j < st.occ.size(); ++j) {
+        float* row = &T[static_cast<size_t>(st.occ[j] * K)];
+        int64_t n = 0;
+        for (int64_t k = 0; k < K; ++k) {
+            const int64_t sid = st.IK[j * static_cast<size_t>(K) + static_cast<size_t>(k)];
+            if (sid >= 0 && vis[static_cast<size_t>(sid)] != 0) {
+                row[n++] = st.sp_h[static_cast<size_t>(sid)];
+            }
+        }
+    }
+
+    std::vector<uint8_t> ghost(static_cast<size_t>(NC), 0);
+    bool any_ghost = false;
+    for (int64_t c = 0; c < NC; ++c) {
+        if (lay.v[static_cast<size_t>(c)] != 0 && !std::isfinite(T[static_cast<size_t>(c * K)])) {
+            ghost[static_cast<size_t>(c)] = 1;
+            any_ghost = true;
+        }
+    }
+    if (any_ghost) {
+        std::vector<float> g(static_cast<size_t>(NC));
+        for (int64_t c = 0; c < NC; ++c) {
+            g[static_cast<size_t>(c)] = T[static_cast<size_t>(c * K)];
+        }
+        const int64_t rounds = static_cast<int64_t>(std::ceil(std::sqrt(static_cast<double>(kHoleMaxCells)))) + 1;
+        for (int64_t it = 0; it < rounds; ++it) {
+            std::vector<float> nv = g;
+            for (int64_t y = 0; y < ny; ++y) {
+                for (int64_t x = 0; x < nx; ++x) {
+                    const size_t c = static_cast<size_t>(y * nx + x);
+                    if (ghost[c] == 0) {
+                        continue;
+                    }
+                    float m = g[c];
+                    if (x + 1 < nx) {
+                        m = std::min(m, g[c + 1]);
+                    }
+                    if (x > 0) {
+                        m = std::min(m, g[c - 1]);
+                    }
+                    if (y + 1 < ny) {
+                        m = std::min(m, g[c + static_cast<size_t>(nx)]);
+                    }
+                    if (y > 0) {
+                        m = std::min(m, g[c - static_cast<size_t>(nx)]);
+                    }
+                    nv[c] = m;
+                }
+            }
+            const bool same = nv == g;
+            g.swap(nv);
+            if (same) {
+                break;
+            }
+        }
+        for (int64_t c = 0; c < NC; ++c) {
+            if (ghost[static_cast<size_t>(c)] != 0) {
+                T[static_cast<size_t>(c * K)] = g[static_cast<size_t>(c)];
+            }
+        }
+    }
+
+    static constexpr std::array<std::array<int64_t, 2>, 4> kDirs { { { 1, 0 }, { 0, 1 }, { 1, 1 }, { 1, -1 } } };
+    for (const auto& d : kDirs) {
+        const int64_t dx = d[0], dy = d[1];
+        for (int64_t c = 0; c < NC; ++c) {
+            if (lay.v[static_cast<size_t>(c)] == 0 || !std::isfinite(T[static_cast<size_t>(c * K)])) {
+                continue;
+            }
+            const int64_t ax = c % nx + dx, ay = c / nx + dy;
+            if (ax < 0 || ax >= nx || ay < 0 || ay >= ny) {
+                continue;
+            }
+            const int64_t b = ay * nx + ax;
+            if (!std::isfinite(T[static_cast<size_t>(b * K)])) {
+                continue;
+            }
+            float best = kInf;
+            int64_t bka = 0, bkb = 0;
+            for (int64_t ka = 0; ka < K; ++ka) {
+                for (int64_t kb = 0; kb < K; ++kb) {
+                    const float raw = std::fabs(T[static_cast<size_t>(c * K + ka)] - T[static_cast<size_t>(b * K + kb)]);
+                    const float dd = std::isfinite(raw) ? raw : kInf;
+                    if (dd < best) {
+                        best = dd;
+                        bka = ka;
+                        bkb = kb;
+                    }
+                }
+            }
+            if (!(static_cast<double>(best) > kStep)) {
+                continue;
+            }
+            const bool up = T[static_cast<size_t>(b * K + bkb)] > T[static_cast<size_t>(c * K + bka)];
+            out.steps.insert(up ? c * NC + b : b * NC + c);
+            if (dx != 0 && dy != 0) {
+                continue;
+            }
+            const double px = ox + static_cast<double>(c % nx + dx) * kCS;
+            const double py = oy + static_cast<double>(c / nx + dy) * kCS;
+            out.p0.push_back({ px, py });
+            out.p1.push_back({ px + static_cast<double>(dy) * kCS, py + static_cast<double>(dx) * kCS });
+        }
+    }
+    return out;
+}
+
 std::vector<int64_t> Comps4(const Mask& mask)
 {
     const int64_t ny = mask.ny, nx = mask.nx, NC = nx * ny;
@@ -775,6 +891,16 @@ Grid<float> PrefField(const Grid<float>& dist, bool ridge)
     return out;
 }
 
+Grid<float> TargetField(const Grid<float>& dist)
+{
+    const Grid<float> locw = LocalMax(dist, static_cast<int64_t>(std::ceil(kR / kCS)));
+    Grid<float> tgt(dist.nx, dist.ny, 0.0f);
+    for (size_t i = 0; i < tgt.v.size(); ++i) {
+        tgt.v[i] = std::max(std::min(static_cast<float>(kGeoR), locw.v[i]), 0.25f);
+    }
+    return tgt;
+}
+
 namespace
 {
 
@@ -1018,22 +1144,94 @@ bool Blockers::offMask(const WorldPoint& p, const WorldPoint& q) const
     return false;
 }
 
-std::vector<WorldPoint> StringPull(const std::vector<WorldPoint>& pts, const Blockers& blk)
+float ClearanceFloor::seg(const WorldPoint& p, const WorldPoint& q) const
+{
+    const double L = std::hypot(q.x - p.x, q.y - p.y);
+    const int64_t n = static_cast<int64_t>(L / (cs_ * 0.5)) + 2;
+    const double step = 1.0 / static_cast<double>(n - 1);
+    float m = std::numeric_limits<float>::infinity();
+    for (int64_t i = 0; i < n; ++i) {
+        const double t = i == n - 1 ? 1.0 : static_cast<double>(i) * step;
+        int64_t gx = static_cast<int64_t>((p.x + (q.x - p.x) * t - x0_) / cs_);
+        int64_t gy = static_cast<int64_t>((p.y + (q.y - p.y) * t - y0_) / cs_);
+        gx = std::max<int64_t>(0, std::min<int64_t>(cf_->nx - 1, gx));
+        gy = std::max<int64_t>(0, std::min<int64_t>(cf_->ny - 1, gy));
+        m = std::min(m, cf_->at(gy, gx));
+    }
+    return m;
+}
+
+double ClearanceFloor::cost(const WorldPoint& p, const WorldPoint& q) const
+{
+    const double L = std::hypot(q.x - p.x, q.y - p.y);
+    const int64_t n = std::max<int64_t>(static_cast<int64_t>(std::ceil(L / (cs_ * 0.5))), 1);
+    double acc = 0.0;
+    for (int64_t i = 0; i < n; ++i) {
+        const double t = (static_cast<double>(i) + 0.5) / static_cast<double>(n);
+        int64_t gx = static_cast<int64_t>((p.x + (q.x - p.x) * t - x0_) / cs_);
+        int64_t gy = static_cast<int64_t>((p.y + (q.y - p.y) * t - y0_) / cs_);
+        gx = std::max<int64_t>(0, std::min<int64_t>(mg_->nx - 1, gx));
+        gy = std::max<int64_t>(0, std::min<int64_t>(mg_->ny - 1, gy));
+        acc += static_cast<double>(mg_->at(gy, gx));
+    }
+    return L * (acc / static_cast<double>(n));
+}
+
+std::vector<WorldPoint> StringPull(const std::vector<WorldPoint>& pts, const Blockers& blk, const ClearanceFloor* cfl)
 {
     std::vector<WorldPoint> P = pts;
+    // 跨点连线须同时不低于被跳过子路径的净空地板、不高于其代价泛函(与几何重寻同口径),
+    // 相邻点连线无条件保留
+    std::vector<float> seg;
+    std::vector<double> cst;
+    if (cfl != nullptr && P.size() > 1) {
+        seg.reserve(P.size() - 1);
+        cst.reserve(P.size() - 1);
+        for (size_t k = 0; k + 1 < P.size(); ++k) {
+            seg.push_back(cfl->seg(P[k], P[k + 1]));
+            cst.push_back(cfl->cost(P[k], P[k + 1]));
+        }
+    }
+    const bool guard = !seg.empty();
+    std::vector<size_t> idx(P.size());
+    for (size_t k = 0; k < idx.size(); ++k) {
+        idx[k] = k;
+    }
+    std::vector<float> acc;
+    std::vector<double> ac2;
     for (int round = 0; round < 6; ++round) {
         std::vector<WorldPoint> out { P[0] };
+        std::vector<size_t> oid { idx[0] };
         size_t i = 0;
         while (i < P.size() - 1) {
+            if (guard) {
+                acc.assign(seg.begin() + static_cast<int64_t>(idx[i]), seg.end());
+                for (size_t k = 1; k < acc.size(); ++k) {
+                    acc[k] = std::min(acc[k], acc[k - 1]);
+                }
+                ac2.assign(cst.begin() + static_cast<int64_t>(idx[i]), cst.end());
+                for (size_t k = 1; k < ac2.size(); ++k) {
+                    ac2[k] += ac2[k - 1];
+                }
+            }
             size_t j = P.size() - 1;
-            while (j > i + 1 && blk.blocked(P[i], P[j])) {
+            while (j > i + 1) {
+                const size_t k = idx[j] - idx[i] - 1;
+                if (!blk.blocked(P[i], P[j])
+                    && (!guard
+                        || (static_cast<double>(cfl->seg(P[i], P[j])) >= static_cast<double>(acc[k]) - kClrTol
+                            && cfl->cost(P[i], P[j]) <= ac2[k] * (1.0 + kCostTol)))) {
+                    break;
+                }
                 --j;
             }
             out.push_back(P[j]);
+            oid.push_back(idx[j]);
             i = j;
         }
         const bool changed = out.size() != P.size();
         P = std::move(out);
+        idx = std::move(oid);
         if (!changed) {
             break;
         }
@@ -1041,7 +1239,7 @@ std::vector<WorldPoint> StringPull(const std::vector<WorldPoint>& pts, const Blo
     return P;
 }
 
-std::vector<WorldPoint> Slim(const std::vector<WorldPoint>& pts, const Blockers& blk, double eps)
+std::vector<WorldPoint> Slim(const std::vector<WorldPoint>& pts, const Blockers& blk, double eps, const ClearanceFloor* cfl)
 {
     std::vector<WorldPoint> P = pts;
     bool ch = true;
@@ -1054,7 +1252,10 @@ std::vector<WorldPoint> Slim(const std::vector<WorldPoint>& pts, const Blockers&
             const double L2 = ux * ux + uy * uy;
             const double t = L2 == 0.0 ? 0.0 : std::max(0.0, std::min(1.0, ((b.x - a.x) * ux + (b.y - a.y) * uy) / L2));
             const double d = std::hypot(b.x - a.x - t * ux, b.y - a.y - t * uy);
-            if (d <= eps && !blk.blocked(a, c)) {
+            if (d <= eps && !blk.blocked(a, c)
+                && (cfl == nullptr
+                    || static_cast<double>(cfl->seg(a, c))
+                           >= std::min(static_cast<double>(cfl->seg(a, b)), static_cast<double>(cfl->seg(b, c))))) {
                 P.erase(P.begin() + static_cast<int64_t>(i));
                 ch = true;
             }
@@ -1100,4 +1301,4 @@ std::vector<WorldPoint> DropLoops(const std::vector<WorldPoint>& pts)
     return P;
 }
 
-}
+} // namespace navmesh::recast

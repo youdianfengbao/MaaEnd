@@ -87,17 +87,17 @@ assets/data/ItemTransfer/
 
 ## Pipeline 节点
 
-| 节点                                    | 用途                                   |
+| 节点 | 用途 |
 | --------------------------------------- | -------------------------------------- |
-| `ItemTransferDetectAllItems`            | NND 低阈值检测仓库区域所有物品         |
-| `ItemTransferDetectAllItemsBag`         | NND 低阈值检测背包区域所有物品         |
-| `ItemTransferTooltipOCR`                | OCR 辅助节点，ROI 由 Go 代码运行时覆盖 |
-| `ItemTransferFindItemFallback`          | 仓库侧兜底入口                         |
-| `ItemTransferFindItemFallbackBag`       | 背包侧兜底入口                         |
-| `ItemTransferFindItemFallbackBagReturn` | 背包返还侧兜底入口                     |
-| `ItemTransferFindItemWithOCR`           | OCR 直查仓库侧入口                     |
-| `ItemTransferFindItemWithOCRBag`        | OCR 直查背包侧入口                     |
-| `ItemTransferFindItemWithOCRBagReturn`  | OCR 直查背包返还侧入口                 |
+| `ItemTransferDetectAllItems` | NND 低阈值检测仓库区域所有物品 |
+| `ItemTransferDetectAllItemsBag` | NND 低阈值检测背包区域所有物品 |
+| `ItemTransferTooltipOCR` | OCR 辅助节点，ROI 由 Go 代码运行时覆盖 |
+| `ItemTransferFindItemFallback` | 仓库侧兜底入口 |
+| `ItemTransferFindItemFallbackBag` | 背包侧兜底入口 |
+| `ItemTransferFindItemFallbackBagReturn` | 背包返还侧兜底入口 |
+| `ItemTransferFindItemWithOCR` | OCR 直查仓库侧入口 |
+| `ItemTransferFindItemWithOCRBag` | OCR 直查背包侧入口 |
+| `ItemTransferFindItemWithOCRBagReturn` | OCR 直查背包返还侧入口 |
 
 ## `custom_action_param` 参数
 
@@ -111,11 +111,11 @@ assets/data/ItemTransfer/
 }
 ```
 
-| 字段           | 类型   | 默认值   | 说明                                      |
+| 字段 | 类型 | 默认值 | 说明 |
 | -------------- | ------ | -------- | ----------------------------------------- |
-| `target_class` | int    | -        | NND 模型的 class ID                       |
-| `descending`   | bool   | `false`  | 当前排序是否为降序                        |
-| `side`         | string | 自动推断 | `"repo"` 或 `"bag"`，未设置时从节点名推断 |
+| `target_class` | int | - | NND 模型的 class ID |
+| `descending` | bool | `false` | 当前排序是否为降序 |
+| `side` | string | 自动推断 | `"repo"` 或 `"bag"`，未设置时从节点名推断 |
 
 ### OCR 直查（ItemTransferOCRAction）
 
@@ -127,11 +127,11 @@ assets/data/ItemTransfer/
 }
 ```
 
-| 字段         | 类型   | 默认值   | 说明                                       |
+| 字段 | 类型 | 默认值 | 说明 |
 | ------------ | ------ | -------- | ------------------------------------------ |
-| `item_name`  | string | -        | 物品中文名称，需与 `category_order` 中一致 |
-| `descending` | bool   | `false`  | 当前排序是否为降序                         |
-| `side`       | string | 自动推断 | `"repo"` 或 `"bag"`，未设置时从节点名推断  |
+| `item_name` | string | - | 物品中文名称，需与 `category_order` 中一致 |
+| `descending` | bool | `false` | 当前排序是否为降序 |
+| `side` | string | 自动推断 | `"repo"` 或 `"bag"`，未设置时从节点名推断 |
 
 ## `item_order.json` 数据格式
 
@@ -167,12 +167,12 @@ assets/data/ItemTransfer/
 
 ## 关键常量
 
-| 常量              | 值  | 定义位置        | 说明                        |
+| 常量 | 值 | 定义位置 | 说明 |
 | ----------------- | --- | --------------- | --------------------------- |
-| `gridCellSpacing` | 69  | `ocr_action.go` | 网格格子中心间距（px）      |
-| `repoCols`        | 8   | `ocr_action.go` | 仓库侧每行列数              |
-| `bagCols`         | 5   | `ocr_action.go` | 背包侧每行列数              |
-| `tooltipOffsetX`  | 15  | `types.go`      | tooltip 相对悬停点的 X 偏移 |
-| `tooltipOffsetY`  | 0   | `types.go`      | tooltip 相对悬停点的 Y 偏移 |
-| `tooltipWidth`    | 155 | `types.go`      | tooltip OCR 区域宽度        |
-| `tooltipHeight`   | 70  | `types.go`      | tooltip OCR 区域高度        |
+| `gridCellSpacing` | 69 | `ocr_action.go` | 网格格子中心间距（px） |
+| `repoCols` | 8 | `ocr_action.go` | 仓库侧每行列数 |
+| `bagCols` | 5 | `ocr_action.go` | 背包侧每行列数 |
+| `tooltipOffsetX` | 15 | `types.go` | tooltip 相对悬停点的 X 偏移 |
+| `tooltipOffsetY` | 0 | `types.go` | tooltip 相对悬停点的 Y 偏移 |
+| `tooltipWidth` | 155 | `types.go` | tooltip OCR 区域宽度 |
+| `tooltipHeight` | 70 | `types.go` | tooltip OCR 区域高度 |

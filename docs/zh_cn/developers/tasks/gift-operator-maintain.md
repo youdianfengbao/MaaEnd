@@ -5,34 +5,34 @@
 
 ## 文件路径
 
-| 路径                                                                | 作用                          |
+| 路径 | 作用 |
 | ------------------------------------------------------------------- | ----------------------------- |
-| `assets/interface.json`                                             | 任务挂载（`dijiang_ship` 组） |
-| `assets/tasks/GiftOperator.json`                                    | 任务入口与界面选项            |
-| `assets/resource/pipeline/GiftOperator/GiftOperatorMain.json`       | 入口、帝江号定位              |
-| `assets/resource/pipeline/GiftOperator/GiftOperatorNavigation.json` | 寻路与联络台接触              |
-| `assets/resource/pipeline/GiftOperator/GiftOperatorContact.json`    | 联络界面选人                  |
-| `assets/resource/pipeline/GiftOperator/GiftOperatorGiftFlow.json`   | 对话中的送礼 / 收礼           |
-| `assets/resource/pipeline/GiftOperator/GiftOperatorBagFull.json`    | 背包已满处理                  |
-| `assets/resource/pipeline/GiftOperator/Operator/Operator.json`      | 只收礼物模式的干员识别        |
-| `assets/resource/image/GiftOperator/`                               | Win32 识别图片                |
-| `assets/resource_adb/image/GiftOperator/`                           | ADB 识别图片                  |
-| `assets/resource_adb/pipeline/GiftOperator/`                        | ADB Pipeline 镜像             |
-| `tools/gift_operator/fill_gift_operator_green_box.py`               | 干员头像 green_mask 格式化    |
-| `assets/locales/interface/*.json`                                   | 任务、选项与干员名称文案      |
+| `assets/interface.json` | 任务挂载（`dijiang_ship` 组） |
+| `assets/tasks/GiftOperator.json` | 任务入口与界面选项 |
+| `assets/resource/pipeline/GiftOperator/GiftOperatorMain.json` | 入口、帝江号定位 |
+| `assets/resource/pipeline/GiftOperator/GiftOperatorNavigation.json` | 寻路与联络台接触 |
+| `assets/resource/pipeline/GiftOperator/GiftOperatorContact.json` | 联络界面选人 |
+| `assets/resource/pipeline/GiftOperator/GiftOperatorGiftFlow.json` | 对话中的送礼 / 收礼 |
+| `assets/resource/pipeline/GiftOperator/GiftOperatorBagFull.json` | 背包已满处理 |
+| `assets/resource/pipeline/GiftOperator/Operator/Operator.json` | 只收礼物模式的干员识别 |
+| `assets/resource/image/GiftOperator/` | Win32 识别图片 |
+| `assets/resource_adb/image/GiftOperator/` | ADB 识别图片 |
+| `assets/resource_adb/pipeline/GiftOperator/` | ADB Pipeline 镜像 |
+| `tools/gift_operator/fill_gift_operator_green_box.py` | 干员头像 green_mask 格式化 |
+| `assets/locales/interface/*.json` | 任务、选项与干员名称文案 |
 
 ## 新增干员时需改的路径
 
 新增一名干员时，至少需同步以下 6 处（`<Name>` 为干员标识，与模板文件名、option case 名保持一致）：
 
-| #   | 路径                                                                                               | 说明                                                                                           |
+| # | 路径 | 说明 |
 | --- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 1   | `assets/resource/image/GiftOperator/Operators/<Name>.png`                                          | Win32 干员头像模板；入库前须用 `tools/gift_operator/fill_gift_operator_green_box.py` 处理      |
-| 2   | `assets/resource_adb/image/GiftOperator/Operators/<Name>.png`                                      | ADB 干员头像模板；同上处理                                                                     |
-| 3   | `assets/tasks/GiftOperator.json` → `SelectOperator`                                                | 新增 case，在 UI 提供可选干员，并为「只收礼物」路线提供干员信息                                |
-| 4   | `assets/resource/pipeline/GiftOperator/Operator/Operator.json`                                     | 「只收礼物」模式下各干员的 OCR 识别与白名单                                                    |
-| 5   | `assets/resource/pipeline/GiftOperator/GiftOperatorContact.json` → `GiftOperatorSelectGiftOp.next` | 在「只收礼物」选人节点的 `next` 数组追加 `GiftOperatorSelect_<Name>`，否则该干员节点不会被触发 |
-| 6   | `assets/locales/interface/*.json` → `operator.<Name>`                                              | 各语言干员显示名称                                                                             |
+| 1 | `assets/resource/image/GiftOperator/Operators/<Name>.png` | Win32 干员头像模板；入库前须用 `tools/gift_operator/fill_gift_operator_green_box.py` 处理 |
+| 2 | `assets/resource_adb/image/GiftOperator/Operators/<Name>.png` | ADB 干员头像模板；同上处理 |
+| 3 | `assets/tasks/GiftOperator.json` → `SelectOperator` | 新增 case，在 UI 提供可选干员，并为「只收礼物」路线提供干员信息 |
+| 4 | `assets/resource/pipeline/GiftOperator/Operator/Operator.json` | 「只收礼物」模式下各干员的 OCR 识别与白名单 |
+| 5 | `assets/resource/pipeline/GiftOperator/GiftOperatorContact.json` → `GiftOperatorSelectGiftOp.next` | 在「只收礼物」选人节点的 `next` 数组追加 `GiftOperatorSelect_<Name>`，否则该干员节点不会被触发 |
+| 6 | `assets/locales/interface/*.json` → `operator.<Name>` | 各语言干员显示名称 |
 
 ## 路线一：默认（送礼 + 收礼）
 
@@ -124,11 +124,11 @@
 
 修正顺序固定为三组预设，每组各尝试一次（任务开头会清零计数，避免上轮残留）：
 
-| 次序 | 朝向         | 移动目标       |
+| 次序 | 朝向 | 移动目标 |
 | ---- | ------------ | -------------- |
-| 1    | 正西（270°） | (186.6, 175.0) |
-| 2    | 正北（0°）   | (188.0, 175.3) |
-| 3    | 正东（90°）  | (188.6, 176.2) |
+| 1 | 正西（270°） | (186.6, 175.0) |
+| 2 | 正北（0°） | (188.0, 175.3) |
+| 3 | 正东（90°） | (188.6, 176.2) |
 
 每组都是「先转向 → 再短距离移动 → 等待角色停稳」，然后重新尝试寻找对话按钮。
 

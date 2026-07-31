@@ -22,35 +22,35 @@ Each call processes a single frame. The locator keeps its tracking state across 
 
 No required parameters. Optional parameters (`custom_recognition_param`):
 
-| Parameter             | Default | Description                                                                                                                                                              |
+| Parameter | Default | Description |
 | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `loc_threshold`       | `0.55`  | Lower bound of the template matching score. Lower it appropriately (e.g., `0.45`) when heavy interference causes frequent localization loss                              |
-| `yolo_threshold`      | `0.70`  | Minimum confidence for YOLO to accept a minimap area. Setting it too low may misidentify other disc-shaped UIs as the minimap                                            |
-| `force_global_search` | `false` | Set to `true` after cross-region teleports, respawns, or long screen switches to abandon tracking and re-lock via a full-map search                                      |
-| `max_lost_frames`     | `3`     | Consecutive frames without a valid result before tracking is declared lost. Raising it tolerates brief occlusion but also lengthens how long an incorrect state persists |
-| `expected_zone_id`    | Empty   | When non-empty, only localization results in this zone are accepted. Useful when the character's area is already known                                                   |
+| `loc_threshold` | `0.55` | Lower bound of the template matching score. Lower it appropriately (e.g., `0.45`) when heavy interference causes frequent localization loss |
+| `yolo_threshold` | `0.70` | Minimum confidence for YOLO to accept a minimap area. Setting it too low may misidentify other disc-shaped UIs as the minimap |
+| `force_global_search` | `false` | Set to `true` after cross-region teleports, respawns, or long screen switches to abandon tracking and re-lock via a full-map search |
+| `max_lost_frames` | `3` | Consecutive frames without a valid result before tracking is declared lost. Raising it tolerates brief occlusion but also lengthens how long an incorrect state persists |
+| `expected_zone_id` | Empty | When non-empty, only localization results in this zone are accepted. Useful when the character's area is already known |
 
 ### Return Value (out_detail)
 
-| Field       | Description                                                        |
+| Field | Description |
 | ----------- | ------------------------------------------------------------------ |
-| `status`    | Status code, see the table below                                   |
-| `message`   | Failure reason or debug information                                |
-| `mapName`   | (On success) The localized zone name, e.g., `map01_lv001`          |
-| `x` / `y`   | (On success) Global pixel coordinates                              |
-| `rot`       | (On success) Orientation yaw angle, 0°–360°, north as zero         |
-| `locConf`   | Confidence score of this hit, for reference when tuning parameters |
-| `latencyMs` | Time consumed by this calculation (milliseconds)                   |
+| `status` | Status code, see the table below |
+| `message` | Failure reason or debug information |
+| `mapName` | (On success) The localized zone name, e.g., `map01_lv001` |
+| `x` / `y` | (On success) Global pixel coordinates |
+| `rot` | (On success) Orientation yaw angle, 0°–360°, north as zero |
+| `locConf` | Confidence score of this hit, for reference when tuning parameters |
+| `latencyMs` | Time consumed by this calculation (milliseconds) |
 
 `status` values:
 
-| Value | Enum            | Meaning                                                                                              |
+| Value | Enum | Meaning |
 | ----- | --------------- | ---------------------------------------------------------------------------------------------------- |
-| `0`   | `Success`       | Localization succeeded                                                                               |
-| `1`   | `TrackingLost`  | Tracking lost; falling back to a global search still produced no match                               |
-| `2`   | `ScreenBlocked` | The frame is occluded over a large area; no valid features can be extracted                          |
-| `3`   | `Teleported`    | Displacement between two frames exceeds the normal movement speed limit, judged as a forced teleport |
-| `4`   | `YoloFailed`    | YOLO pre-filtering determined that the current frame contains no minimap area                        |
+| `0` | `Success` | Localization succeeded |
+| `1` | `TrackingLost` | Tracking lost; falling back to a global search still produced no match |
+| `2` | `ScreenBlocked` | The frame is occluded over a large area; no valid features can be extracted |
+| `3` | `Teleported` | Displacement between two frames exceeds the normal movement speed limit, judged as a forced teleport |
+| `4` | `YoloFailed` | YOLO pre-filtering determined that the current frame contains no minimap area |
 
 ### Examples
 
@@ -95,34 +95,34 @@ Unlike the single-frame check of `MapLocateRecognition`, this node performs a **
 
 Required parameters (`custom_recognition_param`):
 
-| Parameter | Description                                                           |
+| Parameter | Description |
 | --------- | --------------------------------------------------------------------- |
-| `zone_id` | Target zone name; must exactly match the localized zone name          |
-| `target`  | Array of 4 numbers `[x, y, w, h]`: rectangle top-left corner and size |
+| `zone_id` | Target zone name; must exactly match the localized zone name |
+| `target` | Array of 4 numbers `[x, y, w, h]`: rectangle top-left corner and size |
 
 Optional parameters (`custom_recognition_param`):
 
-| Parameter        | Default | Description                                                                                                                      |
+| Parameter | Default | Description |
 | ---------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `loc_threshold`  | `0.70`  | Lower bound of the template matching score, same meaning as above; note the default is higher than for single-frame localization |
-| `yolo_threshold` | `0.70`  | Same meaning as above                                                                                                            |
+| `loc_threshold` | `0.70` | Lower bound of the template matching score, same meaning as above; note the default is higher than for single-frame localization |
+| `yolo_threshold` | `0.70` | Same meaning as above |
 
 The assertion always forces a global search and only accepts localization results inside `zone_id`; no search-scope configuration is needed.
 
 ### Return Value (out_detail)
 
-| Field       | Description                                                      |
+| Field | Description |
 | ----------- | ---------------------------------------------------------------- |
-| `status`    | Localization status code, same meaning as `MapLocateRecognition` |
-| `matched`   | `true` only when both the zone and the rectangle match           |
-| `inTarget`  | Equivalent to `matched`                                          |
-| `message`   | Localization log or failure reason                               |
-| `zoneId`    | The target zone name required by this assertion                  |
-| `x` / `y`   | (On success) Centroid coordinates of the stable window           |
-| `rot`       | (On success) Orientation yaw angle                               |
-| `locConf`   | Confidence score of this hit                                     |
-| `latencyMs` | Time consumed by this calculation (milliseconds)                 |
-| `target`    | Echoes the `[x, y, w, h]` rectangle used for this assertion      |
+| `status` | Localization status code, same meaning as `MapLocateRecognition` |
+| `matched` | `true` only when both the zone and the rectangle match |
+| `inTarget` | Equivalent to `matched` |
+| `message` | Localization log or failure reason |
+| `zoneId` | The target zone name required by this assertion |
+| `x` / `y` | (On success) Centroid coordinates of the stable window |
+| `rot` | (On success) Orientation yaw angle |
+| `locConf` | Confidence score of this hit |
+| `latencyMs` | Time consumed by this calculation (milliseconds) |
+| `target` | Echoes the `[x, y, w, h]` rectangle used for this assertion |
 
 ### Example
 

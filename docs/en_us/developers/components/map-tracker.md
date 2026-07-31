@@ -8,8 +8,8 @@ This document describes how to use common nodes related to **MapTracker**.
 
 ### Key Concepts
 
-1.  **Map Name**: Each major map in the game has a unique name, for example, "map01_lv001". Here, "map01" indicates the area is "Valley IV", and "lv001" indicates the sub-area is "Hub Zone". Please refer to `/assets/resource/image/MapTracker/map` to obtain all map names and images (these images have been scaled to fit the minimap UI in a 720P resolution game). `map_name` must **exactly match** the filename in this directory (excluding the `.png` extension).
-2.  **Coordinate System**: The coordinates used by MapTracker are the pixel coordinates $(x, y)$ of the aforementioned major map image, with the top-left corner of the image as the origin $(0, 0)$.
+1. **Map Name**: Each major map in the game has a unique name, for example, "map01_lv001". Here, "map01" indicates the area is "Valley IV", and "lv001" indicates the sub-area is "Hub Zone". Please refer to `/assets/resource/image/MapTracker/map` to obtain all map names and images (these images have been scaled to fit the minimap UI in a 720P resolution game). `map_name` must **exactly match** the filename in this directory (excluding the `.png` extension).
+2. **Coordinate System**: The coordinates used by MapTracker are the pixel coordinates $(x, y)$ of the aforementioned major map image, with the top-left corner of the image as the origin $(0, 0)$.
 
 > [!TIP]
 >
@@ -40,11 +40,13 @@ Optional parameters:
 - `path_trim`: Boolean, default `false`. Whether to select the waypoint closest to the character as the actual starting point when pathfinding begins (waypoints before this point will be automatically skipped); otherwise, it always starts moving from the first waypoint.
 - `fine_approach`: String, default `"FinalTarget"`. Controls when to enable fine approach (reaching the target point with extreme precision). Optional values:
 
-    | Option Value    | Meaning                                                       | Applicable Scenario                                                                          |
+    | Option Value | Meaning | Applicable Scenario |
     | --------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-    | `"FinalTarget"` | Enable fine approach only at the final target point (default) | Most scenarios                                                                               |
-    | `"AllTargets"`  | Enable fine approach at every target point                    | When extremely high precision is required for transit points (e.g., crossing narrow bridges) |
-    | `"Never"`       | Disable fine approach                                         | /                                                                                            |
+    | `"FinalTarget"` | Enable fine approach only at the final target point (default) | Most scenarios |
+    | `"AllTargets"` | Enable fine approach at every target point | When extremely high precision is required for transit points (e.g., crossing narrow bridges) |
+    | `"Never"` | Disable fine approach | / |
+
+    The fine approach first brings the player to a stop, then repeats the process of "recognize the location → perform one short displacement along the camera's forward/backward/left/right axes" until the player is close enough to the target point. The camera is never rotated during this process, so the player's orientation is undetermined when it ends. If a specific orientation is needed, use `on_finish` together with [MapTrackerToward](#action-maptrackertoward) to adjust it.
 
 - `on_finish`: Pipeline node object, defaults to not filled. Executes this Pipeline node once after successful pathfinding. For an example, refer to the Tip section of [MapTrackerToward](#action-maptrackertoward). The `pre_delay` and `post_delay` of the filled node default to `0` milliseconds if omitted.
 
@@ -131,12 +133,12 @@ Optional parameters:
 
 - `zipline_policy`: String, default `"Never"`. Controls the aggressiveness of using ziplines. Optional values:
 
-    | Option Value   | Meaning                                   | Applicable Scenario                                        |
+    | Option Value | Meaning | Applicable Scenario |
     | -------------- | ----------------------------------------- | ---------------------------------------------------------- |
-    | `"Never"`      | Never use ziplines (default)              | Most scenarios                                             |
-    | `"Lazy"`       | Use ziplines only in extreme cases        | When needing to cross impassable areas like water          |
-    | `"Active"`     | Actively use ziplines like a human player | When there are many impassable areas and the route is long |
-    | `"Aggressive"` | Use ziplines very aggressively            | Generally not recommended                                  |
+    | `"Never"` | Never use ziplines (default) | Most scenarios |
+    | `"Lazy"` | Use ziplines only in extreme cases | When needing to cross impassable areas like water |
+    | `"Active"` | Actively use ziplines like a human player | When there are many impassable areas and the route is long |
+    | `"Aggressive"` | Use ziplines very aggressively | Generally not recommended |
 
 - Other parameters: Supports supplementing parameters of [MapTrackerMove](#action-maptrackermove), which will be passed through to the final movement process, such as `fine_approach`, `arrival_timeout`, `stuck_mitigators`, etc.
 
@@ -501,7 +503,7 @@ The tool is designed to be intuitive and includes rich built-in guidance. You wi
 uv run tools/map_tracker/map_tracker_master.py
 ```
 
-After the tool starts, it opens a browser page automatically. If it does not, check the URL printed in the terminal (usually http://127.0.0.1:8060/web/ ) and open it in your browser.
+After the tool starts, it opens a browser page automatically. If it does not, check the URL printed in the terminal (usually <http://127.0.0.1:8060/web/> ) and open it in your browser.
 
 <details>
 <summary>If you prefer not to use uv, you can install dependencies and start manually…</summary>

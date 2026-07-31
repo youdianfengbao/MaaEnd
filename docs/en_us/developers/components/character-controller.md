@@ -4,11 +4,12 @@
 
 This document explains how to use nodes related to CharacterController.
 
-**CharacterController** provides a set of custom Actions for **controlling game characters**, including features like rotating the view, moving forward/backward, and automatically moving toward a target. These nodes are often used with MapTracker for more precise character control.
+**CharacterController** provides a set of custom Actions for **controlling game characters**, including features like rotating the view, moving forward/backward, circle-walk search for targets, and automatically moving toward a target. These nodes are often used with MapTracker for more precise character control.
 
 > [!IMPORTANT]
 >
-> All CharacterController nodes depend on keyboard/mouse input and **must run in the foreground mode (Seize)**, otherwise input events cannot be correctly delivered to the game. Ensure the controller uses the `Seize` connection method in `interface.json` or user configuration.
+> Camera/view nodes (Yaw / Pitch / MoveToTarget, etc.) depend on keyboard/mouse input and **must run in the foreground mode (Seize)**, otherwise input events cannot be correctly delivered to the game.  
+> Axis movement nodes (`CharacterControllerForwardAxisAction` and the `__CharacterControllerAxisLongPress*Action` nodes used by `CharacterSearchAction`) work on **ADB** via joystick `LongPress` overrides in [`resource_adb/.../CharacterController/Action.json`](../../../assets/resource_adb/pipeline/Common/__Private/CharacterController/Action.json); Seize is not required for those.
 
 ## Node Descriptions
 
@@ -67,13 +68,38 @@ Optional parameters:
 
 Each time it is called, one of the following logics is executed based on the current frame's recognition result:
 
-| Condition                                                                  | Action Taken      |
+| Condition | Action Taken |
 | -------------------------------------------------------------------------- | ----------------- |
-| Recognition box width < `far_target_width` (and `far_target_width` is set) | Move forward      |
-| Target is left of screen center (exceeds `align_threshold`)                | Rotate view left  |
-| Target is right of screen center (exceeds `align_threshold`)               | Rotate view right |
-| Target is aligned, but Y-coordinate > 480 (target in lower half, passed)   | Move backward     |
-| Target is aligned, and Y-coordinate ≤ 480 (target in upper half)           | Move forward      |
+| Recognition box width < `far_target_width` (and `far_target_width` is set) | Move forward |
+| Target is left of screen center (exceeds `align_threshold`) | Rotate view left |
+| Target is right of screen center (exceeds `align_threshold`) | Rotate view right |
+| Target is aligned, but Y-coordinate > 480 (target in lower half, passed) | Move backward |
+| Target is aligned, and Y-coordinate ≤ 480 (target in upper half) | Move forward |
+
+---
+
+### Action: CharacterSearchAction
+
+🔍 When an interact point cannot be found, walks a fixed circle path to fine-tune position and repeatedly recognizes target nodes. Returns success if any `wait_nodes` hits; returns failure after the full path with no hit, or when the task is Stopping. **Recognizes once at the starting position first**, then enters the move → wait → recognize loop.
+
+Each step runs `__CharacterControllerAxisLongPress*Action`: default resource uses WASD `LongPressKey`; the ADB resource remaps them to virtual-joystick `LongPress` (see IMPORTANT above).
+
+#### Node Parameters
+
+Required parameters:
+
+- `wait_nodes`: String array. Pipeline node names to search for; any hit means success.
+
+#### Circle Path
+
+Each step is fixed at 100ms (same as `CharacterControllerForwardAxisAction` with `axis: 1`); after every step, wait then recognize. Direction mapping: forward/up = W (or joystick up), back/down = S (or joystick down), left = A (or joystick left), right = D (or joystick right).
+
+```text
+start recognize → F F | L L | S S S S | D D D D | W W W W | A A
+                        ^after each step: wait → screencap → recognize wait_nodes
+```
+
+18 move steps total, up to 19 recognition attempts (including the start).
 
 ## Complete Example
 

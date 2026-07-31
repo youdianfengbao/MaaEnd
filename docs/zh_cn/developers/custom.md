@@ -86,7 +86,7 @@ Action 节点用于执行自定义动作。常见写法如下：
 
 ### RepeatUntilFoundAction / RepeatUntilNotFoundAction
 
-二者实现均位于 `agent/go-service/common/repeataction`，用于反复执行一次内置或自定义动作，每次执行后等待再识别；条件满足即成功，耗尽次数仍不满足则失败。
+二者实现均位于 `agent/go-service/common/repeataction`，用于反复执行一次内置或自定义动作，每次执行后在等待窗口内轮询识别；条件满足即成功，耗尽次数仍不满足则失败。
 
 - `RepeatUntilFoundAction`：`wait_nodes` 中**任一命中**即成功。
 - `RepeatUntilNotFoundAction`：`wait_node` **未命中**即成功。
@@ -96,7 +96,7 @@ Action 节点用于执行自定义动作。常见写法如下：
     - `custom_action?: string`：已注册的自定义动作名（如 `AutoAltClickAction`），与 `action` 二选一。
     - `custom_action_param?: object`：透传给内层自定义动作的参数。
     - `repeat_count?: int`：最大尝试次数；省略或 `<= 0` 时默认 `3`。
-    - `interval_ms?: int`：每次尝试后、识别前的等待（毫秒）；省略或 `0` 时默认 `1000`；负值非法。
+    - `interval_ms?: int`：每次动作后的等待窗口（毫秒）；窗口内每 `500ms` 截图识别一次，命中则提前成功；省略或 `0` 时默认 `3000`；负值非法。
 - `RepeatUntilFoundAction` 额外参数：
     - `wait_nodes: string[]`：等待出现的 Pipeline 节点名列表，必填。
 - `RepeatUntilNotFoundAction` 额外参数：
@@ -105,6 +105,12 @@ Action 节点用于执行自定义动作。常见写法如下：
 目标位置固定使用触发本 Action 的识别框 `box`（可由外层 `target` / `target_offset` 调整）。循环在任务停止信号（`Stopping`）时会立即中止并返回失败。
 
 示例文件：[`RepeatUntilFoundAction.json`](../../../assets/resource/pipeline/Interface/Example/RepeatUntilFoundAction.json)
+
+### CharacterSearchAction
+
+`CharacterSearchAction` 实现位于 `agent/go-service/common/charactercontroller`，用于找不到交互点时按固定 WASD 绕圈路径微调位置并识别目标节点。详细参数与路径说明见 [CharacterController 参考文档](./components/character-controller.md#action-charactersearchaction)。
+
+示例文件：[`CharacterController.json`](../../../assets/resource/pipeline/Interface/Example/CharacterController.json)
 
 ### PipelineOverride
 
@@ -372,21 +378,21 @@ Recognition 节点用于执行自定义识别。常见写法如下：
 
 写 Pipeline 时，内置的 `TemplateMatch` / `OCR` / `Click` / `Swipe` 能解决绝大多数需求。遇到它们搞不定的——比如要比较两个 OCR 数值、运行时动态调参数、批量跑子任务——再来查这篇，看有没有现成的 Custom 能用。
 
-| 场景                          | 用什么                        |
+| 场景 | 用什么 |
 | ----------------------------- | ----------------------------- |
-| 按顺序跑一组子任务            | `SubTask`                     |
-| 清零某节点的命中计数          | `ClearHitCount`               |
-| 强制让 Action 失败            | `FalseAction`                 |
-| 重复动作直到节点出现          | `RepeatUntilFoundAction`      |
-| 重复动作直到节点消失          | `RepeatUntilNotFoundAction`   |
-| 主动停止当前任务              | `PostStop`                    |
-| 运行时改节点参数              | `PipelineOverride`            |
+| 按顺序跑一组子任务 | `SubTask` |
+| 清零某节点的命中计数 | `ClearHitCount` |
+| 强制让 Action 失败 | `FalseAction` |
+| 重复动作直到节点出现 | `RepeatUntilFoundAction` |
+| 重复动作直到节点消失 | `RepeatUntilNotFoundAction` |
+| 主动停止当前任务 | `PostStop` |
+| 运行时改节点参数 | `PipelineOverride` |
 | 把关键词拼成正则写回 OCR 节点 | `AttachToExpectedRegexAction` |
-| 计算 OCR 数值表达式           | `ExpressionRecognition`       |
-| 判断列表 OCR 文本是否变化     | `ListCompleteRecognition`     |
-| 消费性点选（visited 排除）    | `ExpendableRecognition`       |
-| 按星期几门控后续节点          | `ScheduleRecognition`         |
-| 在指定位置 Alt + 点击         | `AutoAltClickAction`          |
-| Alt + 滑动                    | `AutoAltSwipeAction`          |
+| 计算 OCR 数值表达式 | `ExpressionRecognition` |
+| 判断列表 OCR 文本是否变化 | `ListCompleteRecognition` |
+| 消费性点选（visited 排除） | `ExpendableRecognition` |
+| 按星期几门控后续节点 | `ScheduleRecognition` |
+| 在指定位置 Alt + 点击 | `AutoAltClickAction` |
+| Alt + 滑动 | `AutoAltSwipeAction` |
 
 所有 Custom 的 Go 代码实现在 `agent/go-service/` 下，Pipeline 作者不需要关心，照文档参数写 JSON 就行。

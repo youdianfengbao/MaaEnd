@@ -56,7 +56,7 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "SellProduct${LocationId}SetOperatorAnchors"
+            "SellProduct${LocationId}ReportLocationPlan"
         ]
     },
     "SellProduct${LocationId}OutpostProsperityMax": {
@@ -72,6 +72,21 @@
             "operation": "enter_location",
             "location": "${LocationId}",
             "outpost_prosperity_max": true
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SellProduct${LocationId}ReportLocationPlan"
+        ]
+    },
+    "SellProduct${LocationId}ReportLocationPlan": {
+        "desc": "${LocationDesc}输出完整售卖计划",
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SellProductLocationPlan",
+        "custom_action_param": {
+            "location": "${LocationId}"
         },
         "post_delay": 0,
         "rate_limit": 0,
@@ -99,8 +114,41 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
+            "SellProduct${LocationId}CurrentOperatorUncached",
             "SellProduct${LocationId}CurrentTargetOperator",
             "SellProduct${LocationId}OpenTargetOperatorList"
+        ]
+    },
+    "SellProduct${LocationId}CurrentOperatorUncached": {
+        "desc": "${LocationDesc}当前联络干员未缓存，重新扫描干员列表",
+        "recognition": {
+            "type": "Custom",
+            "param": {
+                "custom_recognition": "SellProductCurrentOperatorUncached",
+                "custom_recognition_param": {
+                    "mode": "cache",
+                    "usage": "all",
+                    "location": "${LocationId}",
+                    "roi": "${CurrentOperatorROI}"
+                }
+            }
+        },
+        "pre_delay": 0,
+        "action": {
+            "type": "Custom",
+            "param": {
+                "custom_action": "SubTask",
+                "custom_action_param": {
+                    "sub": [
+                        "SellProductScanOperatorList"
+                    ]
+                }
+            }
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SellProduct${LocationId}BeforeSellOperator"
         ]
     },
     "SellProduct${LocationId}CurrentTargetOperator": {
@@ -940,26 +988,6 @@
         "post_delay": 0,
         "rate_limit": 0
     },
-    "SellProduct${LocationId}RestoreOperatorNotFound": {
-        "desc": "${LocationDesc}联络干员列表已到底，未找到配置的恢复干员",
-        "recognition": "Custom",
-        "custom_recognition": "SellProductOperatorListBottom",
-        "custom_recognition_param": {
-            "mode": "cache",
-            "usage": "restore",
-            "location": "${LocationId}",
-            "roi": [
-                164,
-                121,
-                700,
-                430
-            ]
-        },
-        "pre_delay": 0,
-        "action": "StopTask",
-        "post_delay": 0,
-        "rate_limit": 0
-    },
     "SellProduct${LocationId}CloseRestoreOperatorLiaisonAfterNotFound": {
         "desc": "${LocationDesc}未找到可用的恢复干员，关闭派驻列表并继续",
         "recognition": "And",
@@ -1059,12 +1087,30 @@
     },
     // ===== 动态优先级售卖循环 =====
     "SellProduct${LocationId}SelectPriorityItem": {
-        "desc": "${LocationDesc}按价值优先级选择下一个未尝试货品",
+        "desc": "${LocationDesc}按当前策略选择下一个未尝试货品",
         "recognition": "Custom",
         "custom_recognition": "SellProductPriorityItem",
         "custom_recognition_param": {
             "location": "${LocationId}",
-            "result": "select"
+            "result": "select",
+            "stock_name_offset": [
+                34,
+                -59,
+                164,
+                16
+            ],
+            "stock_quantity_offset": [
+                33,
+                -6,
+                80,
+                7
+            ],
+            "stock_click_offset": [
+                42,
+                -58,
+                100,
+                34
+            ]
         },
         "roi": [
             145,
@@ -1142,20 +1188,21 @@
         "custom_action": "BetterSliding",
         "custom_action_param": {
             "GreenMask": true,
-            "Target": 999999,
-            "ClampTargetToMax": true,
-            "MaxTarget": {
-                "Box": "${MaxTargetBox}",
+            "TargetQuantity": 999999,
+            "ClampTargetToSliderMax": true,
+            "AvailableQuantity": {
+                "Box": "${AvailableQuantityBox}",
                 "OnlyRec": true
             },
-            "Quantity": {
-                "Box": "${QuantityBox}",
+            "SliderQuantity": {
+                "Box": "${SliderQuantityBox}",
                 "OnlyRec": true
             },
             "Direction": "right",
             "DecreaseButton": "SellProduct/DecreaseButton.png",
             "IncreaseButton": "SellProduct/IncreaseButton.png",
-            "ExceedingOverrideEnable": "SellProductSkipToNextSellLoop"
+            "OutOfRangeOverrideEnable": "SellProductReserveAlreadySatisfied",
+            "TargetReachableOverrideEnable": "SellProductReserveQuantityReached"
         },
         "post_wait_freezes": 80,
         "post_delay": 0,

@@ -12,31 +12,31 @@
 
 环境监测的核心维护点如下：
 
-| 模块                | 路径                                                                              | 作用                                                                                                                                                                                                                                                                      |
+| 模块 | 路径 | 作用 |
 | ------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 任务入口            | `assets/tasks/EnvironmentMonitoring.json`                                         | interface 任务定义（无可配置选项，控制器 = Win32-Front / Wlroots / ADB）                                                                                                                                                                                                  |
-| 主流程 Pipeline     | `assets/resource/pipeline/EnvironmentMonitoring.json`                             | 主入口节点 `EnvironmentMonitoringMain`，循环识别两个监测终端                                                                                                                                                                                                              |
-| 终端分组（生成）    | `assets/resource/pipeline/EnvironmentMonitoring/Terminals.json`                   | 城郊监测终端 / 首墩监测终端的入口节点与各自的观察点 `next` 列表（**生成**）                                                                                                                                                                                               |
-| 终端跳转            | `assets/resource/pipeline/EnvironmentMonitoring/Locations.json`                   | `EnvironmentMonitoringGoTo*` 与 `Select*` 节点，从主菜单进入对应终端                                                                                                                                                                                                      |
-| 拍照流程            | `assets/resource/pipeline/EnvironmentMonitoring/TakePhoto.json`                   | 进入拍照模式、调整朝向、识别拍照按钮、达成目标后回到终端                                                                                                                                                                                                                  |
-| 摄像头滑动          | `assets/resource/pipeline/EnvironmentMonitoring/TakePhoto.json`                   | `EnvironmentMonitoringSwipeScreen{Up/Down/Left/Right}` 四向调整朝向                                                                                                                                                                                                       |
-| 公共按钮            | `assets/resource/pipeline/EnvironmentMonitoring/Button.json`                      | `TrackMissionButton` 等环境监测专用通用按钮                                                                                                                                                                                                                               |
-| 观察点节点（生成）  | `assets/resource/pipeline/EnvironmentMonitoring/{Station}/{Id}.json`              | **每个观察点一份 JSON**，由模板渲染（**生成**）；`Id` 由 `model.mjs` 自动生成，通常不用手写                                                                                                                                                                               |
-| 观察点模板          | `tools/pipeline-generate/EnvironmentMonitoring/generator/template.json`           | 单观察点 Pipeline 模板（识别文本、接取/前往、传送、寻路、拍照）                                                                                                                                                                                                           |
-| 终端模板            | `tools/pipeline-generate/EnvironmentMonitoring/generator/terminals-template.json` | 终端分组节点模板                                                                                                                                                                                                                                                          |
-| 路线/坐标数据       | `tools/pipeline-generate/EnvironmentMonitoring/routes.json`                       | 按观察点 `MissionId` 匹配的路线覆盖（传送点、地图、路径、摄像头滑动方向）；`Name` 仅供人工阅读，`Id` 是最终模板节点 ID，方便搜索生成节点/文件名                                                                                                                           |
-| 路线 JSON Schema    | `tools/schema/environment_monitoring_routes.schema.json`                          | `routes.json` 的字段约束（必填项、枚举、坐标数组形状），通过 `.vscode/settings.json` 自动关联，提供 IDE 字段补全和校验                                                                                                                                                    |
-| 失败收集参数 Schema | `tools/schema/components/failure_collector.schema.json`                           | 通用失败收集 Custom Action 的参数约束；动作名称注册在 `tools/schema/custom.action.schema.json`                                                                                                                                                                            |
-| 路线同步逻辑        | `tools/pipeline-generate/EnvironmentMonitoring/generator/sync-routes.mjs`         | 在生成前自动同步 `routes.json` 的 `MissionId` / `Name` / `Id`，并按 `MissionId` 排序                                                                                                                                                                                      |
-| 路线解析逻辑        | `tools/pipeline-generate/EnvironmentMonitoring/generator/route-resolver.mjs`      | 将 `routes.json` 条目解析为模板需要的寻路识别/动作参数，并统一处理未适配降级                                                                                                                                                                                              |
-| 规范化任务模型      | `tools/pipeline-generate/EnvironmentMonitoring/generator/model.mjs`               | 统一读取 zmdmap 与 `routes.json`，生成路线和终端模板共享的观察点任务模型                                                                                                                                                                                                  |
-| 终端列表数据        | `tools/pipeline-generate/EnvironmentMonitoring/generator/terminals-data.mjs`      | 从 `model.mjs` 的规范化任务和自动派生的终端列表生成各终端 `next`                                                                                                                                                                                                          |
-| 游戏数据快照        | `tools/pipeline-generate/data/kite_station_i18n.json`                             | 由 `zmdmap` 提供的官方监测终端/委托数据（多语言名称、`shotTargetName`），由 `pnpm fetch:zmdmap` 缓存                                                                                                                                                                      |
-| 生成器配置          | `tools/pipeline-generate/EnvironmentMonitoring/generator/config.json`             | 单观察点输出配置：`outputPattern: "${Station}/${Id}.json"`                                                                                                                                                                                                                |
-| 终端生成器配置      | `tools/pipeline-generate/EnvironmentMonitoring/generator/terminals-config.json`   | 合并到单文件的终端输出配置：`outputFile: "Terminals.json"`                                                                                                                                                                                                                |
-| 多语言文案          | `assets/locales/interface/*.json`                                                 | `task.EnvironmentMonitoring.*` 的 label / description（任务级；观察点名走 OCR）                                                                                                                                                                                           |
-| 通用组件依赖        | `agent/go-service/maptracker/` / `3rdparty/maa-copilot`                           | `MapTrackerMove`、`MapTrackerGoal`、`MapTrackerAssertLocation`、`MapLocateAssertLocation`、`MapNavigateAction`（详见 [map-tracker.md](../components/map-tracker.md)、[map-locator.md](../components/map-locator.md)、[map-navigator.md](../components/map-navigator.md)） |
-| 场景跳转依赖        | `assets/resource/pipeline/SceneManager/`、`Interface/`                            | `SceneEnterWorldWuling*`、`SceneEnterMenuRegionalDevelopmentWulingEnvironmentMonitoring`（详见 [scene-manager.md](../scene-manager.md)）                                                                                                                                  |
+| 任务入口 | `assets/tasks/EnvironmentMonitoring.json` | interface 任务定义（无可配置选项，控制器 = Win32-Front / Wlroots / ADB） |
+| 主流程 Pipeline | `assets/resource/pipeline/EnvironmentMonitoring.json` | 主入口节点 `EnvironmentMonitoringMain`，循环识别两个监测终端 |
+| 终端分组（生成） | `assets/resource/pipeline/EnvironmentMonitoring/Terminals.json` | 城郊监测终端 / 首墩监测终端的入口节点与各自的观察点 `next` 列表（**生成**） |
+| 终端跳转 | `assets/resource/pipeline/EnvironmentMonitoring/Locations.json` | `EnvironmentMonitoringGoTo*` 与 `Select*` 节点，从主菜单进入对应终端 |
+| 拍照流程 | `assets/resource/pipeline/EnvironmentMonitoring/TakePhoto.json` | 进入拍照模式、调整朝向、识别拍照按钮、达成目标后回到终端 |
+| 摄像头滑动 | `assets/resource/pipeline/EnvironmentMonitoring/TakePhoto.json` | `EnvironmentMonitoringSwipeScreen{Up/Down/Left/Right}` 四向调整朝向 |
+| 公共按钮 | `assets/resource/pipeline/EnvironmentMonitoring/Button.json` | `TrackMissionButton` 等环境监测专用通用按钮 |
+| 观察点节点（生成） | `assets/resource/pipeline/EnvironmentMonitoring/{Station}/{Id}.json` | **每个观察点一份 JSON**，由模板渲染（**生成**）；`Id` 由 `model.mjs` 自动生成，通常不用手写 |
+| 观察点模板 | `tools/pipeline-generate/EnvironmentMonitoring/generator/template.json` | 单观察点 Pipeline 模板（识别文本、接取/前往、传送、寻路、拍照） |
+| 终端模板 | `tools/pipeline-generate/EnvironmentMonitoring/generator/terminals-template.json` | 终端分组节点模板 |
+| 路线/坐标数据 | `tools/pipeline-generate/EnvironmentMonitoring/routes.json` | 按观察点 `MissionId` 匹配的路线覆盖（传送点、地图、路径、摄像头滑动方向）；`Name` 仅供人工阅读，`Id` 是最终模板节点 ID，方便搜索生成节点/文件名 |
+| 路线 JSON Schema | `tools/schema/environment_monitoring_routes.schema.json` | `routes.json` 的字段约束（必填项、枚举、坐标数组形状），通过 `.vscode/settings.json` 自动关联，提供 IDE 字段补全和校验 |
+| 失败收集参数 Schema | `tools/schema/components/failure_collector.schema.json` | 通用失败收集 Custom Action 的参数约束；动作名称注册在 `tools/schema/custom.action.schema.json` |
+| 路线同步逻辑 | `tools/pipeline-generate/EnvironmentMonitoring/generator/sync-routes.mjs` | 在生成前自动同步 `routes.json` 的 `MissionId` / `Name` / `Id`，并按 `MissionId` 排序 |
+| 路线解析逻辑 | `tools/pipeline-generate/EnvironmentMonitoring/generator/route-resolver.mjs` | 将 `routes.json` 条目解析为模板需要的寻路识别/动作参数，并统一处理未适配降级 |
+| 规范化任务模型 | `tools/pipeline-generate/EnvironmentMonitoring/generator/model.mjs` | 统一读取 zmdmap 与 `routes.json`，生成路线和终端模板共享的观察点任务模型 |
+| 终端列表数据 | `tools/pipeline-generate/EnvironmentMonitoring/generator/terminals-data.mjs` | 从 `model.mjs` 的规范化任务和自动派生的终端列表生成各终端 `next` |
+| 游戏数据快照 | `tools/pipeline-generate/data/kite_station_i18n.json` | 由 `zmdmap` 提供的官方监测终端/委托数据（多语言名称、`shotTargetName`），由 `pnpm fetch:zmdmap` 缓存 |
+| 生成器配置 | `tools/pipeline-generate/EnvironmentMonitoring/generator/config.json` | 单观察点输出配置：`outputPattern: "${Station}/${Id}.json"` |
+| 终端生成器配置 | `tools/pipeline-generate/EnvironmentMonitoring/generator/terminals-config.json` | 合并到单文件的终端输出配置：`outputFile: "Terminals.json"` |
+| 多语言文案 | `assets/locales/interface/*.json` | `task.EnvironmentMonitoring.*` 的 label / description（任务级；观察点名走 OCR） |
+| 通用组件依赖 | `agent/go-service/maptracker/` / `3rdparty/maa-copilot` | `MapTrackerMove`、`MapTrackerGoal`、`MapTrackerAssertLocation`、`MapLocateAssertLocation`、`MapNavigateAction`（详见 [map-tracker.md](../components/map-tracker.md)、[map-locator.md](../components/map-locator.md)、[map-navigator.md](../components/map-navigator.md)） |
+| 场景跳转依赖 | `assets/resource/pipeline/SceneManager/`、`Interface/` | `SceneEnterWorldWuling*`、`SceneEnterMenuRegionalDevelopmentWulingEnvironmentMonitoring`（详见 [scene-manager.md](../scene-manager.md)） |
 
 ## 主流程
 
@@ -136,9 +136,9 @@ MysteriousCryptidGraffiti         → 谜之生物的涂鸦
 
 由 `model.mjs` 从 `mission.kiteStation`（或回退到 `__terminalId`）对应的 `kite_station_i18n.json[terminalId].level.name["en-US"]` PascalCase 而来。当前仓库内只有两组：
 
-| 中文名       | Station ID                      | 对应 terminalId     | `GoToMonitoringTerminal` 锚点                            |
+| 中文名 | Station ID | 对应 terminalId | `GoToMonitoringTerminal` 锚点 |
 | ------------ | ------------------------------- | ------------------- | -------------------------------------------------------- |
-| 城郊监测终端 | `OutskirtsMonitoringTerminal`   | `kitestation_002_1` | `EnvironmentMonitoringGoToOutskirtsMonitoringTerminal`   |
+| 城郊监测终端 | `OutskirtsMonitoringTerminal` | `kitestation_002_1` | `EnvironmentMonitoringGoToOutskirtsMonitoringTerminal` |
 | 首墩监测终端 | `MarkerStoneMonitoringTerminal` | `kitestation_004_1` | `EnvironmentMonitoringGoToMarkerStoneMonitoringTerminal` |
 
 如果出现新的 Station，**生成器侧（`routes.json` + `model.mjs`）零改动**：`MONITORING_TERMINAL_IDS` 自动从 `kite_station_i18n.json` 派生，`GoToMonitoringTerminal` 锚点名按 `EnvironmentMonitoringGoTo{Station}` 模板拼接。但生成出来的 Pipeline 引用的下列**手写联动节点**必须先补齐，否则 MaaFramework 运行时会报「引用了未定义的任务」：
@@ -164,22 +164,22 @@ MysteriousCryptidGraffiti         → 谜之生物的涂鸦
 
 `data.mjs` 的默认导出是数组，每个元素 = 一个观察点的渲染上下文（字段名与 `template.json` 中 `${Xxx}` 占位符对应）。`pnpm generate:EnvironmentMonitoring` 会先调用 `sync-routes.mjs` 刷新上一级 `routes.json`；随后 `model.mjs` 只读 `routes.json` 与 `kite_station_i18n.json`，通过 `route-resolver.mjs` 装配规范化任务，`data.mjs` 再投影出最终行：
 
-| 字段                                                                            | 来源                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 字段 | 来源 |
 | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Station`                                                                       | `kite_station_i18n.json` 的英文站名（PascalCase）                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `Id`                                                                            | 默认由官方英文名 PascalCase 自动生成；会同步写回 `routes.json`，等价于最终模板使用的节点 ID                                                                                                                                                                                                                                                                                                                                                                       |
-| `Name`                                                                          | 来自 `kite_station_i18n.json` 的中文名；`MissionId` 只作为 `model.mjs` 匹配 `routes.json` 的主键，不透传给模板                                                                                                                                                                                                                                                                                                                                                    |
-| `GoToMonitoringTerminal`                                                        | 由 `Station` 决定                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `EnterMap`                                                                      | `routes.json[*].EnterMap`，默认传送入口，必须是 SceneManager 中存在的节点名；启用 `QuickTeleport` 时不会使用，可省略                                                                                                                                                                                                                                                                                                                                              |
-| `QuickTeleport`                                                                 | `routes.json[*].QuickTeleport`，可选布尔值，默认 `false`；启用后从追踪任务地图依次点击“前往传送”和“传送”，绕过 `EnterMap` 万能跳转                                                                                                                                                                                                                                                                                                                                |
+| `Station` | `kite_station_i18n.json` 的英文站名（PascalCase） |
+| `Id` | 默认由官方英文名 PascalCase 自动生成；会同步写回 `routes.json`，等价于最终模板使用的节点 ID |
+| `Name` | 来自 `kite_station_i18n.json` 的中文名；`MissionId` 只作为 `model.mjs` 匹配 `routes.json` 的主键，不透传给模板 |
+| `GoToMonitoringTerminal` | 由 `Station` 决定 |
+| `EnterMap` | `routes.json[*].EnterMap`，默认传送入口，必须是 SceneManager 中存在的节点名；启用 `QuickTeleport` 时不会使用，可省略 |
+| `QuickTeleport` | `routes.json[*].QuickTeleport`，可选布尔值，默认 `false`；启用后从追踪任务地图依次点击“前往传送”和“传送”，绕过 `EnterMap` 万能跳转 |
 | `MapName` / `MapAssert` / `MapPath` / `MapTarget` / `MapTargetTier` / `MapGoal` | `routes.json[*]`，对应初始位置判断与后续寻路参数；`MapPath` 生成 `MapTrackerAssertLocation` + `MapTrackerMove`，`MapTarget` 生成 `MapLocateAssertLocation` + `MapNavigateAction` 的 `NAVMESH` 目标点，`MapTargetTier` 可选生成 `target_tier`，`MapGoal` 生成 `MapTrackerAssertLocation` + `MapTrackerGoal`。传送后直拍时这些字段全部省略；寻路时 `MapPath` / `MapTarget` / `MapGoal` 三者必须且只能选一个；`QuickTeleport + MapTarget/MapGoal` 可省略 `MapAssert` |
-| `CameraSwipeDirection`                                                          | `routes.json[*]`，必须是 `EnvironmentMonitoringSwipeScreen{Up/Down/Left/Right}` 之一                                                                                                                                                                                                                                                                                                                                                                              |
-| `CameraMaxHit`                                                                  | `routes.json[*].CameraMaxHit`，缺省为 `2`；对应 `${Id}AdjustCamera` 滑屏动作的最大命中次数                                                                                                                                                                                                                                                                                                                                                                        |
-| `OcrReplace`                                                                    | 由 `routes.json[*].Replace` 透传到 `Check${Id}Text.replace` 与 `In${Id}Mission.replace`；用于按任务配置任务列表和任务详情页 OCR 的易混字符替换，不影响路线是否已适配的判断                                                                                                                                                                                                                                                                                        |
-| `ExpectedText`                                                                  | 由 `kite_station_i18n.json` 的 `mission.name` 多语言 map 自动展开（5 语言，英文转柔性正则）                                                                                                                                                                                                                                                                                                                                                                       |
-| `InExpectedText`                                                                | 由 `kite_station_i18n.json` 的 `mission.shotTargetName` 自动展开                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `TrackOrGoToNext` / `AfterTrackNext` / `AfterAlreadyTrackedNext`                | 由 `data.mjs` 根据路线是否完整及 `QuickTeleport` 自动决定：默认进入 `GoTo${Id}`；快捷传送时，开始追踪后等待任务地图，已追踪则先点击定位图标打开任务地图；未适配时进入 `${Id}NotAdapted`                                                                                                                                                                                                                                                                           |
-| `GoToNext` / `AfterTeleportDescription` / `AfterTeleportNext`                   | 由 `data.mjs` 根据路线类型自动决定：传送后直拍始终执行真实传送并进入 `${Id}TakePhoto`；`MapPath` 传送后返回 `GoTo${Id}StartPos` 复核落点；`MapTarget` / `MapGoal` 传送后直接进入 `GoTo${Id}Move`                                                                                                                                                                                                                                                                  |
+| `CameraSwipeDirection` | `routes.json[*]`，必须是 `EnvironmentMonitoringSwipeScreen{Up/Down/Left/Right}` 之一 |
+| `CameraMaxHit` | `routes.json[*].CameraMaxHit`，缺省为 `2`；对应 `${Id}AdjustCamera` 滑屏动作的最大命中次数 |
+| `OcrReplace` | 由 `routes.json[*].Replace` 透传到 `Check${Id}Text.replace` 与 `In${Id}Mission.replace`；用于按任务配置任务列表和任务详情页 OCR 的易混字符替换，不影响路线是否已适配的判断 |
+| `ExpectedText` | 由 `kite_station_i18n.json` 的 `mission.name` 多语言 map 自动展开（5 语言，英文转柔性正则） |
+| `InExpectedText` | 由 `kite_station_i18n.json` 的 `mission.shotTargetName` 自动展开 |
+| `TrackOrGoToNext` / `AfterTrackNext` / `AfterAlreadyTrackedNext` | 由 `data.mjs` 根据路线是否完整及 `QuickTeleport` 自动决定：默认进入 `GoTo${Id}`；快捷传送时，开始追踪后等待任务地图，已追踪则先点击定位图标打开任务地图；未适配时进入 `${Id}NotAdapted` |
+| `GoToNext` / `AfterTeleportDescription` / `AfterTeleportNext` | 由 `data.mjs` 根据路线类型自动决定：传送后直拍始终执行真实传送并进入 `${Id}TakePhoto`；`MapPath` 传送后返回 `GoTo${Id}StartPos` 复核落点；`MapTarget` / `MapGoal` 传送后直接进入 `GoTo${Id}Move` |
 
 ### 终端分组：`terminals-config.json`
 
@@ -211,10 +211,10 @@ pnpm fetch:zmdmap
 node sync-routes.mjs
 
 # 1) 渲染所有观察点 Pipeline
-npx @joebao/maa-pipeline-generate
+pnpm exec maa-pipeline-generate
 
 # 2) 渲染终端入口
-npx @joebao/maa-pipeline-generate --config terminals-config.json
+pnpm exec maa-pipeline-generate --config terminals-config.json
 ```
 
 > [!NOTE]
@@ -244,13 +244,13 @@ npx @joebao/maa-pipeline-generate --config terminals-config.json
 
 所有完整适配条目都需要元数据、`CameraSwipeDirection`，以及 `EnterMap` / `QuickTeleport: true` 中的一种传送入口。不同路线类型的字段组合如下：
 
-| 类型          | 地图与路线字段                                                         | `MapAssert`                  | 运行行为                                   |
+| 类型 | 地图与路线字段 | `MapAssert` | 运行行为 |
 | ------------- | ---------------------------------------------------------------------- | ---------------------------- | ------------------------------------------ |
-| metadata-only | 仅 `MissionId` / `Name` / `Id`                                         | 不填                         | 仅接取并追踪，不传送或拍照                 |
-| 传送后直拍    | 不填 `MapName` 和寻路字段；可选 `Heading`                              | 不填                         | 传送 → 可选 `MapTrackerToward` → 拍照      |
-| `MapPath`     | `MapName` + `MapPath`；可选 `Heading` / `NoEnsureInitialMovementState` | 默认传送和快捷传送都必填     | 断言固定起点 → `MapTrackerMove` → 拍照     |
-| `MapTarget`   | `MapName` + `MapTarget`；跨层时可加 `MapTargetTier`                    | 默认传送必填；快捷传送可省略 | `MapNavigateAction` 的 NAVMESH 寻路 → 拍照 |
-| `MapGoal`     | `MapName` + `MapGoal`；可选 `Heading` / `NoEnsureInitialMovementState` | 默认传送必填；快捷传送可省略 | `MapTrackerGoal` 自动寻路 → 拍照           |
+| metadata-only | 仅 `MissionId` / `Name` / `Id` | 不填 | 仅接取并追踪，不传送或拍照 |
+| 传送后直拍 | 不填 `MapName` 和寻路字段；可选 `Heading` | 不填 | 传送 → 可选 `MapTrackerToward` → 拍照 |
+| `MapPath` | `MapName` + `MapPath`；可选 `Heading` / `NoEnsureInitialMovementState` | 默认传送和快捷传送都必填 | 断言固定起点 → `MapTrackerMove` → 拍照 |
+| `MapTarget` | `MapName` + `MapTarget`；跨层时可加 `MapTargetTier` | 默认传送必填；快捷传送可省略 | `MapNavigateAction` 的 NAVMESH 寻路 → 拍照 |
+| `MapGoal` | `MapName` + `MapGoal`；可选 `Heading` / `NoEnsureInitialMovementState` | 默认传送必填；快捷传送可省略 | `MapTrackerGoal` 自动寻路 → 拍照 |
 
 `CameraMaxHit` 和 `Replace` 适用于所有已适配路线，不改变路线类型。直拍配置只能用于已经游戏实测确认的传送落点；缺少路线数据时继续保留 metadata-only 状态。
 
@@ -342,8 +342,8 @@ pnpm generate:EnvironmentMonitoring
 # 或在生成器目录分别执行
 cd tools/pipeline-generate/EnvironmentMonitoring/generator
 node sync-routes.mjs
-npx @joebao/maa-pipeline-generate
-npx @joebao/maa-pipeline-generate --config terminals-config.json
+pnpm exec maa-pipeline-generate
+pnpm exec maa-pipeline-generate --config terminals-config.json
 ```
 
 确认生成出的两类文件：
@@ -358,7 +358,7 @@ npx @joebao/maa-pipeline-generate --config terminals-config.json
 只调整路线/朝向（不变更英文名）：
 
 1. 改 `tools/pipeline-generate/EnvironmentMonitoring/routes.json` 里对应条目。
-2. 重新生成。常规情况下可直接在仓库根目录运行 `pnpm generate:EnvironmentMonitoring`；如果确认终端列表未变化，也可以只在 `tools/pipeline-generate/EnvironmentMonitoring/generator/` 目录运行 `node sync-routes.mjs && npx @joebao/maa-pipeline-generate`，无需重新生成 `Terminals.json`。
+2. 重新生成。常规情况下可直接在仓库根目录运行 `pnpm generate:EnvironmentMonitoring`；如果确认终端列表未变化，也可以只在 `tools/pipeline-generate/EnvironmentMonitoring/generator/` 目录运行 `node sync-routes.mjs && pnpm exec maa-pipeline-generate`，无需重新生成 `Terminals.json`。
 3. 提交 `routes.json` 与重生成的 `assets/resource/pipeline/EnvironmentMonitoring/{Station}/{Id}.json`。
 
 如果观察点的官方英文名变了，生成出的 `Id` / 文件名也会跟着变；重新生成后 `routes.json` 里的 `Id` 会同步刷新成新的最终模板 ID。

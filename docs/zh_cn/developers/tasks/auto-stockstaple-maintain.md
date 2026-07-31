@@ -6,24 +6,24 @@
 
 ## 文件路径
 
-| 路径                                                                       | 作用                                             |
+| 路径 | 作用 |
 | -------------------------------------------------------------------------- | ------------------------------------------------ |
-| `assets/interface.json`                                                    | 任务挂载（`regional_development` 组）            |
-| `assets/tasks/AutoStockStaple.json`                                        | 任务入口、地区开关、物品勾选、上限与折扣选项     |
-| `assets/resource/pipeline/AutoStockStaple/Main.json`                       | 执行周期、入口初始化、地区子任务调度             |
-| `assets/resource/pipeline/AutoStockStaple/ValleyIV.json`                   | 四号谷地列表扫描循环                             |
-| `assets/resource/pipeline/AutoStockStaple/Wuling.json`                     | 武陵列表扫描循环                                 |
-| `assets/resource/pipeline/AutoStockStaple/General/Item.json`               | 商品锚点、名称/折扣识别、BetterSliding、确认购买 |
-| `assets/resource/pipeline/AutoStockStaple/General/Goods.json`              | 购买弹窗内物品 OCR                               |
-| `assets/resource/pipeline/AutoStockStaple/General/GoodsCountValidate.json` | 弹窗右上角持有数量 OCR                           |
-| `assets/resource/pipeline/AutoStockStaple/General/QuantityControl.json`    | 弹窗分支调度、排除物品、确认购买                 |
-| `assets/resource/pipeline/AutoStockStaple/General/Template.json`           | 售罄、调度券、确认购买等通用模板                 |
-| `assets/resource/pipeline/Interface/InScene/StockStaple.json`              | 地区与稳定物资界面场景识别                       |
-| `assets/resource_adb/pipeline/AutoStockStaple/`                            | ADB ROI 偏移镜像（需与 Win32 同步检查）          |
-| `agent/go-service/autostockstaple/action.go`                               | 计算购买数量并驱动 BetterSliding                 |
-| `agent/go-service/common/attachregex/action.go`                            | attach 关键词合并为 OCR 白名单正则               |
-| `tools/pipeline-generate/AutoStockStaple/General/`                         | 批量生成 Goods / CountValidate / QuantityControl |
-| `assets/locales/interface/*.json`                                          | 任务、选项与 focus 文案                          |
+| `assets/interface.json` | 任务挂载（`regional_development` 组） |
+| `assets/tasks/AutoStockStaple.json` | 任务入口、地区开关、物品勾选、上限与折扣选项 |
+| `assets/resource/pipeline/AutoStockStaple/Main.json` | 执行周期、入口初始化、地区子任务调度 |
+| `assets/resource/pipeline/AutoStockStaple/ValleyIV.json` | 四号谷地列表扫描循环 |
+| `assets/resource/pipeline/AutoStockStaple/Wuling.json` | 武陵列表扫描循环 |
+| `assets/resource/pipeline/AutoStockStaple/General/Item.json` | 商品锚点、名称/折扣识别、BetterSliding、确认购买 |
+| `assets/resource/pipeline/AutoStockStaple/General/Goods.json` | 购买弹窗内物品 OCR |
+| `assets/resource/pipeline/AutoStockStaple/General/GoodsCountValidate.json` | 弹窗右上角持有数量 OCR |
+| `assets/resource/pipeline/AutoStockStaple/General/QuantityControl.json` | 弹窗分支调度、排除物品、确认购买 |
+| `assets/resource/pipeline/AutoStockStaple/General/Template.json` | 售罄、调度券、确认购买等通用模板 |
+| `assets/resource/pipeline/Interface/InScene/StockStaple.json` | 地区与稳定物资界面场景识别 |
+| `assets/resource_adb/pipeline/AutoStockStaple/` | ADB ROI 偏移镜像（需与 Win32 同步检查） |
+| `agent/go-service/autostockstaple/action.go` | 计算购买数量并驱动 BetterSliding |
+| `agent/go-service/common/attachregex/action.go` | attach 关键词合并为 OCR 白名单正则 |
+| `tools/pipeline-generate/AutoStockStaple/General/` | 批量生成 Goods / CountValidate / QuantityControl |
+| `assets/locales/interface/*.json` | 任务、选项与 focus 文案 |
 
 ## 执行流程
 
@@ -98,7 +98,7 @@ Exclude 分支（物品已达标或券不足被剔除）也会触发重新初始
 读取弹窗右上角当前持有数量 OCR，与用户配置的上限做表达式比较（`上限 > 当前持有量` 时命中）：
 
 1. Go 动作计算 `需购数量 = 上限 − 当前持有量`。
-2. 将结果写入 BetterSliding 的 `Target`，平滑调节购买数量滑条。
+2. 将结果写入 BetterSliding 的 `TargetQuantity`，平滑调节购买数量滑条。
 3. 点击确认购买，关闭奖励弹窗，回到列表继续扫描。
 
 #### 分支 3：持有量已达上限，排除
@@ -113,11 +113,11 @@ Exclude 分支（物品已达标或券不足被剔除）也会触发重新初始
 
 ### 运行时 Override 一览
 
-| 时机         | 动作                                                          | 作用                                     |
+| 时机 | 动作 | 作用 |
 | ------------ | ------------------------------------------------------------- | ---------------------------------------- |
-| 任务入口     | `AttachToExpectedRegexAction`                                 | 合并 attach → 商品名 OCR 正则            |
-| 物品被排除后 | `PipelineOverrideAction` + 再次 `AttachToExpectedRegexAction` | 剔除 attach 键并刷新白名单               |
-| 确认购买前   | `AutoStockStapleQuantityControlAction`                        | 算差值并 override BetterSliding 目标数量 |
+| 任务入口 | `AttachToExpectedRegexAction` | 合并 attach → 商品名 OCR 正则 |
+| 物品被排除后 | `PipelineOverrideAction` + 再次 `AttachToExpectedRegexAction` | 剔除 attach 键并刷新白名单 |
+| 确认购买前 | `AutoStockStapleQuantityControlAction` | 算差值并 override BetterSliding 目标数量 |
 
 ## 新增物品时需改的路径
 
@@ -125,9 +125,9 @@ Exclude 分支（物品已达标或券不足被剔除）也会触发重新初始
 2. 重新生成（仓库根目录）：
 
 ```bash
-npx @joebao/maa-pipeline-generate --config tools/pipeline-generate/AutoStockStaple/General/goods-config.json
-npx @joebao/maa-pipeline-generate --config tools/pipeline-generate/AutoStockStaple/General/goods-count-validate-config.json
-npx @joebao/maa-pipeline-generate --config tools/pipeline-generate/AutoStockStaple/General/quantity-control-config.json
+pnpm exec maa-pipeline-generate --config tools/pipeline-generate/AutoStockStaple/General/goods-config.json
+pnpm exec maa-pipeline-generate --config tools/pipeline-generate/AutoStockStaple/General/goods-count-validate-config.json
+pnpm exec maa-pipeline-generate --config tools/pipeline-generate/AutoStockStaple/General/quantity-control-config.json
 ```
 
 1. `assets/tasks/AutoStockStaple.json`（勾选 case + 上限 override）
@@ -180,9 +180,9 @@ npx @joebao/maa-pipeline-generate --config tools/pipeline-generate/AutoStockStap
 
 与信用点商店不同，稳定物资列表扫描 **没有** 单独的“单价 ColorMatch / CanAfford”节点。买得起与否分两层处理：
 
-| 阶段       | 机制                                                                              |
+| 阶段 | 机制 |
 | ---------- | --------------------------------------------------------------------------------- |
-| 列表扫描前 | `AutoStockTargetCanNotBuyValleyIV`：剩余调度券是否仍高于保留阈值                  |
+| 列表扫描前 | `AutoStockTargetCanNotBuyValleyIV`：剩余调度券是否仍高于保留阈值 |
 | 购买弹窗内 | `AutoStockStapleGoodsStockBillInsufficientValidate`：识别底部红色“调度券不足”提示 |
 
 因此，`AutoStockBuyItemValleyIVTask` 的 `And` 条件为：
@@ -250,7 +250,7 @@ Exclude: {ValleyEngravingPermitLimit} <= {AutoStockStapleGoodsCountValidate}
 2. 对当前截图运行数量 OCR，得到 **当前持有数量**。
 3. 计算 `target = 目标上限 - 当前持有数量`。
 4. 若 `target <= 0`，跳过滑动（禁用 `AutoStockStapleBetterSliding`）。
-5. 否则通过 `OverridePipeline` 启用 `AutoStockStapleBetterSliding`，并将 `target` 写入其 `attach.Target`。
+5. 否则通过 `OverridePipeline` 启用 `AutoStockStapleBetterSliding`，并将 `target` 写入其 `attach.TargetQuantity`。
 
 Go **不再** `RunTask` 执行滑动；数量调节由低代码分支完成：
 
@@ -262,7 +262,7 @@ Go **不再** `RunTask` 执行滑动；数量调节由低代码分支完成：
   → AutoStockStapleQuantityControlConfirmBuy
 ```
 
-`AutoStockStapleBetterSliding` 定义在 `General/Item.json`，默认 `enabled: false`，仅在 Go override 后启用；`attach.Target` 的默认值只是占位。
+`AutoStockStapleBetterSliding` 定义在 `General/Item.json`，默认 `enabled: false`，仅在 Go override 后启用；`attach.TargetQuantity` 的默认值只是占位。
 
 购买数量调节完成后，`next` 进入 `AutoStockStapleQuantityControlConfirmBuy` 点击黄色确认按钮，再关闭奖励弹窗回到列表。
 
@@ -282,11 +282,11 @@ Exclude 分支 **不会** 购买，仅把“已达标”的物品从本轮扫描
 
 本任务有两类运行时 override，维护时不要混淆：
 
-| 动作                                   | 触发位置                                          | 作用                                                      |
-| -------------------------------------- | ------------------------------------------------- | --------------------------------------------------------- |
-| `AttachToExpectedRegexAction`          | `AutoStockStapleMain` 入口；Exclude 后 Reset 节点 | 合并 attach 关键词 → OCR 白名单正则                       |
-| `PipelineOverrideAction`               | 各物品 `{Item}RemoveFilter`                       | 将指定 attach 键设为 `false`，排除该物品                  |
-| `AutoStockStapleQuantityControlAction` | 各物品 `{Item}Buy`                                | 计算差值并 override BetterSliding 的 `Target` / `enabled` |
+| 动作 | 触发位置 | 作用 |
+| -------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------- |
+| `AttachToExpectedRegexAction` | `AutoStockStapleMain` 入口；Exclude 后 Reset 节点 | 合并 attach 关键词 → OCR 白名单正则 |
+| `PipelineOverrideAction` | 各物品 `{Item}RemoveFilter` | 将指定 attach 键设为 `false`，排除该物品 |
+| `AutoStockStapleQuantityControlAction` | 各物品 `{Item}Buy` | 计算差值并 override BetterSliding 的 `TargetQuantity` / `enabled` |
 
 `attach` 语义（见 `attachregex/action.go`）：
 
@@ -324,22 +324,22 @@ Exclude 分支 **不会** 购买，仅把“已达标”的物品从本轮扫描
 
 ## 调试建议
 
-| 现象                   | 优先检查                                                                                                               |
+| 现象 | 优先检查 |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 列表中识别不到目标商品 | `go-service.log` 中 `AttachToExpectedRegexAction` 的 `expected` 正则；锚点 `AutoStockInStapleItem` 是否命中            |
-| 识别到商品但未购买     | 数量控制是否走 `Exclude` 或 `StockBillInsufficient`；`maafw*.log` 中 `AutoStockStapleQuantityControl{Item}Buy/Exclude` |
-| 购买数量不对           | `AutoStockStapleQuantityControlAction` 日志中的 `threshold/current_count/target`；BetterSliding ROI                    |
-| 调度券明明够却停止扫描 | `AutoStockTargetCompareValleyIV` 表达式与用户输入的 `{ReserveValleyIV}`                                                |
-| 反复点击同一已达标商品 | Exclude 后 `{Item}RemoveFilter` 与 `ResetRecognitionParams` 是否执行                                                   |
+| 列表中识别不到目标商品 | `go-service.log` 中 `AttachToExpectedRegexAction` 的 `expected` 正则；锚点 `AutoStockInStapleItem` 是否命中 |
+| 识别到商品但未购买 | 数量控制是否走 `Exclude` 或 `StockBillInsufficient`；`maafw*.log` 中 `AutoStockStapleQuantityControl{Item}Buy/Exclude` |
+| 购买数量不对 | `AutoStockStapleQuantityControlAction` 日志中的 `threshold/current_count/target`；BetterSliding ROI |
+| 调度券明明够却停止扫描 | `AutoStockTargetCompareValleyIV` 表达式与用户输入的 `{ReserveValleyIV}` |
+| 反复点击同一已达标商品 | Exclude 后 `{Item}RemoveFilter` 与 `ResetRecognitionParams` 是否执行 |
 
 日志分析可参考 skill：`.agents/skills/autostockstaple-log-analysis/SKILL.md`。
 
 ## 与 AutoStockpile 的区别
 
-| 项目     | AutoStockStaple（稳定需求） | AutoStockpile（弹性囤货） |
+| 项目 | AutoStockStaple（稳定需求） | AutoStockpile（弹性囤货） |
 | -------- | --------------------------- | ------------------------- |
-| 决策主体 | Pipeline + 少量 Go          | Go Service 主导           |
-| 商品定位 | 列表时间锚点 + OCR 偏移链   | 模板匹配 + OCR 映射       |
-| 数量控制 | 弹窗 BetterSliding + 表达式 | Go 解析详情页调节         |
+| 决策主体 | Pipeline + 少量 Go | Go Service 主导 |
+| 商品定位 | 列表时间锚点 + OCR 偏移链 | 模板匹配 + OCR 映射 |
+| 数量控制 | 弹窗 BetterSliding + 表达式 | Go 解析详情页调节 |
 
 两者界面相似但逻辑独立；日志分析见 `.agents/skills/autostockstaple-log-analysis/SKILL.md`。

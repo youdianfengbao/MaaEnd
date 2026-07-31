@@ -4,11 +4,12 @@
 
 此文档介绍了如何使用 CharacterController 相关的节点。
 
-**CharacterController** 提供了一组用于**控制游戏角色**的自定义 Action，包括视角旋转、前后移动以及朝向目标自动移动等功能。这些节点通常与 MapTracker 配合使用，实现更精确的角色控制。
+**CharacterController** 提供了一组用于**控制游戏角色**的自定义 Action，包括视角旋转、前后移动、绕圈微调查找以及朝向目标自动移动等功能。这些节点通常与 MapTracker 配合使用，实现更精确的角色控制。
 
 > [!IMPORTANT]
 >
-> CharacterController 的所有节点依赖键盘/鼠标输入，**必须在前台模式（Seize）下运行**，否则输入事件无法正确传递至游戏。请在 `interface.json` 或用户配置中确保控制器使用 `Seize` 连接方式。
+> 视角类节点（Yaw / Pitch / MoveToTarget 等）依赖键盘/鼠标输入，**必须在前台模式（Seize）下运行**，否则输入事件无法正确传递至游戏。  
+> 轴向移动节点（`CharacterControllerForwardAxisAction`、`CharacterSearchAction` 所用的 `__CharacterControllerAxisLongPress*Action`）在 **ADB** 下由 [`resource_adb/.../CharacterController/Action.json`](../../../assets/resource_adb/pipeline/Common/__Private/CharacterController/Action.json) 映射为虚拟摇杆 `LongPress`，无需 Seize。
 
 ## 节点说明
 
@@ -67,13 +68,38 @@
 
 每次调用时，根据当前帧识别结果执行以下逻辑之一：
 
-| 条件                                                           | 执行动作     |
+| 条件 | 执行动作 |
 | -------------------------------------------------------------- | ------------ |
-| 识别框宽度 < `far_target_width`（且已设置 `far_target_width`） | 向前进       |
-| 目标在屏幕中心左侧（超出 `align_threshold`）                   | 向左旋转视角 |
-| 目标在屏幕中心右侧（超出 `align_threshold`）                   | 向右旋转视角 |
-| 目标已对齐，但 Y 坐标 > 480（目标在屏幕下半部，已过）          | 向后退       |
-| 目标已对齐，且 Y 坐标 ≤ 480（目标在屏幕上半部）                | 向前进       |
+| 识别框宽度 < `far_target_width`（且已设置 `far_target_width`） | 向前进 |
+| 目标在屏幕中心左侧（超出 `align_threshold`） | 向左旋转视角 |
+| 目标在屏幕中心右侧（超出 `align_threshold`） | 向右旋转视角 |
+| 目标已对齐，但 Y 坐标 > 480（目标在屏幕下半部，已过） | 向后退 |
+| 目标已对齐，且 Y 坐标 ≤ 480（目标在屏幕上半部） | 向前进 |
+
+---
+
+### Action: CharacterSearchAction
+
+🔍 找不到交互点时，按固定绕圈路径微调位置并反复识别目标节点。任一 `wait_nodes` 命中即返回成功；走完整圈仍未命中或任务 Stopping 时返回失败。**起点先识别一次**，未命中后再进入「移动 → 等待 → 识别」循环。
+
+底层通过 `__CharacterControllerAxisLongPress*Action` 执行单步移动：默认资源为 WASD `LongPressKey`；ADB 资源覆盖为虚拟摇杆 `LongPress`（见上文 IMPORTANT）。
+
+#### 节点参数
+
+必填参数：
+
+- `wait_nodes`：字符串数组。目标查找的 Pipeline 节点名列表；任一命中即成功。
+
+#### 绕圈路径
+
+一步固定 100ms（与 `CharacterControllerForwardAxisAction` 的 `axis: 1` 一致）；每步后固定等待再识别。方向映射：前/上 = W（或摇杆上），后/下 = S（或摇杆下），左 = A（或摇杆左），右 = D（或摇杆右）。
+
+```text
+起点识别 → 前 前 | 左 左 | 下 下 下 下 | 右 右 右 右 | 上 上 上 上 | 左 左
+                 ^每步后：等待 → 截图 → 识别 wait_nodes
+```
+
+共 18 步移动，最多 19 次查找（含起点）。
 
 ## 完整示例
 

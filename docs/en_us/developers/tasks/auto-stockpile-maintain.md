@@ -43,16 +43,16 @@ assets/resource/image/AutoStockpile/Goods/{Region}/{BaseName}.Tier{N}.png
 
 Regions and tiers currently used in the repository:
 
-| Chinese Name | Region ID  |
+| Chinese Name | Region ID |
 | ------------ | ---------- |
-| 四号谷地     | `ValleyIV` |
-| 武陵         | `Wuling`   |
+| 四号谷地 | `ValleyIV` |
+| 武陵 | `Wuling` |
 
-| Tier    | Price Fluctuation Range |
+| Tier | Price Fluctuation Range |
 | ------- | ----------------------- |
-| `Tier1` | Moderate                |
-| `Tier2` | Large                   |
-| `Tier3` | Extreme                 |
+| `Tier1` | Moderate |
+| `Tier2` | Large |
+| `Tier3` | Extreme |
 
 ## Adding an Item
 
@@ -165,10 +165,10 @@ Confirm that the shared `tierBases` covers the tiers required by the new region.
 
 Add the following fields in all language versions of `assets/locales/interface/*.json`:
 
-| Field Key                                                         | Purpose                    |
+| Field Key | Purpose |
 | ----------------------------------------------------------------- | -------------------------- |
-| `global.region.{NewRegion}`                                       | Region global display name |
-| `task.AutoStockpile.option.AutoStockpileElastic{NewRegion}.label` | Task option label          |
+| `global.region.{NewRegion}` | Region global display name |
+| `task.AutoStockpile.option.AutoStockpileElastic{NewRegion}.label` | Task option label |
 
 Language files to update: `zh_cn.json`, `en_us.json`, `ja_jp.json`, `ko_kr.json`, `zh_tw.json`.
 

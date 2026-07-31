@@ -38,7 +38,7 @@ Optional Parameters:
     - `^map01_lv001$`: Only matches "map01_lv001" (Valley IV - The Hub).
     - `^map01_lv\\d+$`: Matches all sub-regions of "map01" (Valley IV).
 
-- `precision`: A real number in the range $(0, 1]$, default `0.5`. Controls the matching precision. Larger values are stricter about matching map features, but may slow down matching; smaller values greatly improve matching speed, but may lead to incorrect results. When the number of maps to match is small (for example, matching only one map), a larger value is recommended for more accurate results.
+- `precision`: A real number in the range $(0, 1]$, default `0.7`. Controls the matching precision. Larger values are stricter about matching map features, but may slow down matching; smaller values greatly improve matching speed, but may lead to incorrect results. When the number of maps to match is small (for example, matching only one map), a larger value is recommended for more accurate results.
 
 - `threshold`: A real number in the range $(0, 1]$, default `0.4`. Controls the confidence threshold for matching. Match results below this value will not hit the recognition.
 
@@ -57,6 +57,29 @@ Optional Parameters:
 Please refer to the type definition of `MapTrackerBigMapInferParam` in the specific code. The parameters include `map_name_regex` and `threshold`. These parameters are also embedded in the `MapTrackerBigMapFindImageParam` of the `MapTrackerBigMapFindImage` node to control its internal big-map inference behavior.
 
 ## Algorithm Explanation
+
+### Fine Approach Algorithm
+
+`MapTrackerMove` performs a **fine approach** at target points where `fine_approach` is enabled, in order to reach the target point with extremely high precision.
+
+The ordinary approach relies on "rotate + move forward". Within the last few pixels, the amount of rotation can only be estimated from an online-learned rotation speed, which makes it an open-loop control. The fine approach switches to **translational control** instead: the camera is never rotated, so the camera orientation is a constant, and the deviation between the player and the target point can be decomposed onto the camera's forward/backward axis and left/right axis, each covered by its own movement keys.
+
+Specifically, the player is first brought to a stop, and then the following steps are repeated until the distance between the player and the target point is less than a threshold, or the maximum number of calibrations is reached:
+
+1. Recognize the player's current location and orientation;
+2. Project the deviation from the player to the target point into the camera frame, obtaining the forward/backward deviation $\Delta f$ and the left/right deviation $\Delta r$;
+3. First subtract the fixed impulse offset (the constant displacement caused by movement start-up and stop animations) from the deviation, then convert the remainder into the key press durations required by each axis according to the walking speed, and perform one displacement;
+4. Wait for the player to come to a complete stop.
+
+The displacement in step 3 consists of two segments: first, the direction keys of both axes are held down together until the shorter axis is finished; then only the longer axis is held down to cover the remainder. Since the diagonal movement speed in the game equals the single-direction movement speed, each axis actually advances at only $1/\sqrt{2}$ of the speed while both keys are held, so the key press duration of this segment must be multiplied by $\sqrt{2}$ to compensate. The fixed impulse offset is obtained from a linear regression of measured impulse responses: any impulse, no matter how short, produces on the order of 0.3 pixels of displacement. Without subtracting it, short impulses systematically overshoot and trigger repeated corrections.
+
+Since the player's body turns toward its movement direction, the orientation recognized after the displacement reflects the actual direction of the last segment of the previous displacement, which can be used to derive and correct the camera orientation. To avoid incorrect corrections while the player has not finished turning, displacements that are too short are not used for correction, and a single correction exceeding about 30° is discarded.
+
+In addition, **every measurement** (including the entry measurement) checks whether the distance between the player and the target point exceeds `arrival_threshold`. An oversized residual on entry usually means the ordinary approach's arrival check was unreliable (for example, a stuck-mitigator teleport that flipped the bearing heuristic); an oversized residual after a displacement means the player may have been moved manually or something unexpected happened. In either case a warning is printed and the fine approach is abandoned, but the whole task will not fail.
+
+> [!NOTE]
+>
+> The player's orientation is undetermined when the fine approach ends. Therefore, callers that require a specific orientation should use `on_finish` together with the `MapTrackerToward` node to adjust it.
 
 ### Point Density-Deflection Trade-off Algorithm
 
@@ -81,12 +104,12 @@ A threshold $k$ can be set. When $f(d, \Delta\theta) < k$, we consider that $p3$
 
 `MapTrackerGoal` will parse `zipline_policy` into an internal zipline strategy. The weight coefficients for the three types of runtime edges are as follows (distance multipliers):
 
-| Strategy     | Zipline Enabled | Approaching Zipline Point | Leaving Zipline Point | Between Zipline Points |
+| Strategy | Zipline Enabled | Approaching Zipline Point | Leaving Zipline Point | Between Zipline Points |
 | ------------ | --------------- | ------------------------: | --------------------: | ---------------------: |
-| `Never`      | No              |                      `64` |                  `16` |                  `2.0` |
-| `Lazy`       | Yes             |                      `64` |                  `16` |                  `2.0` |
-| `Active`     | Yes             |                       `8` |                   `4` |                  `0.5` |
-| `Aggressive` | Yes             |                       `1` |                   `1` |                 `0.25` |
+| `Never` | No | `64` | `16` | `2.0` |
+| `Lazy` | Yes | `64` | `16` | `2.0` |
+| `Active` | Yes | `8` | `4` | `0.5` |
+| `Aggressive` | Yes | `1` | `1` | `0.25` |
 
 ## Testing Methods
 

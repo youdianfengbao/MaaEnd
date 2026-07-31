@@ -233,12 +233,12 @@ MaaEnd uses maa-tools for node testing. See [Node Testing Documentation](./node-
 
 ## Common Pitfalls
 
-| Pitfall                                                      | Handling                                                                                            |
+| Pitfall | Handling |
 | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `pnpm check` / `pnpm test` fails to run                      | `pnpm install`                                                                                      |
-| Model or C++ dependency directory missing                    | `git submodule update --init --recursive` or `python tools/setup_workspace.py --update`             |
-| Go changes not taking effect                                 | Forgot `python tools/build_and_install.py`                                                          |
-| Directly referenced `__ScenePrivate*` nodes                  | Should reference scene interface nodes exposed in the `Interface` directory                         |
-| Only focusing on the main flow, not handling pop-ups/loading | Treat pop-ups, loading, and intermediate states as normal scenarios                                 |
-| Changed tasks but didn't add text                            | Text goes in `assets/locales/`                                                                      |
-| Runs locally but not for others                              | Filters enabled/different frame rates/slightly different colors due to different GPUs/RGB too rigid |
+| `pnpm check` / `pnpm test` fails to run | `pnpm install` |
+| Model or C++ dependency directory missing | `git submodule update --init --recursive` or `python tools/setup_workspace.py --update` |
+| Go changes not taking effect | Forgot `python tools/build_and_install.py` |
+| Directly referenced `__ScenePrivate*` nodes | Should reference scene interface nodes exposed in the `Interface` directory |
+| Only focusing on the main flow, not handling pop-ups/loading | Treat pop-ups, loading, and intermediate states as normal scenarios |
+| Changed tasks but didn't add text | Text goes in `assets/locales/` |
+| Runs locally but not for others | Filters enabled/different frame rates/slightly different colors due to different GPUs/RGB too rigid |

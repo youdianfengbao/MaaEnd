@@ -27,10 +27,10 @@ In the task Pipeline, use the "AutoFight interface node" as `[JumpBack]` or `nex
 
 ### Interface Overview
 
-| Interface Name          | Description                                                                                                                        |
+| Interface Name | Description |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `AutoFight`             | Fully automatic combat: with basic attack anchor (default points to combo key), auto basic attack + skills + combos, etc.          |
-| `AutoFightNoAttack`     | Semi-automatic combat: no basic attack, only execute skills/combos/ultimates/dodges, etc.                                          |
+| `AutoFight` | Fully automatic combat: with basic attack anchor (default points to combo key), auto basic attack + skills + combos, etc. |
+| `AutoFightNoAttack` | Semi-automatic combat: no basic attack, only execute skills/combos/ultimates/dodges, etc. |
 | `AutoFightRealtimeTask` | For exploration/real-time tasks: decide whether to basic attack by overriding `__AutoFightActionAttackAnchor` through task option. |
 
 The above interfaces are defined in `AutoFightInterface.json`.

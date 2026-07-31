@@ -21,14 +21,14 @@ flowchart TD
 
 It is recommended to read in the following order:
 
-1.  If you are a complete beginner and feel lost when you see `git clone` or `pnpm install` → `super-basic-introduction.md`
-2.  Set up the environment, get it running, and make a change → `getting-started.md`
-3.  Understand the project architecture and reusable nodes → `components-guide.md`
-4.  Master development tools and debugging workflow → `tools-and-debug.md`
-5.  Consult coding standards → `coding-standards.md`
-6.  When you need to write test sets → `node-testing.md`
-7.  When using a specific advanced component → refer to the corresponding documentation under `components/`
-8.  When maintaining a specific task → refer to the corresponding documentation under `tasks/`
+1. If you are a complete beginner and feel lost when you see `git clone` or `pnpm install` → `super-basic-introduction.md`
+2. Set up the environment, get it running, and make a change → `getting-started.md`
+3. Understand the project architecture and reusable nodes → `components-guide.md`
+4. Master development tools and debugging workflow → `tools-and-debug.md`
+5. Consult coding standards → `coding-standards.md`
+6. When you need to write test sets → `node-testing.md`
+7. When using a specific advanced component → refer to the corresponding documentation under `components/`
+8. When maintaining a specific task → refer to the corresponding documentation under `tasks/`
 
 > [!WARNING]
 > **You must read the [Coding Standards](./coding-standards.md) before submitting any code.**
@@ -38,25 +38,25 @@ It is recommended to read in the following order:
 
 ### Tier 1 — Quick Start
 
-| Document                                                  | Description                                                                          |
+| Document | Description |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [Super Basic Introduction](./super-basic-introduction.md) | For absolute beginners: what are Git, Terminal, VS Code, JSON, and how to use them   |
-| [Getting Started](./getting-started.md)                   | Set up environment, run the program, make your first change and PR within 10 minutes |
+| [Super Basic Introduction](./super-basic-introduction.md) | For absolute beginners: what are Git, Terminal, VS Code, JSON, and how to use them |
+| [Getting Started](./getting-started.md) | Set up environment, run the program, make your first change and PR within 10 minutes |
 
 ### Tier 2 — Reference Manual
 
-| Document                                                          | Description                                                                 |
+| Document | Description |
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [DeepWiki — MaaEnd](https://deepwiki.com/MaaEnd/MaaEnd)           | Online project documentation overview with AI                               |
-| [Components Guide](./components-guide.md)                         | Project architecture, where to make changes, reusable node directory        |
-| [Tools & Debugging](./tools-and-debug.md)                         | Development tools list, common debugging entry points, community group info |
-| [Node Testing](./node-testing.md)                                 | How to write and run node tests to verify stable recognition hits           |
-| [Pipeline Protocol](https://maafw.com/docs/3.1-PipelineProtocol/) | Full text of MaaFramework official Pipeline protocol                        |
-| [Release Process](./release-process.md)                           | Release cycle, branch model, where to submit PRs, automation details        |
+| [DeepWiki — MaaEnd](https://deepwiki.com/MaaEnd/MaaEnd) | Online project documentation overview with AI |
+| [Components Guide](./components-guide.md) | Project architecture, where to make changes, reusable node directory |
+| [Tools & Debugging](./tools-and-debug.md) | Development tools list, common debugging entry points, community group info |
+| [Node Testing](./node-testing.md) | How to write and run node tests to verify stable recognition hits |
+| [Pipeline Protocol](https://maafw.com/docs/3.1-PipelineProtocol/) | Full text of MaaFramework official Pipeline protocol |
+| [Release Process](./release-process.md) | Release cycle, branch model, where to submit PRs, automation details |
 
 ### Tier 3 — Standards & Constraints
 
-| Document                                                  | Description                                                              |
+| Document | Description |
 | --------------------------------------------------------- | ------------------------------------------------------------------------ |
 | [**Coding Standards (Must-read)**](./coding-standards.md) | Pipeline / Go / Cpp coding rules, pre-submission checks, common pitfalls |
 
@@ -64,60 +64,60 @@ It is recommended to read in the following order:
 
 The most commonly used reusable nodes in daily development. All Pipeline developers are advised to consult these during development for reuse.
 
-| Document                                      | Description                                                                                           |
+| Document | Description |
 | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [Common Buttons](./common-buttons.md)         | White/yellow confirm, cancel, close, teleport and other common button nodes                           |
-| [InScene Recognition](./in-scene.md)          | Universal scene recognition, determines the current screen's scene                                    |
+| [Common Buttons](./common-buttons.md) | White/yellow confirm, cancel, close, teleport and other common button nodes |
+| [InScene Recognition](./in-scene.md) | Universal scene recognition, determines the current screen's scene |
 | [SceneManager Navigation](./scene-manager.md) | Universal navigation mechanism, automatically navigate/teleport from any interface to target scene/UI |
-| [Custom Actions & Recognition](./custom.md)   | Common Custom nodes like SubTask, ClearHitCount, ExpressionRecognition, etc.                          |
+| [Custom Actions & Recognition](./custom.md) | Common Custom nodes like SubTask, ClearHitCount, ExpressionRecognition, etc. |
 
 ### Advanced Component Reference (`components/`)
 
 Consult as needed. Only required when using the corresponding component.
 
-| Document                                                    | Description                                                                                    |
+| Document | Description |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| [AutoFight](./components/auto-fight.md)                     | In-battle automation module, automatically performs normal attacks, skills, chain skills, etc. |
-| [CharacterController](./components/character-controller.md) | Character view rotation, movement, and automatic movement towards target                       |
-| [BetterSliding](./components/better-sliding.md)             | Common custom action for adjusting discrete quantity sliders by target value                   |
-| [RecoGrid Engine](./components/recogrid-engine.md)          | C++ grid recognition, multi-template classification, and scroll accumulation scanning engine   |
-| [MapLocator](./components/map-locator.md)                   | AI + CV based minimap positioning system, outputs region, coordinates, and orientation         |
-| [MapTracker](./components/map-tracker.md)                   | Computer vision based minimap tracking and path movement                                       |
-| [MapNavigator](./components/map-navigator.md)               | Path navigation Action, supports record-free target-based pathfinding and GUI recording        |
+| [AutoFight](./components/auto-fight.md) | In-battle automation module, automatically performs normal attacks, skills, chain skills, etc. |
+| [CharacterController](./components/character-controller.md) | Character view rotation, movement, and automatic movement towards target |
+| [BetterSliding](./components/better-sliding.md) | Common custom action for adjusting discrete quantity sliders by target value |
+| [RecoGrid Engine](./components/recogrid-engine.md) | C++ grid recognition, multi-template classification, and scroll accumulation scanning engine |
+| [MapLocator](./components/map-locator.md) | AI + CV based minimap positioning system, outputs region, coordinates, and orientation |
+| [MapTracker](./components/map-tracker.md) | Computer vision based minimap tracking and path movement |
+| [MapNavigator](./components/map-navigator.md) | Path navigation Action, supports record-free target-based pathfinding and GUI recording |
 
 ### Task Maintenance Documents (`tasks/`)
 
 Only required when maintaining the corresponding task.
 
-| Document                                                            | Description                                                                                                            |
+| Document | Description |
 | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [AutoStockpile](./tasks/auto-stockpile-maintain.md)                 | Product templates, product mapping, price thresholds, and region extension maintenance                                 |
-| [AutoStockStaple](./tasks/auto-stockstaple-maintain.md)             | Regular expression initialization, product recognition chain, quantity control                                         |
-| [DijiangRewards](./tasks/dijiang-rewards-maintain.md)               | Main flow, stage responsibilities, and interface option override logic                                                 |
-| [CreditShopping](./tasks/credit-shopping-maintain.md)               | Purchase priority, credit linkage, refresh strategy, and product extension                                             |
-| [EnvironmentMonitoring](./tasks/environment-monitoring-maintain.md) | Observation point route data, `pipeline-generate` automatic generation and new point integration process               |
-| [SellProduct](./tasks/sell-product-maintain.md)                     | Main flow, zmdmap generation, automatic operators, and dynamic selling-loop maintenance                                |
-| [GiftOperator](./tasks/gift-operator-maintain.md)                   | Navigation pathfinding, contact operator selection, gift giving/receiving branches, and operator extension maintenance |
+| [AutoStockpile](./tasks/auto-stockpile-maintain.md) | Product templates, product mapping, price thresholds, and region extension maintenance |
+| [AutoStockStaple](./tasks/auto-stockstaple-maintain.md) | Regular expression initialization, product recognition chain, quantity control |
+| [DijiangRewards](./tasks/dijiang-rewards-maintain.md) | Main flow, stage responsibilities, and interface option override logic |
+| [CreditShopping](./tasks/credit-shopping-maintain.md) | Purchase priority, credit linkage, refresh strategy, and product extension |
+| [EnvironmentMonitoring](./tasks/environment-monitoring-maintain.md) | Observation point route data, `pipeline-generate` automatic generation and new point integration process |
+| [SellProduct](./tasks/sell-product-maintain.md) | Main flow, zmdmap generation, automatic operators, and dynamic selling-loop maintenance |
+| [GiftOperator](./tasks/gift-operator-maintain.md) | Navigation pathfinding, contact operator selection, gift giving/receiving branches, and operator extension maintenance |
 
 ### Third-Party Protocol Documents (`protocol/`)
 
 Define the format specifications for files written by MaaEnd, for reliable reading by external tools (data analysis panels, web frontends, etc.).
 
-| Document                                                                                | Description                                                            |
+| Document | Description |
 | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | [AutoStockpile Daily Price Record](../protocol/autostockpile-daily-storage/protocol.md) | `ElasticGoodsPrices.json` file format, path parsing, and writing rules |
 
 ## Quick Jump
 
-| I want to...                                                | Where to look                                                                                                                                                   |
+| I want to... | Where to look |
 | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| I'm a complete beginner, I don't understand the terminology | [super-basic-introduction.md](./super-basic-introduction.md)                                                                                                    |
-| Participate for the first time, starting from scratch       | [getting-started.md](./getting-started.md)                                                                                                                      |
-| Understand the project architecture                         | [components-guide.md](./components-guide.md)                                                                                                                    |
-| Modify Pipeline nodes                                       | [components-guide.md](./components-guide.md) → [common-buttons.md](./common-buttons.md) / [in-scene.md](./in-scene.md) / [scene-manager.md](./scene-manager.md) |
-| Write or debug Go Service                                   | [components-guide.md](./components-guide.md) → [custom.md](./custom.md)                                                                                         |
-| Consult coding standards                                    | [coding-standards.md](./coding-standards.md)                                                                                                                    |
-| Release / Submit PR, which branch to target                 | [release-process.md](./release-process.md)                                                                                                                      |
+| I'm a complete beginner, I don't understand the terminology | [super-basic-introduction.md](./super-basic-introduction.md) |
+| Participate for the first time, starting from scratch | [getting-started.md](./getting-started.md) |
+| Understand the project architecture | [components-guide.md](./components-guide.md) |
+| Modify Pipeline nodes | [components-guide.md](./components-guide.md) → [common-buttons.md](./common-buttons.md) / [in-scene.md](./in-scene.md) / [scene-manager.md](./scene-manager.md) |
+| Write or debug Go Service | [components-guide.md](./components-guide.md) → [custom.md](./custom.md) |
+| Consult coding standards | [coding-standards.md](./coding-standards.md) |
+| Release / Submit PR, which branch to target | [release-process.md](./release-process.md) |
 
 ## Communication
 

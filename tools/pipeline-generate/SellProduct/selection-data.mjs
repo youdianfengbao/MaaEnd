@@ -2,7 +2,14 @@ import {mkdirSync, writeFileSync} from "node:fs";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath, pathToFileURL} from "node:url";
 
-import {getOperatorCaseName, isAdminOperator, sellProductLocations, settlementData} from "./model.mjs";
+import {
+    getOperatorCaseName,
+    isAdminOperator,
+    sellProductLocations,
+    sellProductLocationsNewestFirst,
+    settlementData,
+    toPascalCase,
+} from "./model.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_PATH = resolve(__dirname, "../../../assets/data/SellProduct/selection_data.json");
@@ -180,7 +187,9 @@ export function buildSelectionItems(data = settlementData, sourceLocations = sel
                 if (!itemID || Object.keys(names).length === 0) continue;
 
                 if (!items[itemID]) {
-                    items[itemID] = {names: {}};
+                    items[itemID] = {
+                        names: {},
+                    };
                 }
                 items[itemID].names = {
                     ...items[itemID].names,
@@ -206,8 +215,11 @@ export function buildSelectionItems(data = settlementData, sourceLocations = sel
 
         locations[location.LocationId] = [...locationItems.values()]
             .filter((item) => !item.excluded)
-            .sort((left, right) => right.rarity - left.rarity || right.unitPrice - left.unitPrice)
-            .map((item) => item.itemID);
+            .map((item) => ({
+                item_id: item.itemID,
+                rarity: item.rarity,
+                unit_price: item.unitPrice,
+            }));
     }
 
     for (const item of Object.values(items)) {
@@ -216,7 +228,7 @@ export function buildSelectionItems(data = settlementData, sourceLocations = sel
 
     return {
         items,
-        locationItemOrder: locations,
+        locationItems: locations,
     };
 }
 
@@ -235,7 +247,7 @@ export function buildSellProductSelectionData() {
         const settlement = settlementData.settlements[location.SettlementId];
         locations[location.LocationId] = {
             names: buildLocalizedNames(settlement.settlementName),
-            item_order: itemData.locationItemOrder[location.LocationId],
+            items: itemData.locationItems[location.LocationId],
             target_operators: buildLocationOperatorOrder(
                 settlement,
                 [
@@ -252,15 +264,15 @@ export function buildSellProductSelectionData() {
     return {
         items: itemData.items,
         operators,
-        location_order: sellProductLocations.map((location) => location.LocationId),
+        location_order: sellProductLocationsNewestFirst.map((location) => location.LocationId),
         locations,
     };
 }
 
 export const sellProductSelectionData = buildSellProductSelectionData();
 
-// Task 选项使用上游展示顺序；运行时 item_order 使用稳定的据点排序。
-// 两者共享同一物品字典和临时过滤规则，但不把 UI 顺序耦合到运行时识别顺序。
+// Task 选项使用上游展示顺序；运行时据点物品保留稳定来源顺序和排序所需属性。
+// 两者共享同一物品字典和临时过滤规则，具体选品顺序由 Go 策略决定。
 function buildSelectableItems() {
     const items = [];
     const seen = new Set();
@@ -288,6 +300,13 @@ function buildSelectableItems() {
 }
 
 export const sellProductSelectableItems = buildSelectableItems();
+
+// 国际化同步器消费的物品视图。命名规则与 task-data.mjs 的反查兜底保持一致，
+// 同步后的 item.* 键能被 Task 生成的 `$item.xxx` label 直接引用。
+export const sellProductItemLocaleEntries = sellProductSelectableItems.map(({id}) => ({
+    key: `item.${toPascalCase(id.replace(/^item_/, ""))}`,
+    names: sellProductSelectionData.items[id]?.names || {},
+}));
 
 export function writeSellProductSelectionData() {
     mkdirSync(dirname(OUTPUT_PATH), {recursive: true});

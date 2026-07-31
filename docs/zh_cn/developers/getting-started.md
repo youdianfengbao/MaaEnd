@@ -35,13 +35,13 @@ pnpm install
 
 **`setup_workspace.py` 常用参数：**
 
-| 参数                  | 说明                                                                        |
+| 参数 | 说明 |
 | --------------------- | --------------------------------------------------------------------------- |
-| （无参数）            | 首次初始化，已安装的组件自动跳过                                            |
-| `--update`            | 强制更新所有已安装的依赖到最新版本                                          |
-| `--clean-cache`       | 清理下载缓存目录                                                            |
-| `--cpp-algo-pr <N>`   | 从指定 PR 的最新成功 CI run 下载 cpp-algo（用于快速测试尚未合并的 PR 改动） |
-| `--cpp-algo-run <ID>` | 从指定 workflow run ID 下载 cpp-algo                                        |
+| （无参数） | 首次初始化，已安装的组件自动跳过 |
+| `--update` | 强制更新所有已安装的依赖到最新版本 |
+| `--clean-cache` | 清理下载缓存目录 |
+| `--cpp-algo-pr <N>` | 从指定 PR 的最新成功 CI run 下载 cpp-algo（用于快速测试尚未合并的 PR 改动） |
+| `--cpp-algo-run <ID>` | 从指定 workflow run ID 下载 cpp-algo |
 
 > `--cpp-algo-pr` 和 `--cpp-algo-run` 互斥，二选一。不指定时默认从 v2 分支的最新 push 构建下载。
 
@@ -282,10 +282,10 @@ Pipeline 的核心逻辑是类似**有限状态机（FSM）/决策树（Decision
 
 常用可复用入口见下表：
 
-| 节点         | 说明                                   | 文档                                     |
+| 节点 | 说明 | 文档 |
 | ------------ | -------------------------------------- | ---------------------------------------- |
-| 通用按钮     | 白色/黄色确认、取消、关闭、传送等      | [common-buttons.md](./common-buttons.md) |
-| SceneManager | 万能跳转：从任意界面自动导航到目标场景 | [scene-manager.md](./scene-manager.md)   |
+| 通用按钮 | 白色/黄色确认、取消、关闭、传送等 | [common-buttons.md](./common-buttons.md) |
+| SceneManager | 万能跳转：从任意界面自动导航到目标场景 | [scene-manager.md](./scene-manager.md) |
 
 ## 5. 调试与测试
 

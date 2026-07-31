@@ -112,10 +112,10 @@
         "custom_recognition": "AeroSalvageGridRecognition",
         "custom_recognition_param": {
             "grid_roi": [
-                497,
-                177,
-                283,
-                316
+                482,
+                167,
+                313,
+                336
             ],
             "center_roi": [
                 634,
@@ -172,17 +172,17 @@
             "YellowConfirmButtonType1",
             {
                 "recognition": "TemplateMatch",
-                "template": "AeroSalvage/Complete.png",
                 "roi": [
                     1161,
                     600,
                     119,
                     120
-                ]
+                ],
+                "template": "AeroSalvage/Complete.png"
             }
         ],
-        "action": "Click",
         "pre_delay": 0,
+        "action": "Click",
         "post_delay": 0,
         "next": [
             "AeroSalvageCompleteConfirm"
@@ -191,16 +191,16 @@
     "AeroSalvageCompleteConfirm": {
         "desc": "点击屏幕继续",
         "recognition": "OCR",
-        "expected": "回收条件达成",
         "roi": [
             557,
             101,
             165,
             33
         ],
+        "expected": "回收条件达成",
         "pre_delay": 0,
-        "post_delay": 0,
         "action": "Click",
+        "post_delay": 0,
         "next": [
             "InWorld",
             "AeroSalvageMainLoop"

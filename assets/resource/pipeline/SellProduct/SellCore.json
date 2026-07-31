@@ -34,7 +34,7 @@
         "rate_limit": 0
     },
     "SellProductSellLoop": {
-        "desc": "售卖循环，先检查调度券再按价值优先级选择下一个可售物品",
+        "desc": "售卖循环，先检查调度券再按当前选品策略选择下一个可售物品",
         "recognition": "And",
         "all_of": [
             "SellProductInOutpost"
@@ -185,13 +185,16 @@
             350,
             77
         ],
+        // 完整文案：当前据点调度券储量不足 / 目前據點調度券存量不足 / Insufficient stock bills in current outpost / 拠点取引券が不足しています / 거점 관리권 보유량 부족
         "expected": [
-            "肥料数量不足",
-            "肥料數量不足",
+            // @i18n-skip
+            "当前据点调度券储量不足",
+            "目前據點調度券存量不足",
+            "Insufficient stock bills in current outpost",
             "(?i)Insufficient",
-            "肥料が足りません",
-            "不足",
-            "거점 관리권 보유량 부족"
+            "拠点取引券が不足しています",
+            "거점 관리권 보유량 부족",
+            "不足"
         ],
         "pre_delay": 0,
         "post_delay": 0,
@@ -290,35 +293,44 @@
             "Node.Recognition.Succeeded": "$task.SellProduct.aid_quota_exceeded"
         }
     },
+    "SellProductCheckHeader": {
+        "desc": "交易完成后的获得物品界面页头",
+        "recognition": "TemplateMatch",
+        "roi": [
+            577,
+            10,
+            138,
+            479
+        ],
+        "template": [
+            "SellProduct/SellProductCheckHeader.png"
+        ],
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "rate_limit": 0
+    },
     "SellProductSellCheck": {
         "desc": "交易后确认",
         "recognition": "And",
         "all_of": [
-            "CloseRewardsButton",
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    577,
-                    10,
-                    138,
-                    118
-                ],
-                "template": [
-                    "SellProduct/SellProductCheckHeader.png"
-                ]
-            }
+            "SellProductCheckHeader"
         ],
-        "pre_wait_freezes": {
-            "time": 200,
-            "target": [
-                357,
-                283,
-                577,
-                163
-            ]
-        },
         "pre_delay": 0,
-        "action": "Click",
+        "action": "Custom",
+        "custom_action": "RepeatUntilNotFoundAction",
+        "custom_action_param": {
+            "action": "Click",
+            "wait_node": "SellProductCheckHeader",
+            "repeat_count": 10,
+            "interval_ms": 200
+        },
+        "target": [
+            35,
+            611,
+            58,
+            57
+        ],
         "anchor": {
             "SellProductZeroMoneyHandler": "SellProductZeroMoney"
         },
@@ -333,7 +345,7 @@
     },
     // SellProductReserveSession 通过 Pipeline override 动态引用以下按保留数量交易的节点。
     "SellProductSellThenLoop": {
-        "desc": "交易，完成后直接选择下一个优先物品",
+        "desc": "按保留数量交易，完成后继续检查当前物品的剩余库存",
         "recognition": "OCR",
         "roi": [
             975,
@@ -357,42 +369,66 @@
         ]
     },
     "SellProductSellCheckThenLoop": {
-        "desc": "交易后确认，直接选择下一个优先物品",
+        "desc": "交易后确认，继续应用当前物品的保留规则",
         "recognition": "And",
         "all_of": [
-            "CloseRewardsButton",
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    577,
-                    10,
-                    138,
-                    118
-                ],
-                "template": [
-                    "SellProduct/SellProductCheckHeader.png"
-                ]
-            }
+            "SellProductCheckHeader"
         ],
-        "pre_wait_freezes": 80,
         "pre_delay": 0,
-        "action": "Click",
+        "action": "Custom",
+        "custom_action": "RepeatUntilNotFoundAction",
+        "custom_action_param": {
+            "action": "Click",
+            "wait_node": "SellProductCheckHeader",
+            "repeat_count": 10,
+            "interval_ms": 200
+        },
+        "target": [
+            35,
+            611,
+            58,
+            57
+        ],
         "anchor": {
             "SellProductZeroMoneyHandler": "SellProductZeroMoney"
         },
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "SellProductSellLoop"
+            "[Anchor]SellProductZeroMoneyHandler",
+            "SellProductReserveQuantityReached",
+            "[Anchor]SellProductBetterSliding"
         ],
         "focus": {
             "Node.Action.Succeeded": "$task.SellProduct.trade_completed"
         }
     },
-    "SellProductSkipToNextSellLoop": {
+    "SellProductReserveQuantityReached": {
+        "desc": "本次交易已达到保留数量，将当前物品标记为本次任务无需再次处理",
+        "enabled": false,
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SellProductReserveSession",
+        "custom_action_param": {
+            "operation": "satisfy"
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SellProductSellLoop"
+        ]
+    },
+    "SellProductReserveAlreadySatisfied": {
         "desc": "保留数量大于等于当前库存，继续选择下一个优先物品",
         "enabled": false,
+        "recognition": "DirectHit",
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SellProductReserveSession",
+        "custom_action_param": {
+            "operation": "satisfy"
+        },
         "post_delay": 0,
         "rate_limit": 0,
         "next": [

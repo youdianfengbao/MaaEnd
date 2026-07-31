@@ -10,10 +10,10 @@
 
 ### 分支模型
 
-| 分支           | 用途                               | 允许合入的类型                                           |
+| 分支 | 用途 | 允许合入的类型 |
 | -------------- | ---------------------------------- | -------------------------------------------------------- |
-| `v2`           | 主开发分支                         | `feat` `refactor` `perf` `fix` `docs` `chore` … 所有类型 |
-| `release/vX.Y` | 当前发布分支（如 `release/v2.16`） | **仅 `fix`**                                             |
+| `v2` | 主开发分支 | `feat` `refactor` `perf` `fix` `docs` `chore` … 所有类型 |
+| `release/vX.Y` | 当前发布分支（如 `release/v2.16`） | **仅 `fix`** |
 
 > 日常开发（新功能、重构、修 Bug）默认往 `v2` 分支提。`release/vX.Y` 只在特定场景下使用。
 
@@ -63,11 +63,11 @@
 
 ### 自动化
 
-| 触发事件                 | 自动行为                                      | 工作流                      |
+| 触发事件 | 自动行为 | 工作流 |
 | ------------------------ | --------------------------------------------- | --------------------------- |
-| RC 版本发布              | 创建 `release/vX.Y` 分支                      | `create-release-branch.yml` |
-| Stable `.0` 发布         | 删除旧 `release/v*` 分支（保留有 open PR 的） | `create-release-branch.yml` |
-| Fix PR 合入 release 分支 | Cherry-pick 到 `fix/pr-N` 并向 `v2` 发起 PR   | `cherry-pick-to-v2.yml`     |
+| RC 版本发布 | 创建 `release/vX.Y` 分支 | `create-release-branch.yml` |
+| Stable `.0` 发布 | 删除旧 `release/v*` 分支（保留有 open PR 的） | `create-release-branch.yml` |
+| Fix PR 合入 release 分支 | Cherry-pick 到 `fix/pr-N` 并向 `v2` 发起 PR | `cherry-pick-to-v2.yml` |
 
 ### Hotfix 流程
 
