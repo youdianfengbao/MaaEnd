@@ -279,39 +279,17 @@
         "MissionId": "m1m36",
         "Name": "东张西望的黑腹雉羽兽",
         "Id": "ObservantSableChestedFowlbeast",
-        "EnterMap": "SceneEnterWorldWulingJingyuValley0",
-        "MapName": "map02_lv001",
-        "MapAssert": [
-            342.2,
-            124.2,
-            4,
-            4
-        ],
-        "MapPath": [
-            [
-                349.9,
-                128
-            ],
-            [
-                373.3,
-                135.6
-            ]
-        ],
-        "CameraSwipeDirection": "EnvironmentMonitoringSwipeScreenDown",
-        "Heading": 105
+        "QuickTeleport": true,
+        "CameraSwipeDirection": "EnvironmentMonitoringSwipeScreenRight",
+        "Heading": 0,
+        "CameraMaxHit": 3
     },
     {
         "MissionId": "m1m37",
         "Name": "储备站周围的生态环境",
         "Id": "EcologyNearTheFieldLogisticsDepot",
-        "EnterMap": "SceneEnterWorldWulingWulingCity8",
+        "QuickTeleport": true,
         "MapName": "map02_lv002",
-        "MapAssert": [
-            684.3,
-            910.9,
-            20.5,
-            20.5
-        ],
         "MapGoal": [
             618.8,
             901.6
@@ -449,34 +427,14 @@
         "MissionId": "m1m57",
         "Name": "环形瀑布",
         "Id": "AnnularWaterfall",
-        "EnterMap": "SceneEnterWorldWulingQingboStockade3",
-        "MapName": "map02_lv003",
-        "MapAssert": [
-            496.1,
-            360.1,
-            19.3,
-            14.3
+        "QuickTeleport": true,
+        "MapName": "Wuling_Base",
+        "MapTarget": [
+            1364.14,
+            2147.09
         ],
-        "MapPath": [
-            [
-                498.8,
-                360.5
-            ],
-            [
-                501.1,
-                347.9
-            ],
-            [
-                506.4,
-                334
-            ],
-            [
-                507.4,
-                330.5
-            ]
-        ],
-        "CameraSwipeDirection": "EnvironmentMonitoringSwipeScreenUp",
-        "Heading": 15
+        "Heading": 15,
+        "CameraSwipeDirection": "EnvironmentMonitoringSwipeScreenUp"
     },
     {
         "MissionId": "m1m58",
@@ -661,41 +619,41 @@
         "MissionId": "m1m63",
         "Name": "植物观察点",
         "Id": "FloraObservationPoint",
-        "EnterMap": "SceneEnterWorldWulingMarkerStone3",
+        "EnterMap": "SceneEnterWorldWulingMarkerStone1",
         "MapName": "Wuling_Base",
         "MapAssert": [
-            567.66,
-            2210.92,
-            65.56,
-            55.32
+            477.62,
+            2108.95,
+            27.2,
+            27.33
         ],
         "MapTarget": [
-            93.84,
-            185.41
+            125.73,
+            112.6
         ],
         "MapTargetTier": "Wuling_L4_330",
-        "CameraSwipeDirection": "EnvironmentMonitoringSwipeScreenLeft",
-        "Heading": 0
+        "CameraSwipeDirection": "EnvironmentMonitoringSwipeScreenDown",
+        "Heading": 180
     },
     {
         "MissionId": "m1m64",
         "Name": "栖云生态点",
         "Id": "CloudrestEcoSite",
-        "EnterMap": "SceneEnterWorldWulingMarkerStone3",
+        "EnterMap": "SceneEnterWorldWulingMarkerStone_Ship2DestinationThenWalkAndFight",
         "MapName": "map02_lv004",
         "MapAssert": [
-            602.8,
-            325,
-            9.7,
-            8.1
+            389.3,
+            445.8,
+            69.1,
+            49.9
         ],
         "MapGoal": [
-            438.1,
-            509.2
+            439,
+            486.4
         ],
         "CameraSwipeDirection": "EnvironmentMonitoringSwipeScreenUp",
-        "CameraMaxHit": 4,
-        "Heading": 180
+        "CameraMaxHit": 3,
+        "Heading": 170
     },
     {
         "MissionId": "m1m65",

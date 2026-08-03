@@ -237,7 +237,7 @@
         "desc": "栖云生态点任务已在追踪中，点击定位按钮进入任务地图",
         "recognition": "And",
         "all_of": [
-            "EnvironmentMonitoringTrackedMissionMapButton",
+            "TrackedMissionMapButton",
             "InCloudrestEcoSiteMission"
         ],
         "box_index": 0,
@@ -342,10 +342,10 @@
                 {
                     "map_name": "map02_lv004",
                     "target": [
-                        602.8,
-                        325,
-                        9.7,
-                        8.1
+                        389.3,
+                        445.8,
+                        69.1,
+                        49.9
                     ]
                 }
             ]
@@ -364,7 +364,7 @@
         "custom_action": "SubTask",
         "custom_action_param": {
             "sub": [
-                "SceneEnterWorldWulingMarkerStone3"
+                "SceneEnterWorldWulingMarkerStone_Ship2DestinationThenWalkAndFight"
             ]
         },
         "post_delay": 0,
@@ -381,14 +381,14 @@
         "custom_action_param": {
             "map_name": "map02_lv004",
             "target": [
-                438.1,
-                509.2
+                439,
+                486.4
             ],
             "on_finish": {
                 "action": "Custom",
                 "custom_action": "MapTrackerToward",
                 "custom_action_param": {
-                    "angle": 180
+                    "angle": 170
                 }
             }
         },
@@ -413,7 +413,7 @@
     },
     "CloudrestEcoSiteAdjustCamera": {
         "desc": "栖云生态点任务中调整朝向",
-        "max_hit": 4,
+        "max_hit": 3,
         "pre_delay": 0,
         "post_delay": 0,
         "rate_limit": 0,

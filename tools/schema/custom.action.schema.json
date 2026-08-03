@@ -7,6 +7,7 @@
             "enum": [
                 "325",
                 "AccountSwitchWindowAction",
+                "AddItemData",
                 "AeroSalvageConfigureSwipeAction",
                 "AttachToExpectedRegexAction",
                 "AutoAltClickAction",
@@ -85,7 +86,9 @@
                 "RepeatUntilNotFoundAction",
                 "SceneManagerMenuListClickItemAction",
                 "SubTask",
+                "SyncItemData",
                 "TrialOfSwordmancy.Decide",
+                "UpdateItemQuantity",
                 "WebEvent202605Action",
                 "autoEcoFarmInterruptibleSleep",
                 "autoEcoFarmOverrideTargetTemplate",
@@ -94,6 +97,48 @@
         }
     },
 	"allOf": [
+		{
+			"if": {
+				"properties": {
+					"custom_action": { "const": "AddItemData" }
+				},
+				"required": [ "custom_action" ]
+			},
+			"then": {
+				"properties": {
+					"custom_action_param": { "$ref": "./components/ims.schema.json#/$defs/AddItemDataParam" }
+				},
+				"required": [ "custom_action_param" ]
+			}
+		},
+		{
+			"if": {
+				"properties": {
+					"custom_action": { "const": "SyncItemData" }
+				},
+				"required": [ "custom_action" ]
+			},
+			"then": {
+				"properties": {
+					"custom_action_param": { "$ref": "./components/ims.schema.json#/$defs/SyncItemDataParam" }
+				},
+				"required": [ "custom_action_param" ]
+			}
+		},
+		{
+			"if": {
+				"properties": {
+					"custom_action": { "const": "UpdateItemQuantity" }
+				},
+				"required": [ "custom_action" ]
+			},
+			"then": {
+				"properties": {
+					"custom_action_param": { "$ref": "./components/ims.schema.json#/$defs/UpdateItemQuantityParam" }
+				},
+				"required": [ "custom_action_param" ]
+			}
+		},
 		{
 			"if": {
 				"properties": {

@@ -1,0 +1,129 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "IMS Component Schema",
+    "description": "Parameter definitions for IMS (Item Management System) custom recognitions/actions. Referenced by custom.recognition.schema.json / custom.action.schema.json.",
+    "$defs": {
+        "AddItemDataParam": {
+            "type": "object",
+            "title": "AddItemData Param",
+            "description": "Parameters for AddItemData action (A3). Sequentially runs recognition nodes and adds OCR quantities into the IMS cache as positive deltas. Does not change readiness / last_sync. Misses and non-positive quantities are skipped. Best practice: use under CloseRewardsButton recognition, then next to click-close the rewards UI.",
+            "additionalProperties": false,
+            "required": [
+                "items"
+            ],
+            "properties": {
+                "items": {
+                    "title": "Items",
+                    "description": "Map of item ID -> recognition node name. Keys are cache IDs; values are run in sorted key order. Quantity comes from each node's box_index OCR result and is added to cache.",
+                    "type": "object",
+                    "minProperties": 1,
+                    "additionalProperties": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "propertyNames": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                }
+            }
+        },
+        "ItemDataReadyParam": {
+            "type": "object",
+            "title": "ItemDataReady Param",
+            "description": "Parameters for ItemDataReady recognition. Reports whether the in-process inventory cache is ready (has a successful sync and is within TTL).",
+            "additionalProperties": false,
+            "properties": {
+                "refresh_days": {
+                    "title": "Refresh Days",
+                    "description": "Cache TTL in days after a successful sync. 1 / 7 / 30 expire after that many days; 0 means never expire due to age (still requires hasData). Omit to default to 7.",
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1,
+                        7,
+                        30
+                    ],
+                    "default": 7
+                }
+            }
+        },
+        "ItemQuantitySatisfiedParam": {
+            "type": "object",
+            "title": "ItemQuantitySatisfied Param",
+            "description": "Parameters for ItemQuantitySatisfied recognition (R1). Evaluates a boolean expression over one or more cached item IDs via {ITEM_ID} placeholders (same operators as ExpressionRecognition). Does not check readiness; combine with ItemDataReady via And when needed. Missing item counts as 0. UI Focus announce is off by default.",
+            "additionalProperties": false,
+            "required": [
+                "expression"
+            ],
+            "properties": {
+                "expression": {
+                    "title": "Expression",
+                    "description": "Boolean expression over cached item quantities. Use {ITEM_ID} placeholders (missing item = 0). Supports + - * / % < <= > >= == != && || ! and parentheses. Result must be boolean.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "notify_ui": {
+                    "title": "Notify UI",
+                    "description": "When true, print the resolved expression to UI Focus (throttled). Default false.",
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        },
+        "UpdateItemQuantityParam": {
+            "type": "object",
+            "title": "UpdateItemQuantity Param",
+            "description": "Parameters for UpdateItemQuantity action (A1). Applies a signed delta to one cached item; result is clamped to >= 0. Persists IMS.json but does not change readiness / last_sync (only SyncItemData marks sync).",
+            "additionalProperties": false,
+            "required": [
+                "item",
+                "delta"
+            ],
+            "properties": {
+                "item": {
+                    "title": "Item",
+                    "description": "Item ID (same keys as SyncItemData items / IMS.json).",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "delta": {
+                    "title": "Delta",
+                    "description": "Signed quantity change (positive gain, negative spend).",
+                    "type": "integer"
+                }
+            }
+        },
+        "SyncItemDataParam": {
+            "type": "object",
+            "title": "SyncItemData Param",
+            "description": "Scan And recognizers on the current screen. items maps item ID to recognition node name; quantity is read from that node's box_index OCR child. Results are written to debug/record/IMS.json with updated_at.",
+            "additionalProperties": false,
+            "required": [
+                "items"
+            ],
+            "properties": {
+                "items": {
+                    "title": "Items",
+                    "description": "Map of item ID -> And recognition node name. Keys are stored as cache IDs; values are run in sorted key order. Quantity comes from each node's box_index OCR result.",
+                    "type": "object",
+                    "minProperties": 1,
+                    "additionalProperties": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "propertyNames": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "page_dedup": {
+                    "title": "Page Dedup",
+                    "description": "When false (default), rebuild the item map from this scan only (create). When true, merge into existing cache/file and overwrite quantities for hit IDs (used after paging).",
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        }
+    }
+}

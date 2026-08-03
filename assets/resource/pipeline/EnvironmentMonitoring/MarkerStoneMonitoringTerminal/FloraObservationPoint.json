@@ -237,7 +237,7 @@
         "desc": "植物观察点任务已在追踪中，点击定位按钮进入任务地图",
         "recognition": "And",
         "all_of": [
-            "EnvironmentMonitoringTrackedMissionMapButton",
+            "TrackedMissionMapButton",
             "InFloraObservationPointMission"
         ],
         "box_index": 0,
@@ -340,10 +340,10 @@
         "custom_recognition_param": {
             "zone_id": "Wuling_Base",
             "target": [
-                567.66,
-                2210.92,
-                65.56,
-                55.32
+                477.62,
+                2108.95,
+                27.2,
+                27.33
             ]
         },
         "pre_delay": 0,
@@ -360,7 +360,7 @@
         "custom_action": "SubTask",
         "custom_action_param": {
             "sub": [
-                "SceneEnterWorldWulingMarkerStone3"
+                "SceneEnterWorldWulingMarkerStone1"
             ]
         },
         "post_delay": 0,
@@ -379,14 +379,14 @@
                 {
                     "action": "NAVMESH",
                     "target": [
-                        93.84,
-                        185.41
+                        125.73,
+                        112.6
                     ],
                     "target_tier": "Wuling_L4_330"
                 },
                 {
                     "action": "HEADING",
-                    "angle": 0
+                    "angle": 180
                 }
             ]
         },
@@ -416,7 +416,7 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "EnvironmentMonitoringSwipeScreenLeft"
+            "EnvironmentMonitoringSwipeScreenDown"
         ]
     }
 }

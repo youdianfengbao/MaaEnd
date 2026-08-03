@@ -114,17 +114,19 @@ Action 节点用于执行自定义动作。常见写法如下：
 
 ### PipelineOverride
 
-`PipelineOverride` 实现位于 `agent/go-service/common/pipelineoverride`，用于在运行时把**按节点组织的局部 JSON** 合并到当前 Pipeline 中（`ctx.OverridePipeline`）。适合在**不改静态流转拓扑**的前提下，动态切换节点开关或调整识别/动作参数。
+`PipelineOverride` 实现位于 `agent/go-service/common/pipelineoverride`，用于在运行时把**按节点组织的局部 JSON** 合并到 Pipeline 中。默认走 `ctx.OverridePipeline`（仅当前任务）；可选 Resource 级覆盖。适合在**不改静态流转拓扑**的前提下，动态切换节点开关或调整识别/动作参数。
 
 - 参数：
     - `patch: object`：必填。键为**节点名**，值为该节点的**局部覆盖对象**。语义与 MaaFramework `OverridePipeline` 一致：同名节点合并、同名字段覆盖。
     - `allow_next?: bool`：是否允许局部节点对象包含顶层 `next`。默认 `false`；为 `false` 时，会在应用前移除每个 patch 项里的 `next`，避免运行时改写预设拓扑。
     - `strict?: bool`：当 `allow_next` 为 `false` 时，若 patch 中仍带有 `next`，是否直接报错失败。默认 `false`（会移除 `next` 并记录日志）；为 `true` 时当前 Action 直接失败且不会应用任何覆盖。若 `allow_next` 为 `true`，则 `strict` 会被忽略并按 `false` 处理。
+    - `resource_override?: bool`：是否使用 Resource 级覆盖（`Resource.OverridePipeline`）。默认 `false`（Context / 当前任务级）；为 `true` 时改写绑定 Resource 上的节点定义，会影响后续使用同一 Resource 的任务，需自行评估副作用。
 
 使用建议：
 
 - 优先在**流程入口**决定策略；若必须中途调整，尽量只改 `enabled`、识别器参数、动作参数等字段，不要随意改 `next` 图结构。
 - 如果确实需要在运行时修改 `next`，请显式设置 `allow_next: true`，并自行评估调试与回归成本；默认应保持关闭。
+- 默认保持 `resource_override: false`；仅在确实需要跨任务/全局改写节点时开启。
 - 排障时可结合额外日志节点或截图节点一起使用。
 - 运行时日志只记录节点数量、节点名、参数长度等非敏感元数据，不会输出完整 `custom_action_param` 或 patch 内容；这些负载里可能包含凭证、token 等敏感信息。
 
@@ -267,49 +269,72 @@ Recognition 节点用于执行自定义识别。常见写法如下：
 - 对 `And` 节点，`box_index` 指向的本次子识别结果当前需要直接包含可解析的 OCR 数值结果。
 - 表达式中的整数字面量，以及 OCR 换算后的数值，若超出当前平台 `int` 可表示范围，会自动钳制到 `int` 最大值或最小值（正溢出取最大值，负溢出取最小值），并输出警告日志；表达式会继续求值，而不是直接失败。
 - 该识别器只负责表达式求值，不负责业务语义本身，业务侧应在 Pipeline 中自行组织节点与阈值。
+- 若要对 **IMS 缓存物品数量**做同类布尔表达式，请用 IMS R1 `ItemQuantitySatisfied`（占位符为 `{物品ID}`，见 [IMS 文档](./components/ims.md#r1itemquantitysatisfied)），不要对本识别器传入物品 ID。
 
 ### ListCompleteRecognition
 
-`ListCompleteRecognition` 实现位于 `agent/go-service/common/listcomplete`，用于通过 OCR 指纹是否变化判断列表是否仍在更新（常见于滑动列表到底检测）。
+`ListCompleteRecognition` 实现位于 `agent/go-service/common/listcomplete`，用于通过指定区域的模板相似度判断列表是否**已经到底**。
+
+**命中语义：`true` = 已到底；`false` = 尚未到底（应继续滑动）。**
 
 参数：
 
-- `node: string`：必填。OCR 节点名，或 `And` 节点名（其 `box_index` 指向的子项必须是 OCR）。
-- `retry: int`：可选，默认 `0`。指纹与 `attach.last_text` 相等后，仍返回命中的次数；当连续相等次数 `unchanged_count > retry` 时才视为到底并返回未命中。`0` 表示不重试（第一次相等即到底）。
+- 节点原生 `roi: [x, y, w, h]`：可选。识别区域，基于 720p；缺省为全屏。V2 写在 `recognition.param` 内，与 `custom_recognition` 同级（不是 `custom_recognition_param`）。
+- `custom_recognition_param.threshold: number`：可选，默认 `0.9`。模板匹配阈值；相似度 `>= threshold` 视为画面未变（列表到底）并命中。
 
 行为：
 
-1. 执行 `node` 识别；未命中或无法提取 OCR 文字时返回未命中。
-2. 从目标 OCR 结果收集命中（优先 `Filtered`，否则 `All`），按纵向（再按横向）排序后只取首尾两条用换行拼接为指纹（仅一条时用该条）；返回框取最上方一条。比只用 `Best` 更能发现「顶不变、底已滚」；比整屏 join 更耐中间 OCR 抖动。
-3. 读取当前自定义识别节点自身的 `attach.last_text` / `attach.unchanged_count`。
-4. 若 `last_text` 为空（首次成功）：返回命中，写入当前指纹，并将 `unchanged_count` 置 `0`。
-5. 若当前指纹与 `last_text` 一致：`unchanged_count += 1`；若 `unchanged_count > retry` 返回未命中（到底），否则仍返回命中（确认重试）。
-6. 若当前指纹与 `last_text` 不一致：更新 `attach.last_text`、将 `unchanged_count` 置 `0` 并返回命中。
+1. 读取当前自定义识别节点自身的 `attach.ready`。
+2. 若 `ready` 为假（首次）：按节点原生 `roi` 截取区域，经 `OverrideImage` 写入运行时模板 `ListCompleteRecognition/<当前节点名>.png`，将 `attach.ready` 置 `true`，返回**未命中**（尚不能判定到底）。
+3. 若已就绪：在该 `roi` 内对模板做 `TemplateMatch`。
+4. 相似度 `>= threshold`：视为列表到底，返回**命中**。
+5. 相似度低于阈值：重新截取并 `OverrideImage`，返回**未命中**（仍应继续滑动）。
 
-对 `And` 节点，目标解析与 `ExpressionRecognition` 共用 `pkg/recogtarget`：先执行该 `And` 节点本身，再按其原生 `box_index`（默认 `0`）从本次 `CombinedResult` 中选取对应子识别结果，并从该子结果提取 OCR。节点定义阶段也会校验 `box_index` 目标含 OCR。
+Pipeline 组织：把本识别放在滑动节点**之前**；命中走「到底」分支，未命中再落到滑动节点。滑动节点须配置 `post_wait_freezes`。
 
 示例文件：[`ListCompleteRecognition.json`](../../../assets/resource/pipeline/Interface/Example/ListCompleteRecognition.json)
 
 ```json
 {
-    "recognition": {
-        "type": "Custom",
-        "param": {
-            "custom_recognition": "ListCompleteRecognition",
-            "custom_recognition_param": {
-                "node": "SomeListAnchorOCR",
-                "retry": 1
+    "ExampleScan": {
+        "next": [
+            "ExampleComplete",
+            "[JumpBack]ExampleScroll"
+        ]
+    },
+    "ExampleComplete": {
+        "recognition": {
+            "type": "Custom",
+            "param": {
+                "custom_recognition": "ListCompleteRecognition",
+                "custom_recognition_param": {
+                    "threshold": 0.9
+                },
+                "roi": [480, 160, 320, 400]
             }
-        }
+        },
+        "action": "DoNothing",
+        "attach": {
+            "ready": false
+        },
+        "next": ["ExampleDone"]
+    },
+    "ExampleScroll": {
+        "recognition": "DirectHit",
+        "action": "Swipe",
+        "begin": [650, 470],
+        "end": [650, 150],
+        "post_wait_freezes": 200
     }
 }
 ```
 
 注意事项：
 
-- 状态保存在**当前 Custom 识别节点**的 `attach.last_text` / `attach.unchanged_count`，不是 `node` 指向的 OCR/`And` 节点。
-- 需要重新开始一轮列表扫描时，应清空该 Custom 节点的 `attach.last_text`（建议同时将 `unchanged_count` 置 `0`，例如通过 `PipelineOverride`）。
-- 该识别器只负责“OCR 首尾指纹是否变化”，滑动、点击等流程仍由 Pipeline 组织。
+- **识别时画面必须已经静止。** 本识别器比较的是「当前帧」与「上一轮截取的模板」；若滑动惯性、回弹或过渡动画尚未结束就进入下一轮识别，区域会持续变化，无法判定到底并会一直滑动。请在**滑动节点**上配置 `post_wait_freezes`（必要时可带 `target` 限定列表区域），等画面冻结后再回到扫描/识别。
+- 状态保存在**当前 Custom 识别节点**的 `attach.ready`；运行时模板通过 `OverrideImage` 覆盖，不落盘。
+- 需要重新开始一轮列表扫描时，应将 `attach.ready` 置 `false`（例如通过 `PipelineOverride`）。
+- 该识别器只负责“是否已到底”，滑动、点击等流程仍由 Pipeline 组织。
 
 ### ExpendableRecognition
 
@@ -389,7 +414,7 @@ Recognition 节点用于执行自定义识别。常见写法如下：
 | 运行时改节点参数 | `PipelineOverride` |
 | 把关键词拼成正则写回 OCR 节点 | `AttachToExpectedRegexAction` |
 | 计算 OCR 数值表达式 | `ExpressionRecognition` |
-| 判断列表 OCR 文本是否变化 | `ListCompleteRecognition` |
+| 判断列表是否已到底 | `ListCompleteRecognition` |
 | 消费性点选（visited 排除） | `ExpendableRecognition` |
 | 按星期几门控后续节点 | `ScheduleRecognition` |
 | 在指定位置 Alt + 点击 | `AutoAltClickAction` |

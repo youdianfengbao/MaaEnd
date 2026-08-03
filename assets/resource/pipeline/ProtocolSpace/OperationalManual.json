@@ -106,7 +106,7 @@
         "template": "ProtocolSpace/SkillUp.png",
         "threshold": 0.9,
         "focus": {
-            "Node.Recognition.Succeeded": "未找到模拟空间入口，停止任务"
+            "Node.Recognition.Succeeded": "$task.ProtocolSpace.focus.sim_entry_not_found"
         }
     },
     "ProtocolSpaceFindTargetRecognition": {
@@ -178,7 +178,7 @@
             }
         ],
         "focus": {
-            "Node.Recognition.Succeeded": "协议空间未开启"
+            "Node.Recognition.Succeeded": "$task.ProtocolSpace.focus.not_open"
         }
     },
     "ProtocolSpaceOperationalManualFindProtocolSpaceNormalEnable": {
@@ -213,10 +213,7 @@
         "action": "Click",
         "next": [
             "ProtocolSpaceNormalPrepareEnter"
-        ],
-        "focus": {
-            "Node.Recognition.Succeeded": "进入协议空间"
-        }
+        ]
     },
     "ProtocolSpaceOperationalManualFindProtocolSpaceDeepDiveDisable": {
         "desc": "在当前页面找深潜协议空间入口，未开启",
@@ -248,7 +245,7 @@
         ],
         "box_index": 1,
         "focus": {
-            "Node.Recognition.Succeeded": "协议空间未开启"
+            "Node.Recognition.Succeeded": "$task.ProtocolSpace.focus.not_open"
         }
     },
     "ProtocolSpaceOperationalManualFindProtocolSpaceDeepDiveEnable": {
@@ -283,9 +280,6 @@
         "action": "Click",
         "next": [
             "ProtocolSpaceDeepDivePrepareEnter"
-        ],
-        "focus": {
-            "Node.Recognition.Succeeded": "进入协议空间"
-        }
+        ]
     }
 }

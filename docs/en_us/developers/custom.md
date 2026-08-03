@@ -112,17 +112,19 @@ Example file: [`CharacterController.json`](../../../assets/resource/pipeline/Int
 
 ### PipelineOverride
 
-The `PipelineOverride` implementation is located in `agent/go-service/common/pipelineoverride` and is used at runtime to merge **node-organized partial JSON** into the current Pipeline (`ctx.OverridePipeline`). It is suitable for dynamically toggling node switches or adjusting recognition/action parameters **without changing the static flow topology**.
+The `PipelineOverride` implementation is located in `agent/go-service/common/pipelineoverride` and is used at runtime to merge **node-organized partial JSON** into the Pipeline. By default it uses `ctx.OverridePipeline` (current task only); resource-level override is optional. It is suitable for dynamically toggling node switches or adjusting recognition/action parameters **without changing the static flow topology**.
 
 - Parameters:
     - `patch: object`: Required. Keys are **node names**, and values are the **partial override objects** for those nodes. Semantics are consistent with MaaFramework's `OverridePipeline`: same-named nodes are merged, same-named fields are overwritten.
     - `allow_next?: bool`: Whether to allow partial node objects to contain top-level `next`. Default is `false`; when `false`, `next` will be removed from each patch item before application to avoid runtime modification of the preset topology.
     - `strict?: bool`: When `allow_next` is `false`, if a patch still contains `next`, whether to immediately report an error and fail. Default is `false` (will remove `next` and log it); if `true`, the current Action fails immediately and no overrides are applied. If `allow_next` is `true`, `strict` is ignored and treated as `false`.
+    - `resource_override?: bool`: Whether to apply a resource-level override (`Resource.OverridePipeline`). Default is `false` (Context / current-task scope); when `true`, node definitions on the bound Resource are rewritten and later tasks sharing that Resource are affected—evaluate side effects carefully.
 
 Usage Recommendations:
 
 - Prioritize deciding the strategy at the **process entry point**; if adjustments are necessary midway, try to only modify fields like `enabled`, recognizer parameters, and action parameters. Avoid arbitrarily changing the `next` graph structure.
 - If runtime modification of `next` is genuinely required, explicitly set `allow_next: true` and self-assess the debugging and regression costs; it should be kept off by default.
+- Keep `resource_override: false` by default; enable it only when a cross-task / global node rewrite is truly required.
 - For troubleshooting, use in conjunction with additional log or screenshot nodes.
 - Runtime logs only record non-sensitive metadata such as node count, node names, and parameter length; they do not output the complete `custom_action_param` or patch content, which may contain sensitive information like credentials and tokens.
 
@@ -265,49 +267,72 @@ Important Notes:
 - For `And` nodes, the sub-recognition result pointed to by `box_index` currently needs to directly contain a parseable OCR numerical result.
 - Integer literals in expressions, and values converted from OCR, if they exceed the range representable by the platform's `int`, are automatically clamped to the `int` maximum or minimum (positive overflow takes the maximum, negative overflow takes the minimum), and a warning log is output; expression evaluation continues rather than failing immediately.
 - This recognizer is only responsible for expression evaluation, not for the business semantics itself; the business side should organize nodes and thresholds within the Pipeline.
+- For the same kind of boolean expression over **IMS cached item quantities**, use IMS R1 `ItemQuantitySatisfied` (`{ITEM_ID}` placeholders; see [IMS docs](./components/ims.md#r1-itemquantitysatisfied)). Do not pass item IDs to this recognizer.
 
 ### ListCompleteRecognition
 
-The `ListCompleteRecognition` implementation is located in `agent/go-service/common/listcomplete`. It detects whether a list is still updating by checking whether an OCR fingerprint has changed (commonly used to detect when a scrollable list has reached the end).
+The `ListCompleteRecognition` implementation is located in `agent/go-service/common/listcomplete`. It detects whether a list has **already reached the end** by comparing template similarity in a given region.
+
+**Hit semantics: `true` = list complete; `false` = not complete yet (keep scrolling).**
 
 Parameters:
 
-- `node: string`: Required. An OCR node name, or an `And` node name whose `box_index` target must be OCR.
-- `retry: int`: Optional, default `0`. After the current fingerprint equals `attach.last_text`, keep returning a match this many times; treat the list as complete only when consecutive unchanged hits `unchanged_count > retry`. `0` means no retry (first unchanged hit completes the list).
+- Native `roi: [x, y, w, h]`: Optional. Recognition region at 720p; defaults to fullscreen. In V2, put it inside `recognition.param` alongside `custom_recognition` (not inside `custom_recognition_param`).
+- `custom_recognition_param.threshold: number`: Optional, default `0.9`. TemplateMatch threshold; score `>= threshold` means the region is unchanged (list complete) and the recognition hits.
 
 Behavior:
 
-1. Run recognition on `node`; return no match if it misses or no OCR text can be extracted.
-2. Collect OCR hits from the target result (`Filtered`, else `All`), sort by vertical then horizontal position, and fingerprint only the first and last hits joined with a newline (or the single hit if there is only one); the returned box is the topmost hit. This still detects “top unchanged, bottom scrolled” better than `Best` alone, while staying more stable than joining every on-screen string.
-3. Read `attach.last_text` / `attach.unchanged_count` from the current custom recognition node itself.
-4. If `last_text` is empty (first success): return a match, write the current fingerprint into `attach.last_text`, and reset `unchanged_count` to `0`.
-5. If the current fingerprint equals `last_text`: increment `unchanged_count`; if `unchanged_count > retry` return no match (list complete), otherwise still return a match (confirmation retry).
-6. If the current fingerprint differs from `last_text`: update `attach.last_text`, reset `unchanged_count` to `0`, and return a match.
+1. Read `attach.ready` from the current custom recognition node.
+2. If `ready` is false (first run): crop the native `roi`, write it via `OverrideImage` as `ListCompleteRecognition/<current-node>.png`, set `attach.ready` to `true`, and return **no match** (cannot decide complete yet).
+3. If already ready: run `TemplateMatch` against that template inside the same `roi`.
+4. Score `>= threshold`: treat the list as complete and return a **match**.
+5. Score below threshold: recapture and `OverrideImage`, then return **no match** (keep scrolling).
 
-For `And` nodes, target resolution is shared with `ExpressionRecognition` via `pkg/recogtarget`: first run the `And` node itself, then read the corresponding sub-recognition result from this run's `CombinedResult` using that node's native `box_index` (default `0`), and extract OCR from that selected child. Node definition validation also requires the `box_index` target to contain OCR.
+Pipeline layout: place this recognition **before** the swipe node; on hit take the "complete" branch, on miss fall through to swipe. The swipe node must set `post_wait_freezes`.
 
 Example file: [`ListCompleteRecognition.json`](../../../assets/resource/pipeline/Interface/Example/ListCompleteRecognition.json)
 
 ```json
 {
-    "recognition": {
-        "type": "Custom",
-        "param": {
-            "custom_recognition": "ListCompleteRecognition",
-            "custom_recognition_param": {
-                "node": "SomeListAnchorOCR",
-                "retry": 1
+    "ExampleScan": {
+        "next": [
+            "ExampleComplete",
+            "[JumpBack]ExampleScroll"
+        ]
+    },
+    "ExampleComplete": {
+        "recognition": {
+            "type": "Custom",
+            "param": {
+                "custom_recognition": "ListCompleteRecognition",
+                "custom_recognition_param": {
+                    "threshold": 0.9
+                },
+                "roi": [480, 160, 320, 400]
             }
-        }
+        },
+        "action": "DoNothing",
+        "attach": {
+            "ready": false
+        },
+        "next": ["ExampleDone"]
+    },
+    "ExampleScroll": {
+        "recognition": "DirectHit",
+        "action": "Swipe",
+        "begin": [650, 470],
+        "end": [650, 150],
+        "post_wait_freezes": 200
     }
 }
 ```
 
 Notes:
 
-- State is stored in `attach.last_text` / `attach.unchanged_count` on the **current Custom recognition node**, not on the OCR/`And` node referenced by `node`.
-- To restart a list scan, clear that Custom node's `attach.last_text` (preferably also reset `unchanged_count` to `0`, for example via `PipelineOverride`).
-- This recognizer only answers "did the first/last OCR fingerprint change"; scrolling/clicking still belong in Pipeline.
+- **The screen must already be still when recognition runs.** This recognizer compares the current frame with the template captured on the previous round. If inertia, bounce, or transition animation is still running when the next recognition starts, the region keeps changing, so completion cannot be decided and scrolling continues. Put `post_wait_freezes` on the **swipe node** (optionally with a `target` ROI over the list area) so the frame freezes before returning to scan/recognition.
+- State is stored in `attach.ready` on the **current Custom recognition node**; the runtime template is kept by `OverrideImage` and is not written to disk.
+- To restart a list scan, set that Custom node's `attach.ready` to `false` (for example via `PipelineOverride`).
+- This recognizer only answers "is the list complete"; scrolling/clicking still belong in Pipeline.
 
 ### ExpendableRecognition
 
@@ -387,7 +412,7 @@ When writing a Pipeline, the built-in `TemplateMatch` / `OCR` / `Click` / `Swipe
 | Change node parameters at runtime | `PipelineOverride` |
 | Write keywords as regex back to OCR node | `AttachToExpectedRegexAction` |
 | Evaluate OCR numerical expressions | `ExpressionRecognition` |
-| Detect whether list OCR text changed | `ListCompleteRecognition` |
+| Detect whether a list has reached the end | `ListCompleteRecognition` |
 | Consumable pick (visited exclusion) | `ExpendableRecognition` |
 | Gate subsequent nodes by day of week | `ScheduleRecognition` |
 | Alt + Click at specified position | `AutoAltClickAction` |
