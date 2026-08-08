@@ -38,7 +38,13 @@
             "AutoSellEnterStockRedistribution"
         ],
         "focus": {
-            "Node.Action.Starting": "正在走向物资调度终端"
+            "Node.Action.Starting": "正在走向物资调度终端",
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
         }
     },
     "AutoSellShipEnterStockRedistribution2": {
@@ -77,7 +83,15 @@
         "rate_limit": 0,
         "next": [
             "AutoSellEnterStockRedistribution"
-        ]
+        ],
+        "focus": {
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
+        }
     },
     "AutoSellEnterStockRedistribution": {
         "desc": "进入物资调度页面",
