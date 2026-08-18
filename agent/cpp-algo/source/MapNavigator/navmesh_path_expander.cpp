@@ -84,15 +84,10 @@ constexpr double kDetourSnapPenalty = 3.0;
 // Blind-target fallback: navmesh omits water, so a target a human can reach is reported unreachable.
 // Route as close as the mesh allows, then walk the residual gap blind toward the exact target.
 constexpr double kBlindTargetFallbackSnapRadius = 12.0;
-constexpr double kBlindTargetMaxExtension = 30.0;
 constexpr double kBlindTargetProbeStep = 2.0;
 // 探针扫描的墙钟上限。能命中的探针在头几个就返回(近处目标单次规划几十毫秒),耗满预算即目标与
 // 起点不连通,余下探针是同一个失败。远距离目标单次规划本身就要吃掉扩窗预算,这里只容一个来回。
 constexpr int64_t kBlindTargetProbeBudgetMs = 8000;
-
-// Start recovery: how far we are willing to walk unguided to get back onto the mesh. Covers the whole
-// off-mesh band measured along the base-exit corridor, where the blind walk out of the base drops us.
-constexpr double kStartRecoveryMaxBlindWalk = 32.0;
 
 bool IsNavmeshWaypoint(const Waypoint& waypoint)
 {
@@ -102,6 +97,16 @@ bool IsNavmeshWaypoint(const Waypoint& waypoint)
 bool ContainsNavmeshWaypoint(const std::vector<Waypoint>& path)
 {
     return std::any_of(path.begin(), path.end(), IsNavmeshWaypoint);
+}
+
+bool HasExplicitCoordinateFrame(const Waypoint& waypoint)
+{
+    return !waypoint.target_tier.empty() && (waypoint.HasPosition() || waypoint.heading_uses_target);
+}
+
+bool ContainsExplicitCoordinateFrame(const std::vector<Waypoint>& path)
+{
+    return std::any_of(path.begin(), path.end(), HasExplicitCoordinateFrame);
 }
 
 bool StartsWith(std::string_view text, std::string_view prefix)
@@ -386,7 +391,8 @@ navmesh::BaseNavRouteRequest BuildRouteRequest(
     const navmesh::WorldPoint& goal,
     const std::vector<uint32_t>& blocked_triangles = {},
     const std::vector<navmesh::WorldPoint>& blocked_points = {},
-    float goal_floor_y = navmesh::kBaseNavFloorYNone)
+    float goal_floor_y = navmesh::kBaseNavFloorYNone,
+    std::optional<double> goal_deck_y = std::nullopt)
 {
     navmesh::BaseNavRouteRequest request;
     request.zone_name = navmesh_zone;
@@ -394,6 +400,10 @@ navmesh::BaseNavRouteRequest BuildRouteRequest(
     request.goal = goal;
     request.blocked_triangles = blocked_triangles;
     request.blocked_points = blocked_points;
+    // 终点声明决定停在哪张面; 起点站在哪张面由搜索自己按起点高度定
+    if (goal_deck_y) {
+        request.goal_deck_y = static_cast<float>(*goal_deck_y);
+    }
     // Per-endpoint floor: the start snaps onto the live locator tier's floor; the goal snaps onto its own
     // declared frame's floor when the caller supplies one (cross-tier targets), otherwise the same start
     // floor (legacy single-floor behavior). A geometry / base / unknown zone yields the sentinel ->
@@ -407,6 +417,7 @@ struct ProjectedTarget
 {
     navmesh::WorldPoint point;
     float floor_y = navmesh::kBaseNavFloorYNone;
+    std::optional<double> deck_y;
 };
 
 // Resolve a NAVMESH waypoint's target into the base-pixel routing frame. When the node declares a
@@ -419,28 +430,42 @@ ProjectedTarget ResolveProjectedTarget(const navmesh::BaseNavPack& pack, const W
 {
     const navmesh::WorldPoint raw { .x = waypoint.x, .y = waypoint.y };
     if (waypoint.target_tier.empty()) {
-        return { raw, navmesh::kBaseNavFloorYNone };
+        return { raw, navmesh::kBaseNavFloorYNone, waypoint.target_deck_y };
     }
     const auto projection = pack.projectToBase(waypoint.target_tier, waypoint.x, waypoint.y);
     if (!projection) {
         LogWarn << "NAVMESH target_tier unknown; treating target as base-frame." << VAR(waypoint.target_tier) << VAR(waypoint.x)
                 << VAR(waypoint.y);
-        return { raw, navmesh::kBaseNavFloorYNone };
+        return { raw, navmesh::kBaseNavFloorYNone, waypoint.target_deck_y };
     }
-    return { navmesh::WorldPoint { .x = projection->x, .y = projection->y }, pack.floorYForZoneName(waypoint.target_tier) };
+    return { navmesh::WorldPoint { .x = projection->x, .y = projection->y },
+             pack.floorYForZoneName(waypoint.target_tier),
+             waypoint.target_deck_y };
 }
 
-// When a route asked for mid-run turns out to be unreachable, the search doubles its window pass after
-// pass and every pass fails the same way -- seconds of the navigation thread spent re-deriving one answer
-// while the agent stands still. A run cannot afford that; the expansion done before a run can, and keeps
-// the larger budget. Retries the planner asks for itself are productive and stay on the full budget.
-constexpr int64_t kInRunDeadEndBudgetMs = 1200;
+std::optional<Waypoint> ProjectRegularWaypointToBase(const navmesh::BaseNavPack& pack, const Waypoint& waypoint)
+{
+    if (!HasExplicitCoordinateFrame(waypoint)) {
+        return waypoint;
+    }
+
+    const auto projection = pack.projectToBase(waypoint.target_tier, waypoint.x, waypoint.y);
+    if (!projection) {
+        LogError << "MapNavigator waypoint target_tier is unknown." << VAR(waypoint.target_tier) << VAR(waypoint.x) << VAR(waypoint.y);
+        return std::nullopt;
+    }
+
+    Waypoint projected = waypoint;
+    projected.x = projection->x;
+    projected.y = projection->y;
+    projected.target_tier.clear();
+    return projected;
+}
 
 navmesh::BaseNavRouteResult PlanCorridorRoute(
     const CachedNavmesh& navmesh,
     const navmesh::BaseNavRouteRequest& request,
-    const std::function<bool()>& should_stop = {},
-    int64_t dead_end_ms = navmesh::recast::RecastPlanBudget {}.dead_end_ms)
+    const std::function<bool()>& should_stop = {})
 {
     navmesh::BaseNavRouteResult result;
     const navmesh::BaseNavZone* zone = navmesh.pack.findZoneByName(request.zone_name);
@@ -458,9 +483,10 @@ navmesh::BaseNavRouteResult PlanCorridorRoute(
         request.goal,
         start_floor,
         goal_floor,
+        request.goal_deck_y,
         request.blocked_triangles,
         request.blocked_points,
-        navmesh::recast::RecastPlanBudget { .dead_end_ms = dead_end_ms, .should_stop = should_stop });
+        should_stop);
     if (!plan.ok || plan.points.size() < 2) {
         if (!detour_probe) {
             LogWarn << "RECAST plan failed." << VAR(request.zone_name) << VAR(plan.error);
@@ -477,6 +503,7 @@ navmesh::BaseNavRouteResult PlanCorridorRoute(
     result.path.zone_name = request.zone_name;
     result.path.points = std::move(plan.points);
     result.path.clearance = std::move(plan.clearance);
+    result.path.waypoints = std::move(plan.waypoints);
     result.cost = plan.length;
     return result;
 }
@@ -487,7 +514,8 @@ std::optional<navmesh::BaseNavRouteResult> PlanNavmeshRouteImpl(
     const navmesh::WorldPoint& start,
     const navmesh::WorldPoint& goal,
     const std::vector<uint32_t>& blocked_triangles,
-    const std::vector<navmesh::WorldPoint>& blocked_points = {})
+    const std::vector<navmesh::WorldPoint>& blocked_points = {},
+    std::optional<double> goal_deck_y = std::nullopt)
 {
     const std::string navmesh_zone = InferBaseNavZone(locator_zone, param.map_name);
     if (navmesh_zone.empty()) {
@@ -505,9 +533,18 @@ std::optional<navmesh::BaseNavRouteResult> PlanNavmeshRouteImpl(
     }
 
     const bool detour_probe = !blocked_triangles.empty() || !blocked_points.empty();
-    const auto request = BuildRouteRequest(navmesh->pack, locator_zone, navmesh_zone, start, goal, blocked_triangles, blocked_points);
+    const auto request = BuildRouteRequest(
+        navmesh->pack,
+        locator_zone,
+        navmesh_zone,
+        start,
+        goal,
+        blocked_triangles,
+        blocked_points,
+        navmesh::kBaseNavFloorYNone,
+        goal_deck_y);
     const auto plan_started_at = std::chrono::steady_clock::now();
-    const auto route_result = PlanCorridorRoute(*navmesh, request, {}, kInRunDeadEndBudgetMs);
+    const auto route_result = PlanCorridorRoute(*navmesh, request);
     const int64_t plan_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - plan_started_at).count();
     if (!route_result.ok()) {
@@ -671,8 +708,16 @@ bool AppendNavmeshWaypoint(
 {
     const auto expand_started_at = std::chrono::steady_clock::now();
     const ProjectedTarget target = ResolveProjectedTarget(navmesh.pack, waypoint);
-    navmesh::BaseNavRouteRequest request =
-        BuildRouteRequest(navmesh.pack, state.current_zone, state.navmesh_zone, state.route_start, target.point, {}, {}, target.floor_y);
+    navmesh::BaseNavRouteRequest request = BuildRouteRequest(
+        navmesh.pack,
+        state.current_zone,
+        state.navmesh_zone,
+        state.route_start,
+        target.point,
+        {},
+        {},
+        target.floor_y,
+        target.deck_y);
     const auto plan_started_at = std::chrono::steady_clock::now();
     auto route_result = PlanCorridorRoute(navmesh, request, should_stop);
     bool start_recovered = false;
@@ -684,6 +729,12 @@ bool AppendNavmeshWaypoint(
     const int64_t plan_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - plan_started_at).count();
     if (!route_result.ok()) {
+        // 盲走兜底是二维的, 走到目标正上方也算到; 有声明时让它兜就等于把错层吞回去
+        if (target.deck_y) {
+            LogError << "Failed to plan NAVMESH waypoint on the declared deck." << VAR(state.navmesh_zone) << VAR(state.current_zone)
+                     << VAR(target.point.x) << VAR(target.point.y) << VAR(*target.deck_y) << VAR(navmesh::ToString(route_result.status));
+            return false;
+        }
         LogWarn << "NAVMESH waypoint not directly reachable; attempting blind-target fallback." << VAR(state.navmesh_zone)
                 << VAR(state.current_zone) << VAR(target.point.x) << VAR(target.point.y) << VAR(navmesh::ToString(route_result.status));
         if (AppendBlindTargetFallback(param, navmesh, target.point, target.floor_y, should_stop, state, out_path)) {
@@ -704,6 +755,12 @@ bool AppendNavmeshWaypoint(
         return false;
     }
 
+    // 重规划的锚点就是这里生成的点, 声明落在点上才活得过重规划
+    // 中间点是搜索生成的, 作者只对这一腿的末点声明了面
+    // 起终收敛成一个点时这一腿一个点都不追加, 此时末点属于上一腿, 不能盖
+    if (target.deck_y && out_path.size() > insert_index) {
+        out_path.back().target_deck_y = target.deck_y;
+    }
     state.route_start = route_result.path.points.back();
     const size_t path_point_count = route_result.path.points.size();
     const size_t appended_waypoints = out_path.size() - insert_index;
@@ -737,8 +794,12 @@ std::optional<std::string> InferPreloadNavmeshZone(const NaviParam& param)
             current_zone = waypoint.zone_id;
             continue;
         }
-        if (IsNavmeshWaypoint(waypoint)) {
+        const bool needs_regular_projection = param.normalize_position_via_navmesh && HasExplicitCoordinateFrame(waypoint);
+        if (IsNavmeshWaypoint(waypoint) || needs_regular_projection) {
             std::string navmesh_zone = InferBaseNavZone(current_zone, param.map_name);
+            if (navmesh_zone.empty() && !waypoint.target_tier.empty()) {
+                navmesh_zone = InferBaseNavZone(waypoint.target_tier, param.map_name);
+            }
             if (navmesh_zone.empty()) {
                 return std::nullopt;
             }
@@ -815,7 +876,8 @@ bool ExpandNavmeshWaypoints(
     const std::function<bool()>& should_stop,
     std::vector<Waypoint>& out_path)
 {
-    if (!ContainsNavmeshWaypoint(param.path)) {
+    const bool needs_regular_projection = param.normalize_position_via_navmesh && ContainsExplicitCoordinateFrame(param.path);
+    if (!ContainsNavmeshWaypoint(param.path) && !needs_regular_projection) {
         out_path = param.path;
         return true;
     }
@@ -845,8 +907,13 @@ bool ExpandNavmeshWaypoints(
             continue;
         }
         if (!IsNavmeshWaypoint(waypoint)) {
-            out_path.push_back(waypoint);
-            UpdateStateFromRegularWaypoint(waypoint, *state);
+            const auto projected_waypoint = param.normalize_position_via_navmesh ? ProjectRegularWaypointToBase(navmesh->pack, waypoint)
+                                                                                 : std::optional<Waypoint>(waypoint);
+            if (!projected_waypoint) {
+                return false;
+            }
+            out_path.push_back(*projected_waypoint);
+            UpdateStateFromRegularWaypoint(*projected_waypoint, *state);
             continue;
         }
         if (!AppendNavmeshWaypoint(param, *navmesh, waypoint, should_stop, *state, out_path)) {
@@ -866,9 +933,10 @@ std::optional<navmesh::BaseNavRouteResult> PlanNavmeshRoute(
     const NaviParam& param,
     const std::string& locator_zone,
     const navmesh::WorldPoint& start,
-    const navmesh::WorldPoint& goal)
+    const navmesh::WorldPoint& goal,
+    std::optional<double> goal_deck_y)
 {
-    return PlanNavmeshRouteImpl(param, locator_zone, start, goal, {});
+    return PlanNavmeshRouteImpl(param, locator_zone, start, goal, {}, {}, goal_deck_y);
 }
 
 float NavmeshFloorYForZone(const NaviParam& param, const std::string& locator_zone)
@@ -905,10 +973,7 @@ bool NavmeshZonesShareGeometry(const NaviParam& param, const std::string& zone_a
     }
     const auto geometry_id = [&navmesh](const std::string& name) -> int {
         const navmesh::BaseNavZone* zone = navmesh->pack.findZoneByName(name);
-        if (zone == nullptr) {
-            return -1;
-        }
-        return navmesh::IsTierZone(*zone) ? static_cast<int>(zone->component_count) : static_cast<int>(zone->zone_id);
+        return zone == nullptr ? -1 : static_cast<int>(navmesh->pack.geometryZoneId(zone->zone_id));
     };
     const int geom_a = geometry_id(zone_a);
     return geom_a >= 0 && geom_a == geometry_id(zone_b);
@@ -1180,7 +1245,20 @@ bool AppendGeneratedNavmeshWaypoints(
     // reach and survives; grid staircase and out-and-back spikes collapse into a single leg. What this
     // replaced asked the same question once across the entire leg — which no route of any length passes — so
     // every raw vertex was kept instead, down to 0.25px stair steps, and the follower had to steer them.
+    const auto emit_corner = [&](size_t index) {
+        out_path.emplace_back(world_path.points[index].x, world_path.points[index].y, ActionType::RUN);
+        out_path.back().strict_arrival = false;
+        out_path.back().corridor_clearance = clearance_at(index);
+    };
     const auto restore_corners_to = [&](size_t anchor) {
+        // 规划器自己拉直过的路线直接照抄下标。它那边看得到窗口挡线格图和起点所在面的高度,
+        // 这里只有网格面一张判据,叠层处会顺着楼下那层把捷径判成可走。跨度对不上时仍走下面这条。
+        if (!world_path.waypoints.empty() && prev == 0 && anchor + 1 == total) {
+            for (size_t index = 0; index + 1 < world_path.waypoints.size(); ++index) {
+                emit_corner(world_path.waypoints[index]);
+            }
+            return;
+        }
         if (drivability_planner == nullptr || anchor <= prev + 1) {
             return;
         }
@@ -1213,9 +1291,7 @@ bool AppendGeneratedNavmeshWaypoints(
             if (reach >= anchor) {
                 return;
             }
-            out_path.emplace_back(world_path.points[reach].x, world_path.points[reach].y, ActionType::RUN);
-            out_path.back().strict_arrival = false;
-            out_path.back().corridor_clearance = clearance_at(reach);
+            emit_corner(reach);
             cursor = reach;
         }
     };

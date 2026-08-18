@@ -100,8 +100,8 @@
                 "custom_action": "SyncItemData",
                 "custom_action_param": {
                     "items": {
-                        "ORIGEOMETRY": "ORIGEOMETRY_NUMBER",
-                        "OROBERYL": "OROBERYL_NUMBER_SHOP"
+                        "item_originium_recharge": "ORIGEOMETRY_NUMBER",
+                        "item_diamond": "item_diamond_NUMBER_SHOP"
                     },
                     "page_dedup": false
                 }
@@ -134,8 +134,8 @@
                 "custom_action": "SyncItemData",
                 "custom_action_param": {
                     "items": {
-                        "ORIGEOMETRY": "ORIGEOMETRY_NUMBER",
-                        "OROBERYL": "OROBERYL_NUMBER_SHOP"
+                        "item_originium_recharge": "ORIGEOMETRY_NUMBER",
+                        "item_diamond": "item_diamond_NUMBER_SHOP"
                     },
                     "page_dedup": false,
                     "notify_ui": false

@@ -1,15 +1,19 @@
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 
+#include "async_prompt_action.h"
 #include "nav_run_controller.h"
 #include "navi_controller.h"
 #include "navigation_runtime_state.h"
 #include "navigation_session.h"
+#include "obstacle_device_recovery.h"
+#include "walk_mode.h"
 
 namespace mapnavigator
 {
@@ -18,7 +22,6 @@ class IActionExecutor;
 class ActionWrapper;
 class MotionController;
 class PositionProvider;
-class CollectibleScanner;
 struct RouteTrackingState;
 
 class NavigationStateMachine
@@ -67,11 +70,19 @@ private:
     void StopMotion();
     bool FailNavigation(const char* reason, const char* log_message, double current_distance, double yaw_error, int64_t stalled_ms);
 
-    bool TryScanApproachCollect(const RouteTrackingState& route, const Waypoint& waypoint);
-    void PreWarmCollectOcr();
-    void StartCollectScanner();
-    void StopCollectScanner();
-    void UpdateCollectSprintSuppression();
+    std::array<AsyncPromptAction*, 2> PromptActions();
+    bool TryRunPromptSubtaskWhileWalking(const RouteTrackingState& route);
+    void CompleteWaypointAfterPromptTrigger();
+    void TryRunPromptSubtaskAtRouteTail();
+    void PreWarmPromptRecognition();
+    void StartScanners();
+    void StopScanners();
+    void StartPromptScanners();
+    void StartDeviceProbe();
+    void UpdatePromptSprintSuppression();
+    // Squared distance to the nearest prompt-driven point; -1 when the route has none or the agent is unlocalized.
+    double NearestPromptDistanceSq() const;
+    void UpdateWalkMode(NaviPhase phase);
 
     const NaviParam& param_;
     ActionWrapper* action_wrapper_;
@@ -86,11 +97,13 @@ private:
     NavRunController nav_run_controller_ {};
     std::chrono::steady_clock::time_point last_global_relocalize_at_ {};
 
-    std::unique_ptr<CollectibleScanner> collect_scanner_;
-    std::chrono::steady_clock::time_point collect_scan_last_at_ {};
-    // Anti-stuck: position of the last detection-triggered collect attempt.
-    NaviPosition collect_attempt_pos_ {};
-    bool collect_attempt_pos_valid_ = false;
+    // Two instances of one flow; they differ only in the pipeline node names and who supplies the text.
+    AsyncPromptAction collect_prompt_;
+    AsyncPromptAction interact_prompt_;
+
+    ObstacleDeviceRecovery device_recovery_;
+    // Declared last so its destructor runs first — restores jogging while its collaborators are still alive.
+    walkmode::Toggle walk_mode_;
 };
 
 } // namespace mapnavigator

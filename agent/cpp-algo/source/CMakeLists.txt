@@ -1,4 +1,5 @@
 file(GLOB_RECURSE cpp_algo_src *.h *.hpp *.cpp)
+list(FILTER cpp_algo_src EXCLUDE REGEX "/IconRecognition/test/")
 
 add_executable(cpp-algo ${cpp_algo_src} ${cpp_algo_header})
 
@@ -14,8 +15,13 @@ if(LINUX)
 endif()
 
 if(WIN32)
-    target_link_libraries(cpp-algo PRIVATE WebView2::WebView2)
+    # dbghelp 静态链接，而不是崩溃时 LoadLibrary，以免撞上 loader lock。
+    target_link_libraries(cpp-algo PRIVATE WebView2::WebView2 dbghelp)
     target_compile_definitions(cpp-algo PRIVATE MAAEND_HAVE_WEBVIEW2)
+
+    # 固定产出完整 PDB（/DEBUG:FULL）：CI 符号包依赖行号信息，
+    # 避免 MSVC 默认（历史上有 FASTLINK 默认期）时 dump_syms 拿不到行号。
+    target_link_options(cpp-algo PRIVATE "$<$<CONFIG:RelWithDebInfo>:/DEBUG:FULL>")
 
     add_custom_command(TARGET cpp-algo POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
