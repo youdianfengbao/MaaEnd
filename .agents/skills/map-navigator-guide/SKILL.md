@@ -64,6 +64,8 @@ description: MaaEnd 自动寻路、地图定位、角色移动与路径导航开
 
 声明只钉这一段停在哪张面，起点站在哪张面由寻路按起点自己的高度判断，所以跨面的一段不需要给起点补声明。
 
+**交互点的提示文字别在多条路线里各抄一份。** `INTERACT` 点写了 `interact_text` 才升级为异步交互（行进中看到提示就停车，OCR 确认命中才按键），不写则保持到点直接按键的原语义。这份文字表除了直接写字符串 / 字符串数组，还可以写成 `{ "node": "某个 OCR 节点" }` 点名一个现成的 OCR 节点：导航只读它的 `expected`，从不派发它，于是同一业务铺到多个区域时共用一张表。写在点上的盖过写在 `custom_action_param` 顶层的；节点读不出来时该点退回原语义，整条路线照跑。
+
 ## 组件概览
 
 ### 核心代码
@@ -92,7 +94,9 @@ description: MaaEnd 自动寻路、地图定位、角色移动与路径导航开
 - `web/static/`：浏览器前端（原生 JS + JSDoc + WebGL，ESM 模块，零构建）；
 - `navmesh_backend.py`：navmesh 查询后端，把 cpp-algo agent 当作常驻查询进程，几何解码 / 吸附 / 路线都在 agent 里算；
 - `connectors.py` / `connection_models.py`：Win32 / ADB / PlayCover 录制连接层；
+- `agent_session.py`：cpp Agent + Tasker 的生命周期，录制 / 试跑 / 单次定位 / navmesh 查询共用；
 - `recording_service.py`：Maa Agent 录制线程与轨迹采集；
+- `navtest_service.py`：实机试跑会话，当前页签里的路线直接交给 `MapNavigateAction` 走一遍、断言框交给 `MapLocateAssertLocation` 认一次（F3 重跑 / F4 终止）；
 - `json_import.py`：JSON/JSONC 导入解析与动作语义校验；
 - `model.py`：路径数据结构、动作类型与规范化工具。
 

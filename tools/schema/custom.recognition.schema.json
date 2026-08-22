@@ -18,6 +18,8 @@
                 "ExpressionRecognition",
                 "ImageCheckNotPassedRecognition",
                 "IconRecognition",
+                "IntelArchiveScanDetailRecognition",
+                "IntelArchiveScanItemsRecognition",
                 "ItemDataReady",
                 "ItemQuantitySatisfied",
                 "ItemTransferSameItemRecognition",
@@ -36,6 +38,7 @@
                 "ScrollbarRecognition",
                 "ScrollbarCompleteRecognition",
                 "SellProductCurrentBestOperator",
+                "SellProductCurrentGoods",
                 "SellProductCurrentOperatorUncached",
                 "SellProductOperatorCacheReady",
                 "SellProductOperatorListBottom",
@@ -254,6 +257,36 @@
                             },
                             "focus_unmatched_resolved_expression": {
                                 "type": "boolean"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "IntelArchiveScanItemsRecognition" } }
+            },
+            "then": {
+                "type": "object",
+                "properties": {
+                    "custom_recognition_param": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "file_category": {
+                                "type": "string",
+                                "enum": [
+                                    "investigate",
+                                    "paper",
+                                    "digital",
+                                    "collection",
+                                    "media",
+                                    "document",
+                                    "report"
+                                ]
                             }
                         }
                     }
@@ -507,6 +540,20 @@
                 "required": [ "custom_recognition_param" ],
                 "properties": {
                     "custom_recognition_param": { "$ref": "./components/map_tracker.schema.json#/$defs/MapTrackerBigMapFindImageParam" }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "SellProductCurrentGoods" } }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": { "$ref": "./components/sell_product.schema.json#/$defs/CurrentGoodsRecognitionParam" }
                 }
             }
         },
