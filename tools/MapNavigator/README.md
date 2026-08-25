@@ -6,7 +6,7 @@ MapNavigator 是用于 C++ MapNavigator 模块使用的地图路径录制与编�
 
 当前支持：
 
-- 通过统一的录制连接层在 `Win32`、`ADB` 与 `WlRoots`（Linux Wayland）之间切换。
+- 通过统一的录制连接层在 `Win32`、`ADB` 与 `Linux-Gamescope` 之间切换。
 - 录制地图路径并按区域切换浏览。
 - 导入已有 JSON/JSONC，递归搜索可识别的 `path` 数据并显示。
 - 导入 `MapTrackerMove` / `MapTrackerAssertLocation` 时自动按兼容表转换到 `MapNavigator` / `MapLocateAssertLocation` 的 Base 坐标系。
@@ -15,6 +15,7 @@ MapNavigator 是用于 C++ MapNavigator 模块使用的地图路径录制与编�
 - GUI 动作编辑主要面向坐标点动作：`RUN / SPRINT / JUMP / FIGHT / INTERACT / PORTAL / TRANSFER / COLLECT / DIG`。
 - `COLLECT / DIG` 是采集/挖掘语义点：精确抵达后由 `MapNavigator` 同步触发 `AutoCollectClickStart` / `AutoCollectDigStart` pipeline 子任务，期间不退出 NaviController，避免每次采集都重建定位/重新 Bootstrap/吃掉起步宽限。
 - 支持为单个点标记 `strict`，用于要求该点必须精确抵达。
+- 支持为单个点标记 `required`。未启用滑索时按作者顺序执行全部节点；启用滑索后，中间的移动和兜底点可被全局规划跳过，`required` 用于标记必须抵达并执行的点。`ZONE`、`HEADING`、`COLLECT`、`DIG` 始终保留。
 - 支持为单个坐标点声明 `target_tier`；它只指定该点的坐标来源层级，不会改变 `ZONE` 或触发区域切换。
 - 默认复制 `MapNavigator` 可直接粘贴的 canonical `path`：有 zone 时写 `ZONE` 无坐标声明节点，没有 zone 时保留纯坐标点数组。
 - 支持独立的 `Assert 模式`：手动选择底图并框选矩形区域，导出 `MapLocateAssertLocation` 节点。
@@ -26,10 +27,12 @@ MapNavigator 是用于 C++ MapNavigator 模块使用的地图路径录制与编�
 - `HEADING` 是无坐标控制节点，不属于 GUI 常规点编辑与导出模型，建议在导出 `path` 后手工补回或维护。
 - 运行时 `sprint_threshold` 的语义是“前方连续可跑段长度阈值”，不是只看当前点距离。
 
-## WlRoots 连接（Linux Wayland）
+## Linux-Gamescope 连接
 
-- 游戏合成器需支持 `wlr-screencopy-unstable-v1` 协议；建议游戏跑在嵌套合成器（如 gamescope）上，**不要连接当前桌面会话的 socket**（连错会截到桌面而不是游戏）。
-- socket 路径是完整路径（如 `/run/user/1000/wayland-0`），不一定是 `$WAYLAND_DISPLAY` 指向的那个；下拉候选来自 `$XDG_RUNTIME_DIR` 下的实际 socket 枚举。
+- 基于 maafw `LinuxController`（PipeWire 截屏 + libei 输入），从当前发现的 gamescope 实例里选一个即可录制，不再需要手填 socket 路径。
+- 需要游戏跑在 gamescope 上；下拉列表展示 `Toolkit.find_gamescope_instances()` 发现的实例（display 编号 + PipeWire 节点 + EIS socket）。
+- 仅录制截图，不投递输入；`screencap_method`/`input_method` 与 `assets/interface.json` 的 `Linux-Gamescope` 控制器条目保持一致。
+- 依赖 `maafw==5.13.0b4`（含 `LinuxController` 绑定；`5.12.x` 没有该控制器类）。
 
 ## 位置与朝向
 
@@ -108,6 +111,7 @@ MapNavigator 是用于 C++ MapNavigator 模块使用的地图路径录制与编�
 - 普通点的坐标来自 tier 底图时，在路点属性中填写 `坐标层级`，导出为 `{ "action": "ACTION", "target": [x, y], "target_tier": "..." }`；留空仍使用旧数组格式。
 - `target_tier` 只解释当前点的坐标系，与负责区域校验上下文的 `ZONE` 相互独立。
 - 严格点会导出为 `[x, y, true]` 或 `[x, y, "ACTION", true]`。
+- 必经点会改用对象格式并导出 `"required": true`；该字段与只控制到点精度的 `strict` 相互独立。
 - `NAVMESH` 点会导出为 `{ "action": "NAVMESH", "target": [x, y] }`，由运行时从当前位置自动寻路到目标。
 - 当前 GUI 导出的 canonical `path` 覆盖坐标点（`NAVMESH` 按对象格式导出）与 `ZONE` 声明，不会直接生成 `HEADING` 这类无坐标控制节点。
 - 复制出来的内容可以直接粘贴到 pipeline 的 `custom_action_param.path`。

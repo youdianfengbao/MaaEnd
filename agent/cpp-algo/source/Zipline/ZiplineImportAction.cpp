@@ -16,6 +16,7 @@
 #include <MaaUtils/Logger.h>
 
 #include "../Common/WebView2.h"
+#include "../Common/notice.h"
 #include "ZiplineFrames.h"
 #include "ZiplineStore.h"
 
@@ -27,6 +28,7 @@ namespace
 
 constexpr const char* kDefaultMapUrl = "https://game.skland.com/map/endfield";
 // 标记列表接口的路径片段。只匹配路径，避免被 query 里的参数顺序影响。
+// 可被 param 覆盖：各区服是同一套前端，路径本该一致，万一哪边不一样不必重新编译。
 constexpr const char* kMarkListPathFragment = "/map/mark/list";
 // 窗口的存活上限，留给用户登录：登录后抓齐只要几秒，正常路径根本用不到这个数。
 constexpr int64_t kDefaultTimeoutMs = 300000;
@@ -43,6 +45,7 @@ constexpr size_t kBodyLogPreviewBytes = 256;
 struct ImportParam
 {
     std::string url = kDefaultMapUrl;
+    std::string mark_list_path = kMarkListPathFragment;
     int64_t timeout = kDefaultTimeoutMs;
     int width = kDefaultWindowWidth;
     int height = kDefaultWindowHeight;
@@ -84,6 +87,12 @@ bool ParseParam(const char* raw, ImportParam& out)
 
     const auto& obj = parsed->as_object();
     out.url = obj.get("url", out.url);
+    out.mark_list_path = obj.get("mark_list_path", out.mark_list_path);
+    // 空片段会匹配上页面的每一条响应，把整个会话都当成标记列表抓回来。
+    if (out.mark_list_path.empty()) {
+        LogError << "ZiplineImport: mark_list_path must not be empty";
+        return false;
+    }
     out.timeout = obj.get("timeout", out.timeout);
     out.width = obj.get("width", out.width);
     out.height = obj.get("height", out.height);
@@ -238,10 +247,10 @@ size_t PersistCaptured(const std::vector<CapturedResponse>& captured, const std:
     return total;
 }
 
-void SubscribeSniffers(const std::shared_ptr<WebView2>& webview, const std::shared_ptr<SniffState>& state)
+void SubscribeSniffers(const std::shared_ptr<WebView2>& webview, const std::shared_ptr<SniffState>& state, std::string mark_list_path)
 {
     // 响应头到达：只记下路径命中的请求，此刻响应体还没收完，不能取。
-    webview->SubscribeDevToolsEvent("Network.responseReceived", [state](std::string params_json) {
+    webview->SubscribeDevToolsEvent("Network.responseReceived", [state, mark_list_path](std::string params_json) {
         const auto parsed = json::parse(params_json);
         if (!parsed || !parsed->is_object()) {
             return;
@@ -253,7 +262,7 @@ void SubscribeSniffers(const std::shared_ptr<WebView2>& webview, const std::shar
         }
 
         const std::string url = obj.at("response").as_object().get("url", std::string {});
-        if (url.find(kMarkListPathFragment) == std::string::npos) {
+        if (url.find(mark_list_path) == std::string::npos) {
             return;
         }
 
@@ -293,7 +302,9 @@ void SubscribeSniffers(const std::shared_ptr<WebView2>& webview, const std::shar
             json::value(std::move(params)).dumps(),
             [state, url](bool ok, std::string result_json) {
                 if (!ok) {
-                    LogWarn << "ZiplineImport: getResponseBody failed" << VAR(url);
+                    // 页面对同一接口常发两次请求，经 Service Worker / 缓存应答的那份取不到响应体，
+                    // 属预期竞态，另一份会补上；真缺数据由收尾的 covered / expected 校验兜底。
+                    LogDebug << "ZiplineImport: getResponseBody failed" << VAR(url);
                     return;
                 }
                 const auto parsed_body = json::parse(result_json);
@@ -355,7 +366,7 @@ MaaBool MAA_CALL ZiplineImportActionRun(
     }
 
     auto state = std::make_shared<SniffState>();
-    SubscribeSniffers(webview, state);
+    SubscribeSniffers(webview, state, param.mark_list_path);
     // 订阅必须先于 Network.enable 排队，两者都走同一条 UI 线程待办，顺序有保证。
     webview->CallDevToolsMethod("Network.enable", "{}", [](bool ok, std::string) {
         if (!ok) {
@@ -369,10 +380,12 @@ MaaBool MAA_CALL ZiplineImportActionRun(
         }
     });
 
-    LogInfo << "ZiplineImport: waiting for the page to fetch its marks" << VAR(param.url) << VAR(param.timeout);
+    LogInfo << "ZiplineImport: waiting for the page to fetch its marks" << VAR(param.url) << VAR(param.mark_list_path)
+            << VAR(param.timeout);
 
     MaaTasker* tasker = MaaContextGetTasker(context);
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(param.timeout);
+    const auto started_at = std::chrono::steady_clock::now();
+    const auto deadline = started_at + std::chrono::milliseconds(param.timeout);
 
     // 关窗判据要看抓全了没有，而「该抓哪些图」以标定过的地图为准：没标定的地图本来也不参与规划。
     ZiplineFrames frames;
@@ -383,6 +396,11 @@ MaaBool MAA_CALL ZiplineImportActionRun(
     std::unordered_set<std::string> covered;
     // 没登录时页面照样发标记请求、响应体照样有，只是 saveMarks 是空数组。这行提示只打一次。
     bool signin_hint_logged = false;
+    // 已登录判定：主地图列表「先空后非空」＝窗口里刚完成登录；首条就非空＝本来就登录着。
+    // 关卡/基地子列表对多数用户恒为空，永远进不了非空集合，不会干扰判定。
+    std::unordered_map<std::string, bool> list_first_parse_empty;
+    bool login_transition_seen = false;
+    bool signed_in_notice_decided = false;
     while (true) {
         std::vector<CapturedResponse> fresh;
         bool inflight = false;
@@ -401,12 +419,34 @@ MaaBool MAA_CALL ZiplineImportActionRun(
         for (auto& response : fresh) {
             // 只为了知道这条覆盖了哪几张图，过滤留到落盘时再做。
             std::unordered_map<std::string, std::vector<ZiplineMark>> by_map;
-            if (ParseMarks(response.body, {}, QueryValue(response.url, "mapId"), by_map)) {
+            if (!ParseMarks(response.body, {}, QueryValue(response.url, "mapId"), by_map)) {
+                captured.push_back(std::move(response));
+                continue;
+            }
+
+            const bool non_empty = !by_map.empty();
+            // 列表身份用 query 的 mapId/levelId，不用整个 URL，免得 roleId/serverId 变化拆散同一份列表。
+            const std::string list_key = QueryValue(response.url, "mapId") + "|" + QueryValue(response.url, "levelId");
+            const auto [it, inserted] = list_first_parse_empty.try_emplace(list_key, !non_empty);
+            if (non_empty) {
                 for (const auto& entry : by_map) {
                     covered.insert(entry.first);
                 }
+                if (!inserted && it->second) {
+                    login_transition_seen = true;
+                }
             }
             captured.push_back(std::move(response));
+        }
+
+        if (!covered.empty() && !signed_in_notice_decided) {
+            signed_in_notice_decided = true;
+            if (!login_transition_seen) {
+                common::notice::Publish(context, common::notice::Text("zipline.already_signed_in"));
+            }
+            else {
+                LogInfo << "ZiplineImport: mark list went from empty to non-empty, the user just signed in";
+            }
         }
 
         const auto now = std::chrono::steady_clock::now();
@@ -460,6 +500,10 @@ MaaBool MAA_CALL ZiplineImportActionRun(
 
     const size_t total = PersistCaptured(captured, param.template_ids);
     LogInfo << "ZiplineImport: done" << VAR(captured.size()) << VAR(total);
+    if (total > 0) {
+        // 导完就散场的话没人知道还差一步: 设置里的三态默认是跟随任务, 不会自己去找滑索。
+        common::notice::Publish(context, common::notice::Text("zipline.import_done", { static_cast<int64_t>(total) }));
+    }
     return total > 0;
 }
 
