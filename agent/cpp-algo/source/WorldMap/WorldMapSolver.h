@@ -22,13 +22,10 @@ public:
 
     std::optional<Viewport> SolveViewport(const cv::Mat& screen, const std::string& zone, const ViewportConfig& cfg);
 
-    std::optional<SpotHit>
-        ConfirmSpot(const cv::Mat& screen, const cv::Point2d& expected, double viewportScale, const SpotConfig& cfg);
+    std::optional<SpotHit> ConfirmSpot(const cv::Mat& screen, const cv::Point2d& expected, double viewportScale, const SpotConfig& cfg);
 
-    static std::optional<PlayerMarkerHit> DetectPlayerMarker(
-        const cv::Mat& screen,
-        const cv::Point2d& expected,
-        const PlayerMarkerConfig& cfg);
+    static std::optional<PlayerMarkerHit>
+        DetectPlayerMarker(const cv::Mat& screen, const cv::Point2d& expected, const PlayerMarkerConfig& cfg);
 
     // 屏幕上不被 UI 遮挡、图标能完整显出来的区域
     static cv::Rect SafeArea(const cv::Size& screenSize, const ScreenMapRoi& roi, int margin);

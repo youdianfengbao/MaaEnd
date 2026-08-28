@@ -352,6 +352,28 @@ bool CaptureCleanFix(const Context& ctx, NaviPosition* out_pos)
     return false;
 }
 
+template <typename CanCaptureFrame>
+bool CaptureStableHeadingImpl(const Context& ctx, double* out_heading, const CanCaptureFrame& can_capture_frame)
+{
+    std::optional<double> previous;
+    for (int frame = 0; can_capture_frame(frame); ++frame) {
+        if (frame > 0) {
+            utils::SleepFor(kHeadingStableReadIntervalMs);
+        }
+        if (!ctx.position_provider->Capture(ctx.position, false, ctx.session->current_zone_id())
+            || ctx.position_provider->LastCaptureWasHeld()) {
+            continue;
+        }
+        const double current = NaviMath::NormalizeAngle(ctx.position->angle);
+        if (previous && std::abs(NaviMath::NormalizeAngle(current - *previous)) <= kHeadingStableReadToleranceDeg) {
+            *out_heading = current;
+            return true;
+        }
+        previous = current;
+    }
+    return false;
+}
+
 } // namespace
 
 bool TurnToHeadingOnce(const Context& ctx, double heading_delta)
@@ -382,23 +404,16 @@ bool TurnToHeadingOnce(const Context& ctx, double heading_delta)
 
 bool CaptureStableHeading(const Context& ctx, double* out_heading)
 {
-    std::optional<double> previous;
-    for (int frame = 0; frame < kHeadingStableReadMaxFrames; ++frame) {
-        if (frame > 0) {
-            utils::SleepFor(kHeadingStableReadIntervalMs);
-        }
-        if (!ctx.position_provider->Capture(ctx.position, false, ctx.session->current_zone_id())
-            || ctx.position_provider->LastCaptureWasHeld()) {
-            continue;
-        }
-        const double current = NaviMath::NormalizeAngle(ctx.position->angle);
-        if (previous && std::abs(NaviMath::NormalizeAngle(current - *previous)) <= kHeadingStableReadToleranceDeg) {
-            *out_heading = current;
-            return true;
-        }
-        previous = current;
-    }
-    return false;
+    return CaptureStableHeadingImpl(ctx, out_heading, [](int frame) { return frame < kHeadingStableReadMaxFrames; });
+}
+
+bool CaptureStableHeadingUntil(const Context& ctx, double* out_heading, std::chrono::steady_clock::time_point deadline)
+{
+    const auto interval = std::chrono::milliseconds(kHeadingStableReadIntervalMs);
+    return CaptureStableHeadingImpl(ctx, out_heading, [&](int frame) {
+        const auto now = std::chrono::steady_clock::now();
+        return frame == 0 ? now < deadline : now + interval <= deadline;
+    });
 }
 
 void StopMotionAndCommitment(const Context& ctx)
@@ -501,8 +516,8 @@ bool SettleAtStrictGoal(const Context& ctx, const Waypoint& waypoint)
         if (correction == kStrictSettleMaxCorrections || stalled_steps >= kStrictSettleStalledSteps
             || elapsed_ms >= kStrictSettleBudgetMs) {
             StopMotionAndCommitment(ctx);
-            LogWarn << "Strict arrival settle gave up, accepting on band." << VAR(residual) << VAR(correction)
-                    << VAR(stalled_steps) << VAR(elapsed_ms) << VAR(fix.x) << VAR(fix.y);
+            LogWarn << "Strict arrival settle gave up, accepting on band." << VAR(residual) << VAR(correction) << VAR(stalled_steps)
+                    << VAR(elapsed_ms) << VAR(fix.x) << VAR(fix.y);
             return false;
         }
 
@@ -511,12 +526,12 @@ bool SettleAtStrictGoal(const Context& ctx, const Waypoint& waypoint)
         // Sized by what is left, floored at the stationary latch: a shorter step cannot be told apart from not having
         // moved, so it would also destroy the only test for a step that is being blocked.
         const double step_wu = std::max(residual, kStrictSettleMinStepWu);
-        const int step_hold_ms = wu_per_ms > 0.0
-            ? std::clamp(static_cast<int>(std::lround(step_wu / wu_per_ms)), kStrictSettleMinStepMs, kStrictSettleMaxStepMs)
-            : kStrictSettleStepMs;
+        const int step_hold_ms =
+            wu_per_ms > 0.0 ? std::clamp(static_cast<int>(std::lround(step_wu / wu_per_ms)), kStrictSettleMinStepMs, kStrictSettleMaxStepMs)
+                            : kStrictSettleStepMs;
 
-        LogInfo << "Strict arrival correcting." << VAR(residual) << VAR(bearing) << VAR(from_heading) << VAR(step_wu)
-                << VAR(step_hold_ms) << VAR(correction);
+        LogInfo << "Strict arrival correcting." << VAR(residual) << VAR(bearing) << VAR(from_heading) << VAR(step_wu) << VAR(step_hold_ms)
+                << VAR(correction);
         const auto step_started = std::chrono::steady_clock::now();
         if (!TurnToHeadingOnce(ctx, NaviMath::CalcDeltaRotation(from_heading, bearing))) {
             StopMotionAndCommitment(ctx);

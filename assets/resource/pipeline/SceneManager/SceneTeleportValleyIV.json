@@ -3,8 +3,6 @@
         "desc": "在地图界面找锚点 (枢纽区-旧供水设施东侧)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "ValleyIV",
             "icon": "TeleportAnchor",
@@ -13,6 +11,8 @@
                 910.8
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -37,8 +37,6 @@
         "desc": "在地图界面找锚点 (枢纽区-岩丘通道)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "ValleyIV",
             "icon": "TeleportAnchor",
@@ -47,6 +45,8 @@
                 695.8
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },

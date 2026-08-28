@@ -387,6 +387,17 @@ semantic_nodes::Context BuildSemanticContext(
 
 } // namespace
 
+std::optional<size_t> ResolveRouteResumeIndex(const std::vector<Waypoint>& path, const NaviPosition& position)
+{
+    const std::optional<BootstrapContinueCandidate> candidate = ResolveBootstrapContinueCandidate(path, position);
+    if (!candidate || candidate->continue_index == 0 || candidate->continue_index >= path.size()) {
+        return std::nullopt;
+    }
+    LogInfo << "Route resume index resolved." << VAR(candidate->continue_index) << VAR(candidate->route_distance) << VAR(candidate->reason)
+            << VAR(position.x) << VAR(position.y) << VAR(position.zone_id);
+    return candidate->continue_index;
+}
+
 NavigationStateMachine::NavigationStateMachine(
     const NaviParam& param,
     ActionWrapper* action_wrapper,
@@ -882,8 +893,7 @@ bool NavigationStateMachine::TryReplanRemainingAuthoredRoute(const char* reason)
     // 的所有捷径。弃索次数太多说明这一带的标定或定位整体不可靠, 才整段退回纯走路。
     if (runtime_state_.zipline_abandon_count >= kZiplineAbandonWalkFallbackCount) {
         replan_param.zipline_enabled = false;
-        LogWarn << "Authored route replan disables ziplines: too many abandons this run."
-                << VAR(runtime_state_.zipline_abandon_count);
+        LogWarn << "Authored route replan disables ziplines: too many abandons this run." << VAR(runtime_state_.zipline_abandon_count);
     }
     else {
         replan_param.banned_zipline_hops = runtime_state_.zipline_hop_bans;
@@ -1701,9 +1711,14 @@ bool NavigationStateMachine::TickNavigate()
     // still in flight instead of commanding the same error again. Only motion toward the debt pays it down, and
     // an unpaid debt expires, so a swallowed drag can never leave steering suppressed against a turn never coming.
     // Walking turns at about half rate: a jogging-sized lifetime expires mid-turn and the loop re-commands it.
-    const int64_t pending_lifetime_ms =
-        walk_mode_.engaged() ? kSteeringPendingLifetimeMs * kWalkModeSlowFactor : kSteeringPendingLifetimeMs;
     SteeringRateState& steering_rate = runtime_state_.steering_rate;
+    // The floor covers one batch; a tick that spends several sweeps further and takes correspondingly longer to
+    // land, so add time for the part beyond the first batch. A debt written off mid-sweep makes the loop command
+    // the remainder a second time, which overshoots by whatever was still in flight and then hunts back.
+    const double extra_sweep_deg = std::max(0.0, std::abs(steering_rate.cmd_delta_deg) - motion_controller_->SteeringBatchCapDeg());
+    const int64_t base_pending_lifetime_ms =
+        kSteeringPendingLifetimeMs + static_cast<int64_t>(extra_sweep_deg / kYawRateDegPerSec * 1000.0);
+    const int64_t pending_lifetime_ms = walk_mode_.engaged() ? base_pending_lifetime_ms * kWalkModeSlowFactor : base_pending_lifetime_ms;
     if (steering_rate.pending_turn_deg != 0.0) {
         const int64_t pending_age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - steering_rate.cmd_at).count();
         if (pending_age_ms >= pending_lifetime_ms) {

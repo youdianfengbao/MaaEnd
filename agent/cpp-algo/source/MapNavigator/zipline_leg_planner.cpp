@@ -55,7 +55,7 @@ std::filesystem::file_time_type FileStamp(const std::filesystem::path& path)
 {
     std::error_code ec;
     const auto stamp = std::filesystem::last_write_time(path, ec);
-    return ec ? std::filesystem::file_time_type { } : stamp;
+    return ec ? std::filesystem::file_time_type {} : stamp;
 }
 
 // 标定与滑索记录都是只读的，但导入动作会在同一次运行里改写它们，所以按 mtime 决定重不重读：
@@ -65,8 +65,8 @@ std::shared_ptr<const ZiplineData> SharedData()
 {
     static std::mutex mutex;
     static std::shared_ptr<const ZiplineData> cached;
-    static std::filesystem::file_time_type frames_stamp { };
-    static std::filesystem::file_time_type store_stamp { };
+    static std::filesystem::file_time_type frames_stamp {};
+    static std::filesystem::file_time_type store_stamp {};
 
     const std::filesystem::path frames_path = zipline::ZiplineFrames::DefaultPath();
     const std::filesystem::path store_path = zipline::ZiplineStore::DefaultPath();
@@ -122,13 +122,12 @@ constexpr double grid_half_span(int size)
 //
 // 两项相加得到标记点允许的轴差。这里选择“任一可能朝向能重合就保留”，是为了避免把实际
 // 通电的滑索提前挡在规划图外；在森空岛提供朝向前，代价是边界上可能保留少量未通电架子。
-constexpr bool
-    grid_areas_may_overlap(
-        double delta_x,
-        double delta_z,
-        const std::array<int, 2>& coverage_size,
-        const std::array<int, 2>& supply_footprint,
-        const std::array<int, 2>& tower_footprint)
+constexpr bool grid_areas_may_overlap(
+    double delta_x,
+    double delta_z,
+    const std::array<int, 2>& coverage_size,
+    const std::array<int, 2>& supply_footprint,
+    const std::array<int, 2>& tower_footprint)
 {
     const double center_reach_x = grid_half_span(coverage_size[0]) + grid_half_span(tower_footprint[0]);
     const double center_reach_z = grid_half_span(coverage_size[1]) + grid_half_span(tower_footprint[1]);
@@ -150,12 +149,7 @@ bool IsPowered(const zipline::ZiplineMark& tower, const std::array<int, 2>& towe
 {
     return std::any_of(supplies.begin(), supplies.end(), [&](const SupplyPoint& supply) {
         if (supply.coverage_size[0] > 0 && supply.coverage_size[1] > 0) {
-            return grid_areas_may_overlap(
-                supply.x - tower.x,
-                supply.z - tower.z,
-                supply.coverage_size,
-                supply.footprint,
-                tower_footprint);
+            return grid_areas_may_overlap(supply.x - tower.x, supply.z - tower.z, supply.coverage_size, supply.footprint, tower_footprint);
         }
         return std::hypot(supply.x - tower.x, supply.z - tower.z) <= supply.radius;
     });
@@ -201,14 +195,20 @@ std::optional<navmesh::WorldPoint> MountStandPoint(
     return stand;
 }
 
-// 两根架子在游戏世界里的直线距离，用来判它们之间挂没挂索。
-// 必须在世界坐标里量：索长是物理量，而两张图的 base 像素比例并不一样。
-double WorldSpan(const zipline::ZiplineNode& a, const zipline::ZiplineNode& b)
+// 森空岛只给随朝向变化的角格锚点，双方中心在每条水平轴上都可能朝彼此靠近各自的
+// 占地半宽。高度坐标不受朝向影响，原样计入三维距离。返回平方值供配对内层循环直接比较。
+constexpr double minimum_possible_world_span_squared(
+    double anchor_delta_x,
+    double delta_y,
+    double anchor_delta_z,
+    const std::array<int, 2>& footprint_a,
+    const std::array<int, 2>& footprint_b)
 {
-    const double dx = b.world_x - a.world_x;
-    const double dy = b.world_y - a.world_y;
-    const double dz = b.world_z - a.world_z;
-    return std::sqrt(dx * dx + dy * dy + dz * dz);
+    const double uncertainty_x = grid_half_span(footprint_a[0]) + grid_half_span(footprint_b[0]);
+    const double uncertainty_z = grid_half_span(footprint_a[1]) + grid_half_span(footprint_b[1]);
+    const double dx = std::max(absolute_value(anchor_delta_x) - uncertainty_x, 0.0);
+    const double dz = std::max(absolute_value(anchor_delta_z) - uncertainty_z, 0.0);
+    return dx * dx + delta_y * delta_y + dz * dz;
 }
 
 // 折线自身的长度。BaseNavRouteResult::cost 是搜索代价，不是几何长度，两者不能混用。
@@ -223,11 +223,13 @@ double PolylineLength(const navmesh::WorldPath& path)
 
 constexpr size_t kNoTower = std::numeric_limits<size_t>::max();
 
-// 哪两根架子之间挂着索，记录本身没说，这里按几何推断：同一种架子、同一层、世界距离不超过
-// 这种架子的索长上限，就当它们之间有一条索。索不分上下行，所以两个方向都算。
-// 推错的代价是有界的——执行时上索之后等不到落点，滑行超时，这一腿失败；推漏的代价只是
-// 少用一条索。宁可推漏。
-std::vector<std::vector<size_t>> BuildLinks(const std::vector<zipline::ZiplineNode>& nodes, const std::vector<double>& span_limit)
+// 哪两根架子之间挂着索，记录本身没说，这里按几何推断：同一种架子、同一层、任一可能中心的
+// 世界距离不超过这种架子的索长上限，就当它们之间有一条候选索。索不分上下行，所以两个方向
+// 都算。位置含糊时优先保留候选；推错后执行侧会封掉失败边并重新规划，推漏则整条连续链都无法发现。
+std::vector<std::vector<size_t>> BuildLinks(
+    const std::vector<zipline::ZiplineNode>& nodes,
+    const std::vector<double>& span_limit,
+    const std::vector<std::array<int, 2>>& footprints)
 {
     std::vector<std::vector<size_t>> links(nodes.size());
     for (size_t i = 0; i < nodes.size(); ++i) {
@@ -238,7 +240,13 @@ std::vector<std::vector<size_t>> BuildLinks(const std::vector<zipline::ZiplineNo
             if (nodes[i].template_id != nodes[j].template_id || nodes[i].level_id != nodes[j].level_id) {
                 continue;
             }
-            if (WorldSpan(nodes[i], nodes[j]) > span_limit[i]) {
+            const double span_squared = minimum_possible_world_span_squared(
+                nodes[j].world_x - nodes[i].world_x,
+                nodes[j].world_y - nodes[i].world_y,
+                nodes[j].world_z - nodes[i].world_z,
+                footprints[i],
+                footprints[j]);
+            if (span_squared > span_limit[i] * span_limit[i]) {
                 continue;
             }
             links[i].push_back(j);
@@ -288,6 +296,7 @@ struct PlannedLeg
 {
     navmesh::WorldPath path;
     double length = 0.0;
+    NavmeshRouteDiagnostic diagnostic;
 };
 
 // 同一个滑索点会被多个候选对共用，按下标缓存，避免同一段路重复规划。
@@ -350,7 +359,8 @@ std::optional<ZiplineRoute> PlanZiplineRoute(
     const navmesh::WorldPoint& goal,
     const navmesh::WorldPath* walking_path,
     std::optional<double> goal_deck_y,
-    const std::function<bool()>& should_stop)
+    const std::function<bool()>& should_stop,
+    bool capture_diagnostics)
 {
     // 没写 zip 的请求在这里就走完了：不读标定、不读记录、不多跑一条规划。
     if (!param.zipline_enabled) {
@@ -406,14 +416,13 @@ std::optional<ZiplineRoute> PlanZiplineRoute(
         for (const auto& mark : record.marks) {
             const zipline::ZiplinePowerSource* source = data->frames.powerSource(mark.template_id);
             if (source != nullptr) {
-                supplies.push_back(
-                    SupplyPoint {
-                        .x = mark.x,
-                        .z = mark.z,
-                        .radius = source->radius,
-                        .footprint = source->footprint,
-                        .coverage_size = source->coverage_size,
-                    });
+                supplies.push_back(SupplyPoint {
+                    .x = mark.x,
+                    .z = mark.z,
+                    .radius = source->radius,
+                    .footprint = source->footprint,
+                    .coverage_size = source->coverage_size,
+                });
                 supply_points.push_back(ToWorld(frame->project(mark)));
             }
         }
@@ -482,10 +491,12 @@ std::optional<ZiplineRoute> PlanZiplineRoute(
     // 索长上限逐点查一次就够：配对是 O(n²) 的，放进内层循环等于把字符串查表也乘上 n²。
     // 查不到的类型上限为 0，下面直接跳过——没登记过物理属性的架子不参与配对。
     std::vector<double> span_limit(nodes.size());
+    std::vector<std::array<int, 2>> footprints(nodes.size());
     std::vector<double> lb_from_start(nodes.size());
     std::vector<double> lb_to_goal(nodes.size());
     for (size_t i = 0; i < nodes.size(); ++i) {
         span_limit[i] = data->frames.maxSpan(nodes[i].template_id);
+        footprints[i] = data->frames.footprint(nodes[i].template_id);
         lb_from_start[i] = Distance(start, ToWorld(nodes[i]));
         lb_to_goal[i] = Distance(ToWorld(nodes[i]), goal);
     }
@@ -500,7 +511,7 @@ std::optional<ZiplineRoute> PlanZiplineRoute(
     };
 
     // 一条路线用几条索由代价决定，不设跳数上限：换乘要收钱，划不来的长链自己就被淘汰了。
-    std::vector<std::vector<size_t>> links = BuildLinks(nodes, span_limit);
+    std::vector<std::vector<size_t>> links = BuildLinks(nodes, span_limit, footprints);
 
     // 执行侧判死过的跳直接从连通图里拿掉。索不分上下行, 一根滑不动的索反着大概率也滑不动,
     // 两个方向一起封。
@@ -565,11 +576,23 @@ std::optional<ZiplineRoute> PlanZiplineRoute(
     // 上索点的高度是导入数据里带来的逐点真值，直接钉住终点所在的那一层。
     LegCache approach_cache(
         [&](size_t index) -> std::optional<PlannedLeg> {
-            auto route = PlanNavmeshRoute(param, locator_zone, start, ToWorld(nodes[index]), nodes[index].height);
+            NavmeshRouteDiagnostic diagnostic;
+            auto route = PlanNavmeshRoute(
+                param,
+                locator_zone,
+                start,
+                ToWorld(nodes[index]),
+                nodes[index].height,
+                std::nullopt,
+                capture_diagnostics ? &diagnostic : nullptr);
             if (!route || !route->ok()) {
                 return std::nullopt;
             }
-            return PlannedLeg { .path = route->path, .length = PolylineLength(route->path) };
+            return PlannedLeg {
+                .path = route->path,
+                .length = PolylineLength(route->path),
+                .diagnostic = std::move(diagnostic),
+            };
         },
         plan_budget);
 
@@ -577,11 +600,23 @@ std::optional<ZiplineRoute> PlanZiplineRoute(
     // 终点面用调用方给的那个，与纯走路方案完全一致——换走法不换目的地。
     LegCache departure_cache(
         [&](size_t index) -> std::optional<PlannedLeg> {
-            auto route = PlanNavmeshRoute(param, locator_zone, ToWorld(nodes[index]), goal, goal_deck_y, nodes[index].height);
+            NavmeshRouteDiagnostic diagnostic;
+            auto route = PlanNavmeshRoute(
+                param,
+                locator_zone,
+                ToWorld(nodes[index]),
+                goal,
+                goal_deck_y,
+                nodes[index].height,
+                capture_diagnostics ? &diagnostic : nullptr);
             if (!route || !route->ok()) {
                 return std::nullopt;
             }
-            return PlannedLeg { .path = route->path, .length = PolylineLength(route->path) };
+            return PlannedLeg {
+                .path = route->path,
+                .length = PolylineLength(route->path),
+                .diagnostic = std::move(diagnostic),
+            };
         },
         plan_budget);
 
@@ -657,6 +692,16 @@ std::optional<ZiplineRoute> PlanZiplineRoute(
         best->towers.push_back(nodes[at]);
     }
     std::reverse(best->towers.begin(), best->towers.end());
+    if (capture_diagnostics) {
+        const std::optional<PlannedLeg>* approach = approach_cache.get(best_candidate->mount);
+        const std::optional<PlannedLeg>* departure = departure_cache.get(best_candidate->dismount);
+        if (approach != nullptr && approach->has_value()) {
+            best->diagnostics.push_back((*approach)->diagnostic);
+        }
+        if (departure != nullptr && departure->has_value()) {
+            best->diagnostics.push_back((*departure)->diagnostic);
+        }
+    }
     // 只有链首那一根要按提示上索, 中途都是从索上落到下一根架子上的
     best->mount_restand = MountStandPoint(param, locator_zone, best->towers.front(), supply_points);
 

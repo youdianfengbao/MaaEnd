@@ -81,7 +81,7 @@ bool ZiplineFrames::load(const std::filesystem::path& path)
     frames_.clear();
     types_.clear();
     power_sources_.clear();
-    cost_ = ZiplineCostModel { };
+    cost_ = ZiplineCostModel {};
 
     std::error_code ec;
     if (!std::filesystem::exists(path, ec)) {
@@ -121,8 +121,8 @@ bool ZiplineFrames::load(const std::filesystem::path& path)
             const auto& obj = entry.as_object();
 
             ZiplineType type;
-            type.template_id = obj.get("template_id", std::string { });
-            type.name = obj.get("name", std::string { });
+            type.template_id = obj.get("template_id", std::string {});
+            type.name = obj.get("name", std::string {});
             type.max_span = obj.get("max_span", 0.0);
             if (obj.contains("footprint") && !parse_odd_grid_size(obj, "footprint", type.footprint)) {
                 LogWarn << "ZiplineFrames: type with an invalid odd-grid footprint, skipped" << VAR(type.name);
@@ -147,8 +147,8 @@ bool ZiplineFrames::load(const std::filesystem::path& path)
                 const auto& obj = entry.as_object();
 
                 ZiplinePowerSource source;
-                source.template_id = obj.get("template_id", std::string { });
-                source.name = obj.get("name", std::string { });
+                source.template_id = obj.get("template_id", std::string {});
+                source.name = obj.get("name", std::string {});
                 if (obj.contains("footprint") && !parse_odd_grid_size(obj, "footprint", source.footprint)) {
                     LogWarn << "ZiplineFrames: power source with an invalid odd-grid footprint, skipped" << VAR(source.name);
                     continue;
@@ -189,8 +189,8 @@ bool ZiplineFrames::load(const std::filesystem::path& path)
         const auto& obj = entry.as_object();
 
         ZiplineFrame frame;
-        frame.map_id = obj.get("map_id", std::string { });
-        frame.zone_name = obj.get("zone_name", std::string { });
+        frame.map_id = obj.get("map_id", std::string {});
+        frame.zone_name = obj.get("zone_name", std::string {});
         if (frame.zone_name.empty()) {
             LogWarn << "ZiplineFrames: frame without zone_name, skipped";
             continue;

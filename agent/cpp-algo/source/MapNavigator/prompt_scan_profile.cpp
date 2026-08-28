@@ -274,8 +274,7 @@ bool TryLoadPromptScanProfile(MaaContext* context, const std::string& scan_node,
     out->mask = mask;
     out->threshold = threshold;
     LogInfo << "Prompt scan profile loaded from the pipeline." << VAR(scan_node) << VAR(MAA_NS::path_to_utf8_string(*resolved))
-            << VAR(threshold) << VAR(green_mask) << VAR(base_roi.x) << VAR(base_roi.y) << VAR(base_roi.width)
-            << VAR(base_roi.height);
+            << VAR(threshold) << VAR(green_mask) << VAR(base_roi.x) << VAR(base_roi.y) << VAR(base_roi.width) << VAR(base_roi.height);
     return true;
 }
 

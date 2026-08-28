@@ -111,13 +111,16 @@ constexpr int32_t kForwardHoldFutileReassertsBeforeRecovery = 2;
 // with the loop instead of silently discarding the rate.
 constexpr uint64_t kSteeringRateMaxGapTicks = 4;
 constexpr int32_t kSteeringRateReferenceMs = 100;
-// How long a sent turn may still be owed before it is written off. Measured on device the game yaws at about
-// 100 deg/s, so a capped command needs some 300ms to land; past double that the drag was swallowed, and holding
-// the debt any longer would suppress steering against a turn that is never arriving.
+// How long a sent turn may still be owed before it is written off, past which the drag was swallowed and holding
+// the debt would suppress steering against a turn never arriving. Covers the worst observed capture-to-fix lag
+// plus the time one per-drag-capped command takes to sweep; a tick that spends several batches sweeps further,
+// so the caller adds time for the part beyond the first. Yaw rate measured on device from single-command turns.
 constexpr int64_t kSteeringPendingLifetimeMs = 600;
-// Turn batches one tick may spend. The backend's per-batch cap is a per-drag reliability limit, not a budget
-// for the whole tick: a slow loop gets fewer, longer ticks, so one batch each would shrink the turn achieved
-// per metre walked just as the lag makes more of it necessary. Bounded so a misread heading cannot spin far.
+constexpr double kYawRateDegPerSec = 320.0;
+// Turn batches one tick may spend, and so the ceiling on how far one tick turns. Spending them on the angle the
+// command asks for rather than on how long the tick was lets a reversal finish in three ticks instead of seven,
+// while the ceiling keeps every tick an observation point: a heading read wrong on one frame costs at most this
+// much before the next fix corrects it.
 constexpr int32_t kSteeringMaxBatchesPerTick = 3;
 constexpr double kSteeringHeadingChangeEpsilonDeg = 0.05;
 constexpr int32_t kPostHeadingForwardPulseMs = 270;
@@ -126,7 +129,7 @@ constexpr int32_t kHeadingVerifyMaxRetries = 3;
 constexpr int32_t kHeadingTurnStepIntervalMs = 100;     // step pacing floor; raised to the backend min send interval
 constexpr double kHeadingStableReadToleranceDeg = 15.0; // two fresh reads must agree this closely to count
 constexpr int32_t kHeadingStableReadIntervalMs = 120;
-constexpr int32_t kHeadingStableReadMaxFrames = 4;      // read budget; no stable pair -> accept open-loop
+constexpr int32_t kHeadingStableReadMaxFrames = 4;      // default HEADING read budget; the caller decides its fallback
 constexpr int32_t kSerialRouteRetryDelayMs = 180;
 constexpr double kBootstrapOwnershipProjectionCorridor = 3.0;
 constexpr double kBootstrapOwnershipProjectionFrontThreshold = 0.35;
@@ -270,7 +273,9 @@ constexpr int32_t kZiplineLaunchSettleMs = 400;
 // 瞄准精度只能在按左键之前保证: 按下去人就滑走了, 半空里没有跟随层能把方向修回来。走路那套
 // 40 度容差是靠跟随层善后才敢留的, 这里不能用
 constexpr double kZiplineAimToleranceDeg = 6.0;
-constexpr int32_t kZiplineAimMaxRetries = 3;
+// 上索后的稳定等待与全部水平修正共用这个截止时间。每次只发一个后端批次并等待真实反馈，
+// 避免大角度转向在上索动画尚未结束时一次性排入多条输入。
+constexpr int32_t kZiplineAimHeadingTimeoutMs = 6000;
 // 落差够大时镜头得抬到索的仰角上才起得了滑。小地图读不到俯仰, 所以每次从地面登上滑索架后
 // 先通过 Pipeline 把镜头拉到上限, 将该硬限位记作 +90 度, 再从这个固定基准开环调整。连续滑索
 // 没有上下索动作, 直接沿用上一跳记住的俯仰。游戏的俯仰范围不对称: 仰角最多 90 度, 俯角最多 60 度。

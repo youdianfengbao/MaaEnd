@@ -250,8 +250,6 @@
         "desc": "在地图界面找锚点 (景玉谷-生态实验站)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -260,6 +258,8 @@
                 2138.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -284,8 +284,6 @@
         "desc": "在地图界面找锚点 (景玉谷-踩道)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -294,6 +292,8 @@
                 2196.8
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -318,8 +318,6 @@
         "desc": "在地图界面找锚点 (景玉谷-聚宝窟外)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -328,6 +326,8 @@
                 2324.0
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -352,8 +352,6 @@
         "desc": "在地图界面找锚点 (景玉谷-清波寨外寨)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -362,6 +360,8 @@
                 2355.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -488,8 +488,6 @@
         "desc": "在地图界面找锚点 (景玉谷-聚宝窟内)，此锚点兼容性差已暂时弃用，目前采用传统模板匹配",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -498,6 +496,8 @@
                 2411.4
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -522,8 +522,6 @@
         "desc": "在地图界面找锚点 (景玉谷-天王坪)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -532,6 +530,8 @@
                 2424.6
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -556,8 +556,6 @@
         "desc": "在地图界面找锚点 (景玉谷-驮鼻山)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -566,6 +564,8 @@
                 2501.7
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -590,8 +590,6 @@
         "desc": "在地图界面找锚点 (景玉谷-迷踪林)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -600,6 +598,8 @@
                 2595.3
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -624,8 +624,6 @@
         "desc": "在地图界面找锚点 (景玉谷-摘菱屿)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -634,6 +632,8 @@
                 2654.0
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -658,8 +658,6 @@
         "desc": "在地图界面找锚点 (景玉谷-南山)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -668,6 +666,8 @@
                 2773.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -692,8 +692,6 @@
         "desc": "在地图界面找锚点 (景玉谷-水泽涧)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -702,6 +700,8 @@
                 2828.3
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -726,8 +726,6 @@
         "desc": "在地图界面找锚点 (武陵城-核心区)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "Core",
@@ -736,6 +734,8 @@
                 1319.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -760,8 +760,6 @@
         "desc": "在地图界面找锚点 (武陵城-观测站)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -770,6 +768,8 @@
                 1309.9
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -794,8 +794,6 @@
         "desc": "在地图界面找锚点 (武陵城-界石坪)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -804,6 +802,8 @@
                 1563.8
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -828,8 +828,6 @@
         "desc": "在地图界面找锚点 (武陵城-待修缮区)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -838,6 +836,8 @@
                 1586.6
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -862,8 +862,6 @@
         "desc": "在地图界面找锚点 (武陵城-方兴衢)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -872,6 +870,8 @@
                 1623.0
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -896,8 +896,6 @@
         "desc": "在地图界面找锚点 (武陵城-天师府学院)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -906,6 +904,8 @@
                 1743.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -930,8 +930,6 @@
         "desc": "在地图界面找锚点 (武陵城-天井院)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -940,6 +938,8 @@
                 1781.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -964,8 +964,6 @@
         "desc": "在地图界面找锚点 (武陵城-储备站左上)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -974,6 +972,8 @@
                 1868.7
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -998,8 +998,6 @@
         "desc": "在地图界面找锚点 (武陵城-三窟岗)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1008,6 +1006,8 @@
                 1891.9
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1032,8 +1032,6 @@
         "desc": "在地图界面找锚点 (武陵城-储备站右下)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1042,6 +1040,8 @@
                 1959.3
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1066,8 +1066,6 @@
         "desc": "在地图界面找锚点 (清波寨-顶天梁)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1076,6 +1074,8 @@
                 2136.5
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1100,8 +1100,6 @@
         "desc": "在地图界面找锚点 (清波寨-栈桥道)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1110,6 +1108,8 @@
                 2282.5
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1134,8 +1134,6 @@
         "desc": "在地图界面找锚点 (清波寨-主寨西南)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1144,6 +1142,8 @@
                 2358.4
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1168,8 +1168,6 @@
         "desc": "在地图界面找锚点 (清波寨-祖泉)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1178,6 +1176,8 @@
                 2185.8
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1202,8 +1202,6 @@
         "desc": "在地图界面找锚点 (清波寨-主寨东南)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1212,6 +1210,8 @@
                 2440.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1236,8 +1236,6 @@
         "desc": "在地图界面找锚点 (首墩-核心区)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "Core",
@@ -1246,6 +1244,8 @@
                 2357.7
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1270,8 +1270,6 @@
         "desc": "在地图界面找锚点 (首墩-望楼蓄水站)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1280,6 +1278,8 @@
                 2117.0
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1304,8 +1304,6 @@
         "desc": "在地图界面找锚点 (首墩-湖心岛)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1314,6 +1312,8 @@
                 2232.3
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1338,8 +1338,6 @@
         "desc": "在地图界面找锚点 (首墩-控制区)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1348,6 +1346,8 @@
                 2243.8
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1372,8 +1372,6 @@
         "desc": "在地图界面找锚点 (首墩-栖云窟)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1382,6 +1380,8 @@
                 2582.4
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1406,8 +1406,6 @@
         "desc": "在地图界面找锚点 (试验园区-综合科研区下)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1416,6 +1414,8 @@
                 1757.8
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1440,8 +1440,6 @@
         "desc": "在地图界面找锚点 (试验园区-测试区)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1450,6 +1448,8 @@
                 1701.0
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1474,8 +1474,6 @@
         "desc": "在地图界面找锚点 (藏剑谷-东谷遗迹)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1484,6 +1482,8 @@
                 2777.1
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1508,8 +1508,6 @@
         "desc": "在地图界面找锚点 (藏剑谷-悬谷台)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1518,6 +1516,8 @@
                 2871.7
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1542,8 +1542,6 @@
         "desc": "在地图界面找锚点 (藏剑谷-谷底秘库)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1552,6 +1550,8 @@
                 2692.5
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1923,8 +1923,6 @@
         "desc": "在地图界面找锚点 (应龙关-临关渠北侧)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1933,6 +1931,8 @@
                 874.9
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1957,8 +1957,6 @@
         "desc": "在地图界面找锚点 (应龙关-奇松岭东侧)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -1967,6 +1965,8 @@
                 980.4
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -1991,8 +1991,6 @@
         "desc": "在地图界面找锚点 (应龙关-应龙主营)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2001,6 +1999,8 @@
                 799.3
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2025,8 +2025,6 @@
         "desc": "在地图界面找锚点 (应龙关-石涧崖南侧)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2035,6 +2033,8 @@
                 1037.1
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2059,8 +2059,6 @@
         "desc": "在地图界面找锚点 (应龙关-置器阁)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2069,6 +2067,8 @@
                 774.3
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2093,8 +2093,6 @@
         "desc": "在地图界面找锚点 (应龙关-应龙档案室)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2103,6 +2101,8 @@
                 910.5
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2127,8 +2127,6 @@
         "desc": "在地图界面找锚点 (北部禁区-前哨基地)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2137,6 +2135,8 @@
                 597.7
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2161,8 +2161,6 @@
         "desc": "在地图界面找锚点 (北部禁区-水利枢纽)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2171,6 +2169,8 @@
                 316.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2195,8 +2195,6 @@
         "desc": "在地图界面找锚点 (北部禁区-城建区西北侧)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2205,6 +2203,8 @@
                 432.5
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2229,8 +2229,6 @@
         "desc": "在地图界面找锚点 (北部禁区-谈剑堂)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2239,6 +2237,8 @@
                 325.6
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2263,8 +2263,6 @@
         "desc": "在地图界面找锚点 (北部禁区-城建区东南侧)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2273,6 +2271,8 @@
                 611.0
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2297,8 +2297,6 @@
         "desc": "在地图界面找锚点 (北部禁区-平波堤)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2307,6 +2305,8 @@
                 502.4
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2331,8 +2331,6 @@
         "desc": "在地图界面找锚点 (北部禁区-息壤研究所)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2341,6 +2339,8 @@
                 320.8
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2365,8 +2365,6 @@
         "desc": "在地图界面找锚点 (北部禁区-天师桩研发中心)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2375,6 +2373,8 @@
                 529.6
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2399,8 +2399,6 @@
         "desc": "在地图界面找锚点 (北部禁区-幽台试验场)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2409,6 +2407,8 @@
                 323.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2433,8 +2433,6 @@
         "desc": "在地图界面找锚点 (北部禁区-甚大裂隙地下层)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2443,6 +2441,8 @@
                 442.9
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2467,8 +2467,6 @@
         "desc": "在地图界面找锚点 (北部禁区-天柱)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2477,6 +2475,8 @@
                 380.5
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },
@@ -2501,8 +2501,6 @@
         "desc": "在地图界面找锚点 (北部禁区-甚大裂隙地表层)",
         "recognition": "Custom",
         "custom_recognition": "MapFind",
-        "pre_delay": 0,
-        "action": "Click",
         "custom_recognition_param": {
             "zone": "Wuling",
             "icon": "TeleportAnchor",
@@ -2511,6 +2509,8 @@
                 465.2
             ]
         },
+        "pre_delay": 0,
+        "action": "Click",
         "anchor": {
             "__ScenePrivateMapTeleportPickAnchor": ""
         },

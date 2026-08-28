@@ -385,11 +385,8 @@ std::optional<IconSpec> WorldMapSolver::ResolveIcon(const std::string& name)
     return it->second;
 }
 
-std::optional<SpotHit> WorldMapSolver::ConfirmSpot(
-    const cv::Mat& screen,
-    const cv::Point2d& expected,
-    double viewportScale,
-    const SpotConfig& cfg)
+std::optional<SpotHit>
+    WorldMapSolver::ConfirmSpot(const cv::Mat& screen, const cv::Point2d& expected, double viewportScale, const SpotConfig& cfg)
 {
     if (screen.empty() || viewportScale <= 0.0 || cfg.templates.empty()) {
         return std::nullopt;
@@ -430,13 +427,11 @@ std::optional<SpotHit> WorldMapSolver::ConfirmSpot(
                 continue;
             }
             if (window.width < templ->gray.cols || window.height < templ->gray.rows) {
-                LogWarn << "WorldMap: confirm window smaller than template" << VAR(name) << VAR(window.width)
-                        << VAR(window.height);
+                LogWarn << "WorldMap: confirm window smaller than template" << VAR(name) << VAR(window.width) << VAR(window.height);
                 continue;
             }
             // 图标只有二十来像素宽，最小边长得按它来卡，照视口那套会把整个模板筛掉
-            const auto hit =
-                ScanScales(patch, templ->gray, templ->mask, ladder, kMinAnchorSide, 0, maplocator::PeakRefineMode::Continuous);
+            const auto hit = ScanScales(patch, templ->gray, templ->mask, ladder, kMinAnchorSide, 0, maplocator::PeakRefineMode::Continuous);
             if (hit && (!best || hit->score > best->score)) {
                 best = hit;
                 pick = templ;
@@ -448,8 +443,7 @@ std::optional<SpotHit> WorldMapSolver::ConfirmSpot(
             return std::nullopt;
         }
         if (best->score < cfg.minScore) {
-            LogWarn << "WorldMap: icon score below floor" << VAR(pickName) << VAR(best->score) << VAR(cfg.minScore)
-                    << VAR(radius);
+            LogWarn << "WorldMap: icon score below floor" << VAR(pickName) << VAR(best->score) << VAR(cfg.minScore) << VAR(radius);
             return std::nullopt;
         }
 
@@ -461,8 +455,7 @@ std::optional<SpotHit> WorldMapSolver::ConfirmSpot(
             best->size.width,
             best->size.height);
         found.hit.templateName = pickName;
-        found.hit.center =
-            cv::Point2d(window.x + best->loc.x + best->size.width / 2.0, window.y + best->loc.y + best->size.height / 2.0);
+        found.hit.center = cv::Point2d(window.x + best->loc.x + best->size.width / 2.0, window.y + best->loc.y + best->size.height / 2.0);
         found.hit.hotspot = found.hit.center + pick->hotspot * best->scale;
         found.hit.size = best->size;
         found.hit.score = best->score;
@@ -473,8 +466,8 @@ std::optional<SpotHit> WorldMapSolver::ConfirmSpot(
 
     // 浮动的点位在一片范围里找，坐标只圈得住范围；钉死的点位就在期望位置开个小窗确认
     const bool floating = cfg.radiusBase > 0.0;
-    const int radius = floating ? static_cast<int>(std::lround(cfg.radiusBase / viewportScale))
-                                : std::max(cfg.radiusScreen, kMinTemplateSide);
+    const int radius =
+        floating ? static_cast<int>(std::lround(cfg.radiusBase / viewportScale)) : std::max(cfg.radiusScreen, kMinTemplateSide);
     auto found = scan(radius);
 
     // 窗口比判定圈宽得多，里面坐着同类图标时取最高分未必取到期望的那个：
@@ -498,8 +491,8 @@ std::optional<SpotHit> WorldMapSolver::ConfirmSpot(
     SpotHit out = found->hit;
     // 钉死的点位偏得太远就是认错了；浮动的点位本来就该在范围里晃，窗口自己就是那道闸
     if (!floating && out.offsetBase > cfg.gateBase) {
-        LogWarn << "WorldMap: icon too far from expected position" << VAR(out.templateName) << VAR(out.offsetBase)
-                << VAR(cfg.gateBase) << VAR(out.center.x) << VAR(out.center.y) << VAR(expected.x) << VAR(expected.y);
+        LogWarn << "WorldMap: icon too far from expected position" << VAR(out.templateName) << VAR(out.offsetBase) << VAR(cfg.gateBase)
+                << VAR(out.center.x) << VAR(out.center.y) << VAR(expected.x) << VAR(expected.y);
         return std::nullopt;
     }
 
@@ -508,16 +501,14 @@ std::optional<SpotHit> WorldMapSolver::ConfirmSpot(
         out.unlocked = out.goldRatio >= cfg.minGoldRatio;
     }
 
-    LogInfo << "WorldMap: icon confirmed" << VAR(out.templateName) << VAR(out.center.x) << VAR(out.center.y)
-            << VAR(out.hotspot.x) << VAR(out.hotspot.y) << VAR(out.score) << VAR(out.matchScale) << VAR(out.offsetBase)
-            << VAR(out.goldRatio) << VAR(out.unlocked);
+    LogInfo << "WorldMap: icon confirmed" << VAR(out.templateName) << VAR(out.center.x) << VAR(out.center.y) << VAR(out.hotspot.x)
+            << VAR(out.hotspot.y) << VAR(out.score) << VAR(out.matchScale) << VAR(out.offsetBase) << VAR(out.goldRatio)
+            << VAR(out.unlocked);
     return out;
 }
 
-std::optional<PlayerMarkerHit> WorldMapSolver::DetectPlayerMarker(
-    const cv::Mat& screen,
-    const cv::Point2d& expected,
-    const PlayerMarkerConfig& cfg)
+std::optional<PlayerMarkerHit>
+    WorldMapSolver::DetectPlayerMarker(const cv::Mat& screen, const cv::Point2d& expected, const PlayerMarkerConfig& cfg)
 {
     if (screen.empty()) {
         return std::nullopt;
@@ -543,11 +534,7 @@ std::optional<PlayerMarkerHit> WorldMapSolver::DetectPlayerMarker(
     }
 
     cv::Mat mask;
-    cv::inRange(
-        patch,
-        cv::Scalar(cfg.whiteFloor, cfg.whiteFloor, cfg.whiteFloor),
-        cv::Scalar(255, 255, 255),
-        mask);
+    cv::inRange(patch, cv::Scalar(cfg.whiteFloor, cfg.whiteFloor, cfg.whiteFloor), cv::Scalar(255, 255, 255), mask);
 
     cv::Mat labels;
     cv::Mat stats;
@@ -739,8 +726,8 @@ std::optional<Viewport> WorldMapSolver::SolveViewport(const cv::Mat& screen, con
     const double delta = fine->score - rivalBest;
 
     if (fine->score < cfg.minScore || delta < cfg.minDelta) {
-        LogWarn << "WorldMap: viewport rejected" << VAR(zone) << VAR(fine->score) << VAR(delta) << VAR(fine->psr)
-                << VAR(cfg.minScore) << VAR(cfg.minDelta);
+        LogWarn << "WorldMap: viewport rejected" << VAR(zone) << VAR(fine->score) << VAR(delta) << VAR(fine->psr) << VAR(cfg.minScore)
+                << VAR(cfg.minDelta);
         return std::nullopt;
     }
 
@@ -753,8 +740,8 @@ std::optional<Viewport> WorldMapSolver::SolveViewport(const cv::Mat& screen, con
     vp.delta = delta;
     vp.psr = fine->psr;
 
-    LogInfo << "WorldMap: viewport solved" << VAR(zone) << VAR(vp.scale) << VAR(vp.baseOrigin.x) << VAR(vp.baseOrigin.y)
-            << VAR(vp.score) << VAR(vp.delta) << VAR(vp.psr);
+    LogInfo << "WorldMap: viewport solved" << VAR(zone) << VAR(vp.scale) << VAR(vp.baseOrigin.x) << VAR(vp.baseOrigin.y) << VAR(vp.score)
+            << VAR(vp.delta) << VAR(vp.psr);
     return vp;
 }
 

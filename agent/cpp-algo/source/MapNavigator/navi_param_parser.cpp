@@ -167,7 +167,7 @@ struct NaviWaypointObjectInput
     double angle_ = 0.0;
     double heading_ = 0.0;
     double yaw_ = 0.0;
-    std::array<double, 2> target_ { };
+    std::array<double, 2> target_ {};
     bool has_action_ = false;
     bool has_actions_ = false;
     bool has_zone_id_ = false;
@@ -327,7 +327,7 @@ struct NaviWaypointInput
     bool strict_arrival_ = false;
     bool required_ = false;
     double angle_ = 0.0;
-    std::array<double, 2> target_ { };
+    std::array<double, 2> target_ {};
     bool has_x_ = false;
     bool has_y_ = false;
     bool has_angle_ = false;
@@ -341,7 +341,7 @@ struct NaviWaypointInput
 
     bool from_json(const json::value& input)
     {
-        *this = NaviWaypointInput { };
+        *this = NaviWaypointInput {};
 
         if (input.is_array()) {
             if (!input.is<std::vector<NaviWaypointArrayItem>>()) {
@@ -474,7 +474,7 @@ private:
                 return *value;
             }
         }
-        return { };
+        return {};
     }
 
     static std::string resolveZoneId(const NaviWaypointObjectInput& input)
@@ -489,7 +489,7 @@ private:
                 return *value;
             }
         }
-        return { };
+        return {};
     }
 
     static std::optional<double> resolveTargetDeckY(const NaviWaypointObjectInput& input)
@@ -546,7 +546,7 @@ struct NaviParamInput
     double angle_ = 0.0;
     double heading_ = 0.0;
     double yaw_ = 0.0;
-    std::array<double, 2> target_ { };
+    std::array<double, 2> target_ {};
     bool has_path_ = false;
     bool has_navmesh_file_ = false;
     bool has_nav_file_ = false;
@@ -940,7 +940,7 @@ bool TryParseNaviParam(const json::value& custom_action_param, NaviParam& out_pa
 bool TryParseNaviParam(const char* custom_action_param, NaviParam& out_param, std::string_view caller_name)
 {
     if (custom_action_param == nullptr || std::strlen(custom_action_param) == 0) {
-        out_param = NaviParam { };
+        out_param = NaviParam {};
         return true;
     }
 
