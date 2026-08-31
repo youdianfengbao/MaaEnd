@@ -594,8 +594,8 @@
                 {
                     "action": "NAVMESH",
                     "target": [
-                        1252.24,
-                        1744.17
+                        1250.9,
+                        1740.7
                     ],
                     "required": true
                 }
