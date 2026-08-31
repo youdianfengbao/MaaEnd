@@ -21,13 +21,6 @@ const PACK_CARGO_EXPECTED = [
     "화물 포장",
 ];
 
-const AUTO_DELIVERY_CONTROLLERS = [
-    "Win32-Front",
-    "Linux-Gamescope",
-    "Linux-ScreenCast",
-    "Linux-Wlroots"
-];
-
 const AUTO_DELIVERY_NAVIGATE_NODES = [
     "AutoDeliveryNavigateDepot",
     "AutoDeliveryNavigateDestination",
@@ -196,6 +189,7 @@ function buildQuoteThresholdOption(depot) {
 
 function buildQuoteActionOption(depot, {comparison, label, description, defaultCase}) {
     const comparisonNode = `DeliveryJobs${depot.Id}Quote${comparison}`;
+    const autoDelivery = `DeliveryJobsAutoDelivery${depot.Id}`;
     return {
         type: "select",
         label,
@@ -222,7 +216,7 @@ function buildQuoteActionOption(depot, {comparison, label, description, defaultC
                               [comparisonNode]: {
                                   anchor: {
                                       DeliveryJobsQuoteAction: "DeliveryJobsQuoteAcceptJobOnly",
-                                      DeliveryJobsGoToDepot: `DeliveryJobsOpenOngoingAutoDelivery${depot.Id}`,
+                                      DeliveryJobsGoToDepot: autoDelivery,
                                   },
                               },
                           },
@@ -270,7 +264,7 @@ function buildAutoDeliveryOverride(depot, {bidAction}) {
         },
         [cargoNode]: {
             enabled: true,
-            anchor: buildCargoAnchor(depot, bidAction, openOngoingAutoDelivery, openOngoingAutoDelivery),
+            anchor: buildCargoAnchor(depot, bidAction, openOngoingAutoDelivery, autoDelivery),
         },
     };
 }
@@ -278,7 +272,6 @@ function buildAutoDeliveryOverride(depot, {bidAction}) {
 function buildAutoDeliveryRiskAcknowledgementOption() {
     return {
         type: "switch",
-        controller: AUTO_DELIVERY_CONTROLLERS,
         label: "$task.AutoDeliveryRiskAcknowledgement.label",
         description: "$task.AutoDeliveryRiskAcknowledgement.description",
         default_case: "No",
@@ -320,7 +313,6 @@ function buildAutoDeliveryPreferZiplineOption() {
 
     return {
         type: "switch",
-        controller: AUTO_DELIVERY_CONTROLLERS,
         label: "$task.AutoDeliveryPreferZipline.label",
         description: "$task.AutoDeliveryPreferZipline.description",
         default_case: "No",

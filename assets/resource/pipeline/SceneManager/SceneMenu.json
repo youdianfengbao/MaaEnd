@@ -247,24 +247,10 @@
     },
     "__ScenePrivateAnyEnterMenuMissionSuccess": {
         "desc": "成功进入任务界面",
-        "recognition": {
-            "type": "OCR",
-            "param": {
-                "roi": [
-                    0,
-                    0,
-                    150,
-                    70
-                ],
-                "expected": [
-                    "任务",
-                    "任務",
-                    "(?i)Missions",
-                    "任務",
-                    "임무"
-                ]
-            }
-        },
+        "recognition": "And",
+        "all_of": [
+            "InMenuMission"
+        ],
         "pre_wait_freezes": {
             "time": 100,
             "target": [
@@ -2110,6 +2096,57 @@
             "__ScenePrivateAnyEnterMenuBackpackSuccess"
         ]
     },
+    "__ScenePrivateMenuBackpackWithDepotSelectItemCategory": {
+        "desc": "在任一已适配地区的帝江号仓库主界面选择调用方指定的物品分类",
+        "recognition": {
+            "type": "And",
+            "param": {
+                "all_of": [
+                    "InDijiangDepot"
+                ]
+            }
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[Anchor]__ScenePrivateMenuBackpackWithDepotTargetItemCategory"
+        ]
+    },
+    "__ScenePrivateMenuBackpackWithDepotValleyIVSelectItemCategory": {
+        "desc": "在四号谷地仓库主界面选择调用方指定的物品分类",
+        "recognition": {
+            "type": "And",
+            "param": {
+                "all_of": [
+                    "__DijiangDepotInValleyIV"
+                ]
+            }
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[Anchor]__ScenePrivateMenuBackpackWithDepotTargetItemCategory"
+        ]
+    },
+    "__ScenePrivateMenuBackpackWithDepotWulingSelectItemCategory": {
+        "desc": "在武陵仓库主界面选择调用方指定的物品分类",
+        "recognition": {
+            "type": "And",
+            "param": {
+                "all_of": [
+                    "__DijiangDepotInWuling"
+                ]
+            }
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[Anchor]__ScenePrivateMenuBackpackWithDepotTargetItemCategory"
+        ]
+    },
     "__ScenePrivateWorldDijiangEnterMenuBackpackWithDepot": {
         "desc": "从帝江号大世界进入包含仓库的背包界面",
         "recognition": {
@@ -2171,13 +2208,13 @@
                 "custom_action_param": {
                     "custom_action": "AutoAltClickAction",
                     "wait_nodes": [
-                        "__ScenePrivateAnyEnterMenuBackpackSuccess"
+                        "InDijiangDepot"
                     ]
                 }
             }
         },
         "next": [
-            "__ScenePrivateAnyEnterMenuBackpackSuccess"
+            "InDijiangDepot"
         ]
     },
     "__ScenePrivateMenuListEnterMenuBackpack": {

@@ -23,6 +23,7 @@
 #include "../IconRecognizer.h"
 #include "../detail/RecognitionDiagnostics.h"
 #include "../detail/TemplateCatalog.h"
+#include "Common/JsoncFile.h"
 #include "expected_results.h"
 #include "manual_runner_config.h"
 #include "manual_runner_executor.h"
@@ -57,7 +58,7 @@ struct RunnerCasePerformance
 
 json::value ReadJson(const std::filesystem::path& path)
 {
-    const auto parsed = json::open(path.string());
+    const auto parsed = common::OpenJsoncFile(path);
     if (!parsed) {
         throw std::runtime_error("unable to read JSON: " + path.string());
     }

@@ -13,9 +13,9 @@
             "image": "武陵_任务_送货任务_前往仓储节点接取货物.png",
             "hits": [
                 "AutoDeliveryRecognizeDepot",
-                "AutoDeliveryInMissionMenu",
+                "InMenuMission",
                 "AutoDeliverySelectDeliveryMission",
-                "AutoDeliveryDeliveryMissionSelected"
+                "AutoDeliveryCheckDeliveryMissionSelected"
             ]
         },
         {
@@ -24,9 +24,35 @@
             "hits": [
                 "AutoDeliveryRecognizeDestination",
                 "AutoDeliveryRecognizeDepot",
-                "AutoDeliveryInMissionMenu",
+                "InMenuMission",
                 "AutoDeliverySelectDeliveryMission",
-                "AutoDeliveryDeliveryMissionSelected"
+                "AutoDeliveryCheckDeliveryMissionSelected"
+            ]
+        },
+        {
+            "name": "仓储节点可取货",
+            "image": "送货任务_大世界_仓储节点_可取货.png",
+            "hits": [
+                "AutoDeliveryCheckFetchGoodsButton"
+            ]
+        },
+        {
+            "name": "仓储节点已取货",
+            "image": "送货任务_大世界_仓储节点_已取货.png",
+            "hits": []
+        },
+        {
+            "name": "资源回收站可交货",
+            "image": "送货任务_大世界_资源回收站_可交货.png",
+            "hits": [
+                "AutoDeliveryCheckSubmitGoodsButton"
+            ]
+        },
+        {
+            "name": "NPC可交货",
+            "image": "送货任务_大世界_NPC可交货.png",
+            "hits": [
+                "AutoDeliveryCheckSubmitGoodsButton"
             ]
         }
     ]
