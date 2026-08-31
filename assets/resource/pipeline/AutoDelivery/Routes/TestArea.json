@@ -465,34 +465,26 @@
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "MapNavigateAction",
-        "custom_action_param": {
-            "path": [
-                {
-                    "action": "NAVMESH",
-                    "target": [
-                        1252.24,
-                        1744.17
-                    ],
-                    "required": true
-                },
-                {
-                    "action": "NAVMESH",
-                    "target": [
-                        1204.85,
-                        1621.16
-                    ],
-                    "required": true
-                },
-                {
-                    "action": "NAVMESH",
-                    "target": [
-                        1369.87,
-                        1533.92
-                    ]
-                }
-            ],
-            "zip": false
-        },
+            "custom_action_param": {
+                "path": [
+                    {
+                        "action": "NAVMESH",
+                        "target": [
+                            1252.24,
+                            1744.17
+                        ],
+                        "required": true
+                    },
+                    {
+                        "action": "NAVMESH",
+                        "target": [
+                            1369.87,
+                            1533.92
+                        ]
+                    }
+                ],
+                "zip": false
+            },
         "post_delay": 0,
         "rate_limit": 0,
         "focus": {
@@ -510,34 +502,26 @@
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "MapNavigateAction",
-        "custom_action_param": {
-            "path": [
-                {
-                    "action": "NAVMESH",
-                    "target": [
-                        1252.24,
-                        1744.17
-                    ],
-                    "required": true
-                },
-                {
-                    "action": "NAVMESH",
-                    "target": [
-                        1204.85,
-                        1621.16
-                    ],
-                    "required": true
-                },
-                {
-                    "action": "NAVMESH",
-                    "target": [
-                        1369.87,
-                        1533.92
-                    ]
-                }
-            ],
-            "zip": true
-        },
+            "custom_action_param": {
+                "path": [
+                    {
+                        "action": "NAVMESH",
+                        "target": [
+                            1252.24,
+                            1744.17
+                        ],
+                        "required": true
+                    },
+                    {
+                        "action": "NAVMESH",
+                        "target": [
+                            1369.87,
+                            1533.92
+                        ]
+                    }
+                ],
+                "zip": true
+            },
         "post_delay": 0,
         "rate_limit": 0,
         "focus": {
