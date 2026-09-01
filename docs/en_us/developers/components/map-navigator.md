@@ -404,16 +404,23 @@ Non-coordinate control nodes like `HEADING` and semantic pathfinding nodes like 
 ### Running Method
 
 ```powershell
-cd tools\MapNavigator
-uv run main.py
+uv run map-navigator
 ```
+
+Use `--port PORT` to select the preferred port and `--no-browser` to suppress opening the browser:
+
+```powershell
+uv run map-navigator --port 9000 --no-browser
+```
+
+The service always listens on `127.0.0.1`. Run `uv run map-navigator --help` for the complete startup options.
 
 ### Pre-run Preparation
 
 Before starting to record, please confirm:
 
 1. The project development environment has been configured according to the development manual, especially that `install/agent/cpp-algo.exe` and `install/maafw` are usable.
-2. uv is installed; `uv run main.py` prepares Python and dependencies automatically from the PEP 723 metadata.
+2. uv is installed; from the project root, `uv run map-navigator` prepares Python and dependencies automatically from `pyproject.toml`.
 3. **Windows**: The tool needs to be run with **administrator privileges**; otherwise, the G/X hotkeys may not be captured by the system when the game (an administrator process) is in the foreground. `main.py` will automatically detect this and prompt a UAC elevation request at startup.
 4. **macOS**: On the first run, authorize the current terminal or the uv-managed Python interpreter in **System Settings → Privacy & Security → Input Monitoring**; otherwise, global hotkeys will not work.
 5. If using `Win32` connection, the game is already started, and the window is **not minimized**.
@@ -426,7 +433,7 @@ The following flow is the complete usage for recorded paths. If the target point
 
 #### Step 1: Open the Tool and Start Recording
 
-After running `tools/MapNavigator/main.py`, first select the controller to be used for this recording in the top `Connection` area, then click **`Start Recording`** in the upper-left corner of the GUI.
+After running `uv run map-navigator`, first select the controller to be used for this recording in the top `Connection` area, then click **`Start Recording`** in the upper-left corner of the GUI.
 
 - When recording the PC version, select `Win32 Window`, modifying the window title if necessary.
 - When recording an emulator/real device, select `ADB Device`, configure the `adb` path, refresh the device list, and select the target.
