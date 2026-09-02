@@ -19,7 +19,7 @@ Find the given coordinate on the current map, and confirm the icon sitting there
 
 The node zooms the map all the way out first, then captures the screen itself, solves the viewport, and pans the map when needed, until the target is inside the usable area. **Once `icon` is given, no confirmation means no coordinate** — being able to compute a position does not mean anything is there. It would rather fail and let the caller retry or take another candidate than hand back a computed empty spot. Without an `icon` it just solves the coordinate and hands it back, making no such promise.
 
-The zoom level is the unknown the viewport solve has to sweep its scale band for, so pinning it down is the first thing the node does: it keeps running the Pipeline's `__ScenePrivateMapZoomOut`, pressing again for as long as the minus button is recognised. Once the minus button has greyed out — nothing left to zoom — that node no longer recognises and not a single touch goes out. But **failing to recognise it is not proof of having bottomed out**: that one frame may just be mid-animation, and believing the map is at its minimum when it is not makes the viewport solve fail every time. So it takes several spaced-out confirmations before it stops, and anything it cannot judge counts as "still zoomable". Writing `__ScenePrivateMapZoomOut` into the Pipeline is therefore optional: with it the zoom is already done, without it the node does it. The button sits at different coordinates on each client, so it follows the resource layers; the node itself carries no coordinates.
+The zoom level is the unknown the viewport solve has to sweep its scale band for, so pinning it down is the first thing the node does: it runs the Pipeline's `SceneMapZoomOut` once; when that subtask returns, the map should already be at minimum zoom. The button sits at different coordinates on each client, so it follows the resource layers; the node itself carries no coordinates. Writing `[JumpBack]__ScenePrivateMapZoomOut` into the Pipeline is therefore optional: with it the zoom is already done, without it `MapFind` still calls `SceneMapZoomOut`.
 
 ### Node parameters
 
@@ -39,6 +39,7 @@ Optional (`custom_recognition_param`):
 | `icon` | none | An icon name from the [icon table](#icon-table). Omit it to only solve the coordinate, confirming no icon at all |
 | `state` | `"unlocked"` | Which unlock state counts as a hit. Requires an icon carrying `gold_ratio` in the table, since nothing else tells the two states apart |
 | `max_attempts` | `4` | Recognition attempts. Panning the map is not charged against it |
+| `vote_grid` | `3` | When matching the whole window at once cannot solve the viewport, solve again with [block voting](#block-voting) at this grid size. Set to `1` to turn the fallback off |
 
 Thresholds, templates and calibrated scales never appear in the node: they belong to the icon and live in the icon table. A new kind of icon is one table entry, not a fistful of node parameters.
 
@@ -142,7 +143,7 @@ Three entries exist today:
 
 Teleport nodes live in `assets/resource/pipeline/SceneManager/SceneTeleport<Zone>.json` and fill the `__ScenePrivateMapTeleportPickAnchor` slot; entry nodes live in `Interface/Scene<Zone>.json`, bind that slot and route through `__ScenePrivateMap<SubArea>EnterWorldAnchorWithPick`, which switches the map to its main layer, uses `all_of` to confirm that this really is that sub-area's map screen, and gives the zoom a head start on the way.
 
-The `__ScenePrivateMapZoomOut` in the entry node is a head start, not a requirement: `MapFind` zooms out on its own. Copy an existing entry when wiring up a new point; leaving it out costs nothing in recognition.
+The `[JumpBack]__ScenePrivateMapZoomOut` in the entry node is a head start, not a requirement: `MapFind` calls `SceneMapZoomOut` on its own. Copy an existing entry when wiring up a new point; leaving it out costs nothing in recognition.
 
 The sub-area check lives on `...EnterWorldAnchorWithPick`; the `MapFind` node no longer repeats it — the `recognition` slot went to `MapFind`, and solving the viewport is itself the stronger test of "are we on this map at all".
 
@@ -174,3 +175,15 @@ The unlock check runs on its own track. Locked and unlocked icons differ only in
 > [!IMPORTANT]
 >
 > Once `icon` is given, icon confirmation is the sole basis for acting. A solved viewport is **not** enough to click on — however accurate the transform, it only says "if an icon is there, it should be at this position", not that one is. Missing an icon costs a retry; hitting the wrong one costs a click on another teleport point or on bare terrain, and the two are not equivalent. Without `icon` the node hands back a coordinate and makes no promise about it; wiring that to `Click` is clicking blind, so know what you are doing.
+
+### Block voting
+
+The viewport solve treats the whole search window as one template by default, and normalised correlation gives a single number for the whole window. When something covers part of it locally — the fog over unexplored ground, for instance — that one-tenth of the area drags the whole frame's score down, and the correct rung falls below the threshold with it.
+
+Rather than give up there, the window is split into `vote_grid` × `vote_grid` blocks matched separately; each block's score surface is shifted back by that block's offset inside the window so they all agree on one window origin, then combined by a per-pixel median before taking the maximum. An occluded block is only a minority vote and gets outvoted by the rest — and this path never has to know what the occlusion looks like, so fog, weather, overlays and map markers all go through it alike.
+
+It only runs after the whole-window attempt has already been rejected; a frame that solves normally never reaches it. The cost is one extra pass of matching, on a frame that was already going to pay for another pan and capture. Block side length has a floor, since a block too small carries no positioning information; a rung with fewer than four voting blocks is discarded entirely and left to the other scale rungs.
+
+The position block voting reports is integer-pixel, with no sub-pixel extrapolation — a median surface is not a correlation surface, so extrapolating on it has no basis. The maximum is taken over the base map, so rounding costs under half a base-map pixel; that is one term of the total error, and whatever the match itself is off by comes on top of it. What ultimately bounds the position is icon confirmation, whose window is 10 base pixels.
+
+Block voting only changes how the viewport is solved; whatever it solves still has to pass icon confirmation, so the note above applies to it unchanged.

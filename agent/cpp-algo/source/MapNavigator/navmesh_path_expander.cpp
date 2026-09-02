@@ -558,7 +558,8 @@ navmesh::BaseNavRouteResult PlanCorridorRoute(
         request.goal_deck_y,
         request.blocked_triangles,
         request.blocked_points,
-        should_stop);
+        should_stop,
+        request.exact_slim);
     result.gap_start = plan.debug.gap_start;
     result.gap_goal = plan.debug.gap_goal;
     result.gap_distance = plan.debug.gap_distance;
@@ -584,6 +585,14 @@ navmesh::BaseNavRouteResult PlanCorridorRoute(
     if (out_diagnostic != nullptr) {
         out_diagnostic->start = request.start;
         out_diagnostic->goal = request.goal;
+        out_diagnostic->timing.astar_ms = plan.debug.timing.astar_ms;
+        out_diagnostic->timing.rerouted_ms = plan.debug.timing.rerouted_ms;
+        out_diagnostic->timing.string_pull_ms = plan.debug.timing.string_pull_ms;
+        out_diagnostic->timing.assembled_ms = plan.debug.timing.assembled_ms;
+        out_diagnostic->timing.loop_fixed_ms = plan.debug.timing.loop_fixed_ms;
+        out_diagnostic->timing.slim_ms = plan.debug.timing.slim_ms;
+        out_diagnostic->timing.widened_ms = plan.debug.timing.widened_ms;
+        out_diagnostic->timing.final_ms = plan.debug.timing.final_ms;
         out_diagnostic->x0 = plan.debug.x0;
         out_diagnostic->y0 = plan.debug.y0;
         out_diagnostic->nx = plan.debug.nx;
@@ -630,7 +639,7 @@ std::optional<navmesh::BaseNavRouteResult> PlanNavmeshRouteImpl(
     }
 
     const bool detour_probe = !blocked_triangles.empty() || !blocked_points.empty();
-    const auto request = BuildRouteRequest(
+    auto request = BuildRouteRequest(
         navmesh->pack,
         locator_zone,
         navmesh_zone,
@@ -641,6 +650,7 @@ std::optional<navmesh::BaseNavRouteResult> PlanNavmeshRouteImpl(
         navmesh::kBaseNavFloorYNone,
         goal_deck_y,
         start_floor_y);
+    request.exact_slim = param.exact_slim;
     const auto plan_started_at = std::chrono::steady_clock::now();
     const auto route_result = PlanCorridorRoute(*navmesh, request, {}, out_diagnostic);
     const int64_t plan_ms =
@@ -739,8 +749,8 @@ bool AppendBlindTargetFallback(
         if (!entry) {
             continue;
         }
-        const navmesh::BaseNavRouteRequest request =
-            BuildRouteRequest(navmesh.pack, state.current_zone, state.navmesh_zone, start, entry->point, {}, {}, goal_floor_y);
+        auto request = BuildRouteRequest(navmesh.pack, state.current_zone, state.navmesh_zone, start, entry->point, {}, {}, goal_floor_y);
+        request.exact_slim = param.exact_slim;
         NavmeshRouteDiagnostic diagnostic;
         const auto route = PlanCorridorRoute(navmesh, request, should_stop, out_diagnostics == nullptr ? nullptr : &diagnostic);
         if (!route.ok() || route.path.points.empty()) {
@@ -922,6 +932,7 @@ bool AppendNavmeshWaypoint(
         {},
         target.floor_y,
         target.deck_y);
+    request.exact_slim = param.exact_slim;
     const auto plan_started_at = std::chrono::steady_clock::now();
     NavmeshRouteDiagnostic route_diagnostic;
     auto route_result = PlanCorridorRoute(navmesh, request, should_stop, out_diagnostics == nullptr ? nullptr : &route_diagnostic);

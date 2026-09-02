@@ -34,7 +34,11 @@ struct FindParam
     std::string state;
     int max_attempts = 4;
 
-    MEO_JSONIZATION(zone, at, MEO_OPT icon, MEO_OPT state, MEO_OPT max_attempts);
+    // 整窗解不出来时用几乘几的分块投票再解一次。置 1 关掉这条回退路径：
+    // 单个点位要是被它坑了可以就地关掉，不必等下一版
+    int vote_grid = ViewportConfig {}.voteGrid;
+
+    MEO_JSONIZATION(zone, at, MEO_OPT icon, MEO_OPT state, MEO_OPT max_attempts, MEO_OPT vote_grid);
 };
 
 // 大地图铺满全屏，UI 只是浮在四角的几块。图标要认要点，只需躲开这几块，
@@ -85,11 +89,8 @@ constexpr int kMaxNudges = 6;
 constexpr double kNudgeRatio = 0.35;
 
 // 缩放档位是视口求解的未知量，进来先压到最小钉死。按钮坐标各端不同，
-// 所以复用 pipeline 那个节点而不在这儿抄一份
-constexpr const char* kZoomOutNode = "__ScenePrivateMapZoomOut";
-constexpr int kZoomOutMaxRounds = 10;
-constexpr int kZoomOutConfirmMisses = 3;
-constexpr int kZoomOutMissGapMillis = 400;
+// 交给 pipeline 的 SceneMapZoomOut 处理，cpp 只触发一次子任务
+constexpr const char* kZoomOutNode = "SceneMapZoomOut";
 
 bool ParseParam(const char* raw, FindParam* out)
 {
@@ -174,58 +175,11 @@ bool CaptureScreen(MaaController* controller, ScopedImageBuffer* buffer, cv::Mat
     return !out->empty();
 }
 
-enum class ZoomOutResult
-{
-    Pressed,       // 认到减号，按了一下
-    NotRecognized, // 没认到：可能已到底，也可能只是那一帧没画完
-    Undispatched,  // 子任务没发出去，再试也发不出去
-};
-
-// timeout 压成 0：否则入口认不中时框架会重扫满默认 20 秒。
-// 判不出来当作还能缩——误判成「已最小」会让视口求解必然失败，多按一次只是白按
-ZoomOutResult PressZoomOutOnce(MaaContext* context)
-{
-    const std::string overrides = json::value(json::object { { kZoomOutNode, json::object { { "timeout", 0 } } } }).dumps();
-
-    const MaaTaskId task_id = MaaContextRunTask(context, kZoomOutNode, overrides.c_str());
-    if (task_id == MaaInvalidId) {
-        LogWarn << "WorldMap: zoom-out subtask failed to dispatch" << VAR(kZoomOutNode);
-        return ZoomOutResult::Undispatched;
-    }
-
-    MaaTasker* tasker = MaaContextGetTasker(context);
-    ScopedStringBuffer entry;
-    constexpr MaaSize kNodeCap = 8;
-    MaaNodeId nodes[kNodeCap] {};
-    MaaSize node_count = kNodeCap;
-    MaaStatus status = MaaStatus_Invalid;
-    if (tasker == nullptr || !MaaTaskerGetTaskDetail(tasker, task_id, entry.Get(), nodes, &node_count, &status)) {
-        LogWarn << "WorldMap: zoom-out status unavailable, keeping on zooming" << VAR(task_id);
-        return ZoomOutResult::Pressed;
-    }
-    return status == MaaStatus_Failed ? ZoomOutResult::NotRecognized : ZoomOutResult::Pressed;
-}
-
-// 认到就接着按，一路按到底。认不到不等于已经到底（那一帧可能只是动画没画完），
-// 所以隔开确认几次才收手
 void ZoomMapOut(MaaContext* context)
 {
-    int misses = 0;
-    for (int round = 0; round < kZoomOutMaxRounds; ++round) {
-        const ZoomOutResult result = PressZoomOutOnce(context);
-        if (result == ZoomOutResult::Undispatched) {
-            return;
-        }
-        if (result == ZoomOutResult::Pressed) {
-            misses = 0;
-            continue;
-        }
-        if (++misses >= kZoomOutConfirmMisses) {
-            return;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(kZoomOutMissGapMillis));
+    if (MaaContextRunTask(context, kZoomOutNode, "{}") == MaaInvalidId) {
+        LogWarn << "WorldMap: zoom-out subtask failed to dispatch" << VAR(kZoomOutNode);
     }
-    LogWarn << "WorldMap: zoom-out never settled" << VAR(kZoomOutMaxRounds);
 }
 
 double RandomIn(double lo, double hi)
@@ -360,7 +314,8 @@ MaaBool MAA_CALL MapFindRun(
     }
 
     WorldMapSolver& solver = GetSolver(ControllerType(controller));
-    const ViewportConfig viewportCfg {};
+    ViewportConfig viewportCfg {};
+    viewportCfg.voteGrid = param.vote_grid;
 
     // 图标名给了就必须在表里查得到：查不到照样跑下去等于把认图标这一步悄悄跳过
     std::optional<IconSpec> spec;
@@ -488,6 +443,7 @@ MaaBool MAA_CALL MapFindRun(
             { "at", json::array { target.x, target.y } },
             { "screen", json::array { expected.x, expected.y } },
             { "viewport_scale", viewport->scale },
+            { "viewport_vote", viewport->voteGrid },
         };
 
         // 图标名没给就只把坐标解出来，认不认得出图标由调用方自己接着判
@@ -543,7 +499,8 @@ MaaBool MAA_CALL MapFindRun(
             }
         }
 
-        LogWarn << "WorldMap: icon not confirmed at expected position" << VAR(attempt) << VAR(expected.x) << VAR(expected.y);
+        LogWarn << "WorldMap: icon not confirmed at expected position" << VAR(attempt) << VAR(expected.x) << VAR(expected.y)
+                << VAR(viewport->voteGrid);
         screen.release();
         std::this_thread::sleep_for(std::chrono::milliseconds(kRetryMillis));
     }

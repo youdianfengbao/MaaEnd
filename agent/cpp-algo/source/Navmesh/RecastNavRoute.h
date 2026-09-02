@@ -33,6 +33,18 @@ struct RecastPlanResult
 
     struct Debug
     {
+        struct Timing
+        {
+            double astar_ms = 0.0;
+            double rerouted_ms = 0.0;
+            double string_pull_ms = 0.0;
+            double assembled_ms = 0.0;
+            double loop_fixed_ms = 0.0;
+            double slim_ms = 0.0;
+            double widened_ms = 0.0;
+            double final_ms = 0.0;
+        } timing;
+
         double x0 = 0.0;
         double y0 = 0.0;
         int64_t nx = 0;
@@ -73,7 +85,8 @@ public:
         float goal_deck_y = kBaseNavFloorYNone,
         const std::vector<uint32_t>& blocked = {},
         const std::vector<WorldPoint>& blocked_points = {},
-        const std::function<bool()>& should_stop = {});
+        const std::function<bool()>& should_stop = {},
+        bool exact_slim = false);
 
     // 把该区的清洗网格与墙 oracle 提前建好,让首条路线不必冷吃这份开销。
     void warm(const std::string& zone_name);
@@ -95,7 +108,8 @@ private:
         float goal_deck_y,
         const std::vector<uint32_t>& blocked,
         const std::vector<WorldPoint>& blocked_points,
-        const std::function<bool()>& should_stop);
+        const std::function<bool()>& should_stop,
+        bool exact_slim);
 
     const BaseNavPack& pack_;
     const BaseNavPlanner& planner_;

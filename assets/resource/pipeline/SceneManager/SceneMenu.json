@@ -35,6 +35,7 @@
         "post_delay": 1500, // 3D动画菜单会一直动无法用wait_freeze
         "rate_limit": 0,
         "next": [
+            "[JumpBack]SceneNoticeRewardsUpgrade",
             "__ScenePrivateAnyEnterWorldSuccess"
         ]
     },
@@ -657,7 +658,7 @@
         ]
     },
     "__ScenePrivateMenuRegionalDevelopmentUnlockClose": {
-        "desc": "关闭地区建设解锁弹窗",
+        "desc": "关闭版本更新地区建设解锁弹窗",
         "recognition": "And",
         "all_of": [
             "CheckRegionalDevelopmentText",
@@ -677,7 +678,16 @@
                     "해제"
                 ]
             },
-            "CloseButtonType1"
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    950,
+                    150,
+                    270,
+                    180
+                ],
+                "template": "Common/Button/CloseButtonType4.png"
+            }
         ],
         "box_index": 2,
         "pre_wait_freezes": {
@@ -1904,6 +1914,33 @@
                 "custom_action": "SceneManagerMenuListClickItemAction"
             }
         },
+        "next": [
+            "__ScenePrivateAnyEnterMenuGearAssemblyUnlock",
+            "__ScenePrivateAnyEnterMenuGearAssemblySuccess"
+        ]
+    },
+    "__ScenePrivateAnyEnterMenuGearAssemblyUnlock": {
+        "desc": "有新的装备模版解锁",
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    400,
+                    250,
+                    550,
+                    150
+                ],
+                "expected": [
+                    "已解锁获得",
+                    "已解鎖獲得"
+                ]
+            },
+            "YellowConfirmButtonType1"
+        ],
+        "box_index": 1,
+        "pre_wait_freezes": 100,
+        "action": "Click",
         "next": [
             "__ScenePrivateAnyEnterMenuGearAssemblySuccess"
         ]
