@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -18,6 +19,7 @@
 #include <MaaUtils/Logger.h>
 
 #include "BaseNavReader.h"
+#include "NavParallel.h"
 
 namespace navmesh
 {
@@ -41,7 +43,16 @@ constexpr uint16_t kGeometrySectionSince = 5;
 constexpr size_t kGzipReadChunkSize = 4 << 20;
 // BGEO 段:四块几何按定长块存,块内自足解码,按区加载只解用得着的块。
 constexpr char kGeometrySectionTag[5] = "BGEO";
+constexpr char kOffMeshSectionTag[5] = "BOML";
+constexpr char kSurfaceSectionTag[5] = "BSRF";
+constexpr char kGridSectionTag[5] = "BGRD";
 constexpr uint32_t kGeometrySectionVersion = 1;
+constexpr uint16_t kOffMeshSectionVersion = 1;
+constexpr uint16_t kOffMeshRecordSize = 80;
+constexpr size_t kOffMeshHeaderSize = 16;
+constexpr uint16_t kSurfaceSectionVersion = 1;
+constexpr uint16_t kSurfaceRecordSize = 8;
+constexpr size_t kSurfaceHeaderSize = 16;
 constexpr size_t kGeoHeaderSize = 72;
 constexpr size_t kGeoChunkEntrySize = 16;
 constexpr size_t kInflateChunkSize = 1U << 16U;
@@ -107,18 +118,77 @@ BaseNavTriangle ReadTriangleRecord(const uint8_t*& cursor)
     for (int32_t& value : triangle.neighbors) {
         value = ReadI32(cursor);
     }
-    triangle.component_id = ReadU32(cursor);
-    triangle.center_u = ReadF32(cursor);
-    triangle.center_v = ReadF32(cursor);
+    // 分量号与尾部两个 float 重心都全仓无读者, 跳过不落盘 —— 分量号由 planner 从
+    // neighbors 自己重算。哈希仍按整条记录算, 所以按区加载时补重心的那段不能省。
+    cursor += 12;
     return triangle;
 }
 
-BaseNavLink ReadLinkRecord(const uint8_t*& cursor)
+bool ParseOffMeshSection(const uint8_t* data, size_t size, std::vector<BaseNavOffMeshLink>* links)
 {
-    BaseNavLink link;
-    link.source = ReadU32(cursor);
-    link.target = ReadU32(cursor);
-    return link;
+    links->clear();
+    if (size < kOffMeshHeaderSize || std::memcmp(data, kOffMeshSectionTag, 4) != 0) {
+        return false;
+    }
+    const uint8_t* cursor = data + 4;
+    const uint16_t version = ReadU16(cursor);
+    const uint16_t record_size = ReadU16(cursor);
+    const uint32_t count = ReadU32(cursor);
+    (void)ReadU32(cursor);
+    if (version != kOffMeshSectionVersion || record_size != kOffMeshRecordSize || count != (size - kOffMeshHeaderSize) / kOffMeshRecordSize
+        || size != kOffMeshHeaderSize + static_cast<size_t>(count) * kOffMeshRecordSize) {
+        return false;
+    }
+    links->reserve(count);
+    for (uint32_t index = 0; index < count; ++index) {
+        BaseNavOffMeshLink link;
+        link.zone_id = ReadU16(cursor);
+        link.kind = *cursor++;
+        ++cursor;
+        link.is_ext = ReadI32(cursor);
+        link.bidirectional = ReadI32(cursor);
+        link.area = ReadI32(cursor);
+        link.link_type = ReadU16(cursor);
+        link.direction = *cursor++;
+        ++cursor;
+        link.radius = ReadF32(cursor);
+        link.cost_modifier = ReadF32(cursor);
+        for (BaseNavVertex& point : link.points) {
+            point.u = ReadF32(cursor);
+            point.v = ReadF32(cursor);
+            point.height = ReadF32(cursor);
+        }
+        (void)ReadU32(cursor);
+        links->push_back(link);
+    }
+    return cursor == data + size;
+}
+
+bool ParseSurfaceSection(const uint8_t* data, size_t size, std::vector<BaseNavSurface>* surfaces)
+{
+    surfaces->clear();
+    if (size < kSurfaceHeaderSize || std::memcmp(data, kSurfaceSectionTag, 4) != 0) {
+        return false;
+    }
+    const uint8_t* cursor = data + 4;
+    const uint16_t version = ReadU16(cursor);
+    const uint16_t record_size = ReadU16(cursor);
+    const uint32_t count = ReadU32(cursor);
+    (void)ReadU32(cursor);
+    if (version != kSurfaceSectionVersion || record_size != kSurfaceRecordSize || count != (size - kSurfaceHeaderSize) / kSurfaceRecordSize
+        || size != kSurfaceHeaderSize + static_cast<size_t>(count) * kSurfaceRecordSize) {
+        return false;
+    }
+    surfaces->reserve(count);
+    for (uint32_t index = 0; index < count; ++index) {
+        BaseNavSurface surface;
+        surface.area = *cursor++;
+        surface.poly_type = *cursor++;
+        (void)ReadU16(cursor);
+        surface.flags = ReadU32(cursor);
+        surfaces->push_back(surface);
+    }
+    return cursor == data + size;
 }
 
 uint64_t Fnv64Update(uint64_t hash, const uint8_t* bytes, size_t size)
@@ -285,24 +355,22 @@ bool ParseGeometrySection(const uint8_t* data, uint64_t size, GeometrySection* o
 }
 
 // 顶点是 12 字节记录做的字节平面:n × 12 的字节矩阵转置成 12 × n。
-bool DecodeVertexChunk(const uint8_t* data, size_t size, uint32_t count, std::vector<uint8_t>* out)
+bool DecodeVertexChunk(const uint8_t* data, size_t size, uint32_t count, uint8_t* out)
 {
     std::vector<std::vector<uint8_t>> stream;
     if (!SplitChunkStreams(data, size, 1, &stream) || stream[0].size() != static_cast<size_t>(count) * kVertexSize) {
         return false;
     }
-    const size_t at = out->size();
-    out->resize(at + stream[0].size());
     for (size_t i = 0; i < count; ++i) {
         for (size_t j = 0; j < kVertexSize; ++j) {
-            (*out)[at + i * kVertexSize + j] = stream[0][j * count + i];
+            out[i * kVertexSize + j] = stream[0][j * count + i];
         }
     }
     return true;
 }
 
 // 三角的重心不存,这里先留空,顶点到位后按 ((a+b)+c)/3.0f 重算。
-bool DecodeTriangleChunk(const uint8_t* data, size_t size, uint32_t count, uint32_t first, std::vector<uint8_t>* out)
+bool DecodeTriangleChunk(const uint8_t* data, size_t size, uint32_t count, uint32_t first, uint8_t* out)
 {
     std::vector<std::vector<uint8_t>> stream;
     if (!SplitChunkStreams(data, size, 7, &stream) || stream[3].size() != (static_cast<size_t>(count) * 3 + 7) / 8) {
@@ -316,8 +384,6 @@ bool DecodeTriangleChunk(const uint8_t* data, size_t size, uint32_t count, uint3
     const uint8_t* neighbor_cursor = stream[4].data();
     const uint8_t* const neighbor_end = neighbor_cursor + stream[4].size();
 
-    const size_t at = out->size();
-    out->resize(at + static_cast<size_t>(count) * kTriangleSize);
     int64_t running = 0;
     for (uint32_t t = 0; t < count; ++t) {
         uint64_t packed[3] = {};
@@ -328,7 +394,7 @@ bool DecodeTriangleChunk(const uint8_t* data, size_t size, uint32_t count, uint3
         }
         running += UnZigzag(packed[0]);
         const int64_t vertex[3] = { running, running + UnZigzag(packed[1]), running + UnZigzag(packed[2]) };
-        uint8_t* record = out->data() + at + static_cast<size_t>(t) * kTriangleSize;
+        uint8_t* record = out + static_cast<size_t>(t) * kTriangleSize;
         for (int i = 0; i < 3; ++i) {
             if (vertex[i] < 0 || vertex[i] > UINT32_MAX) {
                 return false;
@@ -373,7 +439,7 @@ bool DecodeTriangleChunk(const uint8_t* data, size_t size, uint32_t count, uint3
         }
         const uint32_t value = static_cast<uint32_t>(component);
         for (uint64_t i = 0; i < run; ++i) {
-            std::memcpy(out->data() + at + static_cast<size_t>(filled + i) * kTriangleSize + 24, &value, 4);
+            std::memcpy(out + static_cast<size_t>(filled + i) * kTriangleSize + 24, &value, 4);
         }
         filled += static_cast<uint32_t>(run);
     }
@@ -385,7 +451,7 @@ bool DecodeTriangleChunk(const uint8_t* data, size_t size, uint32_t count, uint3
     return neighbor_cursor == neighbor_end && value_cursor == value_end && length_cursor == length_end;
 }
 
-bool DecodeLinkChunk(const uint8_t* data, size_t size, uint32_t count, std::vector<uint8_t>* out)
+bool DecodeLinkChunk(const uint8_t* data, size_t size, uint32_t count, uint8_t* out)
 {
     std::vector<std::vector<uint8_t>> stream;
     if (!SplitChunkStreams(data, size, 2, &stream)) {
@@ -395,8 +461,6 @@ bool DecodeLinkChunk(const uint8_t* data, size_t size, uint32_t count, std::vect
     const uint8_t* const source_end = source_cursor + stream[0].size();
     const uint8_t* target_cursor = stream[1].data();
     const uint8_t* const target_end = target_cursor + stream[1].size();
-    const size_t at = out->size();
-    out->resize(at + static_cast<size_t>(count) * kLinkSize);
     int64_t source = 0;
     for (uint32_t i = 0; i < count; ++i) {
         uint64_t step = 0;
@@ -410,39 +474,74 @@ bool DecodeLinkChunk(const uint8_t* data, size_t size, uint32_t count, std::vect
             return false;
         }
         const uint32_t pair[2] = { static_cast<uint32_t>(source), static_cast<uint32_t>(target) };
-        std::memcpy(out->data() + at + static_cast<size_t>(i) * kLinkSize, pair, sizeof(pair));
+        std::memcpy(out + static_cast<size_t>(i) * kLinkSize, pair, sizeof(pair));
     }
     return source_cursor == source_end && target_cursor == target_end;
 }
 
-// 解出覆盖 [from, to) 的整块,返回块首记录的全局下标。
-bool DecodeChunkRange(
+// 第 [low, high] 块覆盖的记录数
+size_t ChunkSpanRecords(const GeoChunkTable& table, uint32_t low, uint32_t high)
+{
+    return static_cast<size_t>(table.first(high)) + table.span(high) - table.first(low);
+}
+
+// 解第 [low, high] 块到 dst(调用方按 ChunkSpanRecords 开好)。块定长, 每块的输出长度只由自己的
+// span 定, 各块写各自那段 —— 与一块块接着写逐字节相同, 于是能并起来解。
+bool DecodeChunkSpan(
     const GeoChunkTable& table,
     const uint8_t* base,
-    uint32_t from,
-    uint32_t to,
-    uint32_t* out_first,
-    const std::function<bool(const uint8_t*, size_t, uint32_t, uint32_t)>& decode)
+    uint32_t low,
+    uint32_t high,
+    size_t record_size,
+    uint8_t* dst,
+    const std::function<bool(const uint8_t*, size_t, uint32_t, uint32_t, uint8_t*)>& decode)
 {
-    if (from >= to) {
-        *out_first = from;
-        return true;
-    }
-    const uint32_t low = from / table.chunk;
-    const uint32_t high = (to - 1) / table.chunk;
-    if (high >= table.count()) {
-        return false;
-    }
-    *out_first = table.first(low);
-    for (uint32_t i = low; i <= high; ++i) {
-        uint32_t size = 0;
-        const uint8_t* at = table.bytes(base, i, size);
-        if (!decode(at, size, table.span(i), table.first(i))) {
-            return false;
+    const uint32_t base_record = table.first(low);
+    const auto chunks = static_cast<int64_t>(high - low + 1);
+    std::vector<uint8_t> ok(static_cast<size_t>(chunks), 1);
+    ParallelChunks(chunks, NavWorkerCount(static_cast<int64_t>(ChunkSpanRecords(table, low, high))), [&](size_t, int64_t b, int64_t e) {
+        for (int64_t c = b; c < e; ++c) {
+            const uint32_t i = low + static_cast<uint32_t>(c);
+            uint32_t size = 0;
+            const uint8_t* src = table.bytes(base, i, size);
+            uint8_t* at = dst + (static_cast<size_t>(table.first(i)) - base_record) * record_size;
+            if (!decode(src, size, table.span(i), table.first(i), at)) {
+                ok[static_cast<size_t>(c)] = 0;
+            }
         }
-    }
-    return true;
+    });
+    return std::find(ok.begin(), ok.end(), 0) == ok.end();
 }
+
+// 覆盖记录 [from, to) 的整块范围。from >= to 时是空范围, first 取 from。
+struct ChunkWindow
+{
+    uint32_t low = 0;
+    uint32_t high = 0;
+    uint32_t first = 0;
+    size_t records = 0;
+};
+
+std::optional<ChunkWindow> ChunkWindowFor(const GeoChunkTable& table, uint32_t from, uint32_t to)
+{
+    ChunkWindow window;
+    if (from >= to) {
+        window.first = from;
+        return window;
+    }
+    window.low = from / table.chunk;
+    window.high = (to - 1) / table.chunk;
+    if (window.high >= table.count()) {
+        return std::nullopt;
+    }
+    window.first = table.first(window.low);
+    window.records = ChunkSpanRecords(table, window.low, window.high);
+    return window;
+}
+
+// 三角逐批解码的一批记录数。整包 553 万条原始记录 200 MB, 一次全解出来会和结构体表叠成
+// 加载峰值; 一批装满这个数(至少工人数个块, 解码仍并行), 转完结构体就复用暂存。
+constexpr size_t kTriangleBatchRecords = 1U << 20U;
 
 BaseNavLoadResult Fail(BaseNavLoadStatus status, std::string message)
 {
@@ -463,14 +562,13 @@ uint32_t GeoLinkChunkFor(const GeoChunkTable& table, uint32_t source)
     return index;
 }
 
-size_t LowerBoundLinkSource(const uint8_t* link_bytes, uint32_t link_count, uint32_t source)
+size_t LowerBoundLinkSource(const std::vector<BaseNavLink>& links, uint32_t source)
 {
     size_t left = 0;
-    size_t right = link_count;
+    size_t right = links.size();
     while (left < right) {
         const size_t middle = left + (right - left) / 2;
-        const uint32_t middle_source = PeekU32(link_bytes + middle * kLinkSize);
-        if (middle_source < source) {
+        if (links[middle].source < source) {
             left = middle + 1;
         }
         else {
@@ -538,6 +636,8 @@ BaseNavLoadResult ReadGzipFile(const std::filesystem::path& path, std::vector<ui
     return {};
 }
 
+}
+
 BaseNavLoadResult ReadNavFileBytes(const std::filesystem::path& path, std::vector<uint8_t>* output)
 {
     if (HasGzipSuffix(path)) {
@@ -561,8 +661,6 @@ BaseNavLoadResult ReadNavFileBytes(const std::filesystem::path& path, std::vecto
     return {};
 }
 
-}
-
 BaseNavLoadResult LoadBaseNavPack(const std::filesystem::path& path, std::string_view zone_name)
 {
     std::vector<uint8_t> file_bytes;
@@ -575,6 +673,8 @@ BaseNavLoadResult LoadBaseNavPack(const std::filesystem::path& path, std::string
     if (file_size < kHeaderSize) {
         return Fail(BaseNavLoadStatus::InvalidSize, "nav file is smaller than header");
     }
+    // 整份解压字节的指纹,旁包靠它认主包;按区裁剪也算整份,两种载入口径得出同一个值
+    const uint64_t file_fnv = Fnv64Update(kFnvOffset, file_bytes.data(), file_bytes.size());
 
     if (std::memcmp(file_bytes.data(), "BNAV", 4) != 0) {
         return Fail(BaseNavLoadStatus::InvalidMagic, "invalid nav magic");
@@ -616,8 +716,12 @@ BaseNavLoadResult LoadBaseNavPack(const std::filesystem::path& path, std::string
     }
 
     // 段目录先读:v5 起四块几何连同区表都在 BGEO 段里,头里那四个偏移作废。
+    // 只有 BGRD 的字节要活过本函数(规划时才按瓦解码),其余段就地解析,段条目留空壳 ——
+    // 下游只拿 section(tag) != nullptr 认包的世代。
     std::vector<BaseNavSection> sections;
+    std::vector<std::pair<const uint8_t*, size_t>> section_raw;
     sections.reserve(section_count);
+    section_raw.reserve(section_count);
     const uint8_t* dir_cursor = file_bytes.data() + section_dir_offset;
     for (uint32_t index = 0; index < section_count; ++index) {
         BaseNavSection sec;
@@ -629,7 +733,11 @@ BaseNavLoadResult LoadBaseNavPack(const std::filesystem::path& path, std::string
         if (!OffsetRangeValid(offset, size, file_size)) {
             return Fail(BaseNavLoadStatus::InvalidOffset, "nav section is outside file bounds");
         }
-        sec.bytes.assign(file_bytes.data() + offset, file_bytes.data() + offset + size);
+        const uint8_t* at = file_bytes.data() + offset;
+        section_raw.emplace_back(at, static_cast<size_t>(size));
+        if (std::memcmp(sec.tag.data(), kGridSectionTag, 4) == 0) {
+            sec.bytes.assign(at, at + size);
+        }
         sections.push_back(std::move(sec));
     }
 
@@ -641,13 +749,13 @@ BaseNavLoadResult LoadBaseNavPack(const std::filesystem::path& path, std::string
     const uint8_t* triangle_bytes = nullptr;
     const uint8_t* link_bytes = nullptr;
     if (sectioned) {
-        const BaseNavSection* found = nullptr;
-        for (const BaseNavSection& sec : sections) {
-            if (std::memcmp(sec.tag.data(), kGeometrySectionTag, 4) == 0) {
-                found = &sec;
+        const std::pair<const uint8_t*, size_t>* found = nullptr;
+        for (size_t i = 0; i < sections.size(); ++i) {
+            if (std::memcmp(sections[i].tag.data(), kGeometrySectionTag, 4) == 0) {
+                found = &section_raw[i];
             }
         }
-        if (found == nullptr || !ParseGeometrySection(found->bytes.data(), found->bytes.size(), &geometry)) {
+        if (found == nullptr || !ParseGeometrySection(found->first, found->second, &geometry)) {
             return Fail(BaseNavLoadStatus::InvalidOffset, "nav geometry section is missing or malformed");
         }
         if (geometry.vertices.total != vertex_count || geometry.triangles.total != triangle_count || geometry.links.total != link_count) {
@@ -725,145 +833,213 @@ BaseNavLoadResult LoadBaseNavPack(const std::filesystem::path& path, std::string
     const uint32_t selected_triangle_end = selected_first_triangle + selected_triangle_count;
     const bool zone_scoped = selected_zone.has_value();
 
-    // v5:只解这次用得着的块。重心不在包里,所以先扫一遍三角拿到顶点下标范围,
-    // 解完顶点再把重心按 ((a+b)+c)/3.0f 补回记录里 —— 换成乘 1/3 不逐位相同。
-    std::vector<uint8_t> triangle_storage;
-    std::vector<uint8_t> vertex_storage;
-    std::vector<uint8_t> link_storage;
-    uint32_t triangle_base = 0;
-    uint32_t vertex_base = 0;
+    // 顶点与连接的记录字节和结构体逐字节同布局(小端), 直接解进结构体向量, 哈希也按向量算;
+    // 三角记录 36 字节(含分量号与重心)与 24 字节的结构体不同, 逐批解到暂存再转。
+    static_assert(std::endian::native == std::endian::little);
+    static_assert(sizeof(BaseNavVertex) == kVertexSize && sizeof(BaseNavLink) == kLinkSize);
+
+    std::vector<BaseNavVertex> vertices;
+    std::vector<BaseNavTriangle> triangles;
+    triangles.reserve(selected_triangle_count);
+    std::vector<BaseNavLink> link_table;
     uint32_t link_base = 0;
-    uint32_t link_table_count = link_count;
+    uint32_t first_vertex = zone_scoped ? vertex_count : 0;
+    uint32_t last_vertex = 0;
+
+    // 哈希定义在四块的规范字节上(三角含重心), 与它们怎么存无关。v5 的字节要先解码才有, 所以只在
+    // 整包加载时算, 且按解码顺序流式更新: 区表 → 顶点 → 三角逐批 → 连接; 按区加载的 gzip 流本来
+    // 就有 CRC 兜底。
+    const bool should_verify_hash = zone_name.empty() || (!sectioned && !HasGzipSuffix(path));
+    uint64_t hash = kFnvOffset;
+    if (should_verify_hash) {
+        hash = Fnv64Update(hash, zone_table, static_cast<size_t>(zone_table_size));
+    }
+
+    // 一段 36 字节记录 [first, first + count) 与选中区的交集转成结构体; 按区加载时邻居改成区内相对
+    // 下标, 并顺手记下顶点下标范围。
+    const auto convert_triangles = [&](const uint8_t* records, uint32_t first, size_t count) -> const char* {
+        const uint32_t begin = std::max(first, selected_first_triangle);
+        const uint32_t end = static_cast<uint32_t>(std::min<uint64_t>(static_cast<uint64_t>(first) + count, selected_triangle_end));
+        if (begin >= end) {
+            return nullptr;
+        }
+        const uint8_t* cursor = records + static_cast<size_t>(begin - first) * kTriangleSize;
+        for (uint32_t index = begin; index < end; ++index) {
+            BaseNavTriangle triangle = ReadTriangleRecord(cursor);
+            for (uint32_t value : triangle.vertices) {
+                if (value >= vertex_count) {
+                    return "triangle vertex index is outside vertex table";
+                }
+                if (zone_scoped) {
+                    first_vertex = std::min(first_vertex, value);
+                    last_vertex = std::max(last_vertex, value);
+                }
+            }
+            if (zone_scoped) {
+                for (int32_t& neighbor : triangle.neighbors) {
+                    if (neighbor < 0 || static_cast<uint32_t>(neighbor) < selected_first_triangle
+                        || static_cast<uint32_t>(neighbor) >= selected_triangle_end) {
+                        neighbor = -1;
+                        continue;
+                    }
+                    neighbor -= static_cast<int32_t>(selected_first_triangle);
+                }
+            }
+            triangles.push_back(triangle);
+        }
+        return nullptr;
+    };
+
     if (sectioned) {
-        if (!DecodeChunkRange(
-                geometry.triangles,
-                geometry.base,
-                selected_first_triangle,
-                selected_triangle_end,
-                &triangle_base,
-                [&](const uint8_t* at, size_t size, uint32_t span, uint32_t first) {
-                    return DecodeTriangleChunk(at, size, span, first, &triangle_storage);
-                })) {
+        const auto decode_vertices = [&](uint32_t from, uint32_t to) -> const char* {
+            const auto window = ChunkWindowFor(geometry.vertices, from, to);
+            if (!window) {
+                return "nav vertex chunk is malformed";
+            }
+            vertices.resize(window->records);
+            if (window->records == 0) {
+                return nullptr;
+            }
+            if (!DecodeChunkSpan(
+                    geometry.vertices,
+                    geometry.base,
+                    window->low,
+                    window->high,
+                    kVertexSize,
+                    reinterpret_cast<uint8_t*>(vertices.data()),
+                    [](const uint8_t* at, size_t size, uint32_t span, uint32_t, uint8_t* dst) {
+                        return DecodeVertexChunk(at, size, span, dst);
+                    })) {
+                return "nav vertex chunk is malformed";
+            }
+            // 只留 [from, to): 块是整块解的, 两头多出来的不属于选中区
+            vertices.erase(vertices.begin() + static_cast<std::ptrdiff_t>(to - window->first), vertices.end());
+            vertices.erase(vertices.begin(), vertices.begin() + static_cast<std::ptrdiff_t>(from - window->first));
+            return nullptr;
+        };
+        // 整包时三角的重心要靠顶点补, 顶点先解; 按区时顶点范围要先扫三角才知道, 顶点后解。
+        if (!zone_scoped) {
+            if (const char* error = decode_vertices(0, vertex_count)) {
+                return Fail(BaseNavLoadStatus::InvalidSize, error);
+            }
+            if (should_verify_hash) {
+                hash = Fnv64Update(hash, reinterpret_cast<const uint8_t*>(vertices.data()), vertices.size() * kVertexSize);
+            }
+        }
+
+        const auto window = ChunkWindowFor(geometry.triangles, selected_first_triangle, selected_triangle_end);
+        if (!window) {
             return Fail(BaseNavLoadStatus::InvalidSize, "nav triangle chunk is malformed");
         }
-        uint32_t low = vertex_count;
-        uint32_t high = 0;
-        for (size_t at = 0; at + kTriangleSize <= triangle_storage.size(); at += kTriangleSize) {
-            for (int i = 0; i < 3; ++i) {
-                const uint32_t value = PeekU32(triangle_storage.data() + at + i * 4);
-                if (value >= vertex_count) {
-                    return Fail(BaseNavLoadStatus::InvalidSize, "triangle vertex index is outside vertex table");
+        std::vector<uint8_t> scratch;
+        const size_t workers = NavWorkerCount(static_cast<int64_t>(window->records));
+        for (uint32_t low = window->low; window->records != 0 && low <= window->high;) {
+            uint32_t high = low;
+            size_t records = geometry.triangles.span(low);
+            while (high < window->high
+                   && (records + geometry.triangles.span(high + 1) <= kTriangleBatchRecords || high + 1 - low < workers)) {
+                ++high;
+                records += geometry.triangles.span(high);
+            }
+            scratch.resize(records * kTriangleSize);
+            if (!DecodeChunkSpan(
+                    geometry.triangles,
+                    geometry.base,
+                    low,
+                    high,
+                    kTriangleSize,
+                    scratch.data(),
+                    [](const uint8_t* at, size_t size, uint32_t span, uint32_t first, uint8_t* dst) {
+                        return DecodeTriangleChunk(at, size, span, first, dst);
+                    })) {
+                return Fail(BaseNavLoadStatus::InvalidSize, "nav triangle chunk is malformed");
+            }
+            if (should_verify_hash) {
+                // 整包时选中区即全部, 这批每条都算数。重心按 ((a+b)+c)/3.0f 补回 —— 换成乘 1/3 不逐位相同。
+                for (size_t at = 0; at < scratch.size(); at += kTriangleSize) {
+                    uint8_t* const record = scratch.data() + at;
+                    float u[3] = {};
+                    float v[3] = {};
+                    for (int i = 0; i < 3; ++i) {
+                        const uint32_t value = PeekU32(record + i * 4);
+                        if (value >= vertex_count) {
+                            return Fail(BaseNavLoadStatus::InvalidSize, "triangle vertex index is outside vertex table");
+                        }
+                        u[i] = vertices[value].u;
+                        v[i] = vertices[value].v;
+                    }
+                    const float center_u = ((u[0] + u[1]) + u[2]) / 3.0F;
+                    const float center_v = ((v[0] + v[1]) + v[2]) / 3.0F;
+                    std::memcpy(record + 28, &center_u, sizeof(float));
+                    std::memcpy(record + 32, &center_v, sizeof(float));
                 }
-                low = std::min(low, value);
-                high = std::max(high, value);
+                hash = Fnv64Update(hash, scratch.data(), scratch.size());
             }
+            if (const char* error = convert_triangles(scratch.data(), geometry.triangles.first(low), records)) {
+                return Fail(BaseNavLoadStatus::InvalidSize, error);
+            }
+            low = high + 1;
         }
+        std::vector<uint8_t>().swap(scratch);
+
         // 三角为空的区(tier 只有一份仿射)不用解顶点。
-        uint32_t want_low = 0;
-        uint32_t want_high = vertex_count;
         if (zone_scoped) {
-            want_low = low <= high ? low : 0;
-            want_high = low <= high ? high + 1 : 0;
-        }
-        if (!DecodeChunkRange(
-                geometry.vertices,
-                geometry.base,
-                want_low,
-                want_high,
-                &vertex_base,
-                [&](const uint8_t* at, size_t size, uint32_t span, uint32_t) {
-                    return DecodeVertexChunk(at, size, span, &vertex_storage);
-                })) {
-            return Fail(BaseNavLoadStatus::InvalidSize, "nav vertex chunk is malformed");
-        }
-        for (size_t at = 0; at + kTriangleSize <= triangle_storage.size(); at += kTriangleSize) {
-            uint8_t* const record = triangle_storage.data() + at;
-            float u[3] = {};
-            float v[3] = {};
-            for (int i = 0; i < 3; ++i) {
-                const uint8_t* vertex = vertex_storage.data() + static_cast<size_t>(PeekU32(record + i * 4) - vertex_base) * kVertexSize;
-                std::memcpy(&u[i], vertex, sizeof(float));
-                std::memcpy(&v[i], vertex + 4, sizeof(float));
+            const uint32_t want_low = triangles.empty() ? 0 : first_vertex;
+            const uint32_t want_high = triangles.empty() ? 0 : last_vertex + 1;
+            if (const char* error = decode_vertices(want_low, want_high)) {
+                return Fail(BaseNavLoadStatus::InvalidSize, error);
             }
-            const float center_u = ((u[0] + u[1]) + u[2]) / 3.0F;
-            const float center_v = ((v[0] + v[1]) + v[2]) / 3.0F;
-            std::memcpy(record + 28, &center_u, sizeof(float));
-            std::memcpy(record + 32, &center_v, sizeof(float));
         }
 
         // 连接表可以一条都没有,那时一块都不解,下游按 0 条连接走。
         const uint32_t link_chunks = geometry.links.count();
         const uint32_t low_chunk = zone_scoped ? GeoLinkChunkFor(geometry.links, selected_first_triangle) : 0;
         const uint32_t high_chunk = zone_scoped ? GeoLinkChunkFor(geometry.links, selected_triangle_end) : link_chunks;
-        for (uint32_t i = low_chunk; i < link_chunks && i <= high_chunk; ++i) {
-            uint32_t size = 0;
-            const uint8_t* at = geometry.links.bytes(geometry.base, i, size);
-            if (!DecodeLinkChunk(at, size, geometry.links.span(i), &link_storage)) {
+        if (low_chunk < link_chunks && low_chunk <= high_chunk) {
+            const uint32_t last_chunk = std::min(high_chunk, link_chunks - 1);
+            link_table.resize(ChunkSpanRecords(geometry.links, low_chunk, last_chunk));
+            if (!DecodeChunkSpan(
+                    geometry.links,
+                    geometry.base,
+                    low_chunk,
+                    last_chunk,
+                    kLinkSize,
+                    reinterpret_cast<uint8_t*>(link_table.data()),
+                    [](const uint8_t* at, size_t size, uint32_t span, uint32_t, uint8_t* dst) {
+                        return DecodeLinkChunk(at, size, span, dst);
+                    })) {
                 return Fail(BaseNavLoadStatus::InvalidSize, "nav link chunk is malformed");
             }
         }
         link_base = geometry.links.first(low_chunk);
-        link_table_count = static_cast<uint32_t>(link_storage.size() / kLinkSize);
-        vertex_bytes = vertex_storage.data();
-        triangle_bytes = triangle_storage.data();
-        link_bytes = link_storage.data();
-    }
-
-    // 哈希仍定义在四块的规范字节上,与它们怎么存无关。v5 的字节要先解码才有,
-    // 所以只在整包加载时算;按区加载的 gzip 流本来就有 CRC 兜底。
-    const bool should_verify_hash = zone_name.empty() || (!sectioned && !HasGzipSuffix(path));
-    if (should_verify_hash) {
-        uint64_t hash = kFnvOffset;
-        hash = Fnv64Update(hash, zone_table, static_cast<size_t>(zone_table_size));
-        hash = Fnv64Update(hash, vertex_bytes, static_cast<size_t>(vertex_count) * kVertexSize);
-        hash = Fnv64Update(hash, triangle_bytes, static_cast<size_t>(triangle_count) * kTriangleSize);
-        hash = Fnv64Update(hash, link_bytes, static_cast<size_t>(link_count) * kLinkSize);
-        if (hash != build_hash) {
-            return Fail(BaseNavLoadStatus::HashMismatch, "nav build hash mismatch");
+        if (should_verify_hash) {
+            hash = Fnv64Update(hash, reinterpret_cast<const uint8_t*>(link_table.data()), link_table.size() * kLinkSize);
         }
     }
-
-    std::vector<BaseNavTriangle> triangles;
-    triangles.reserve(selected_triangle_count);
-    uint32_t first_vertex = zone_scoped ? vertex_count : 0;
-    uint32_t last_vertex = 0;
-    const uint8_t* triangle_cursor = triangle_bytes + static_cast<uint64_t>(selected_first_triangle - triangle_base) * kTriangleSize;
-    for (uint32_t index = 0; index < selected_triangle_count; ++index) {
-        BaseNavTriangle triangle = ReadTriangleRecord(triangle_cursor);
-        for (uint32_t value : triangle.vertices) {
-            if (value >= vertex_count) {
-                return Fail(BaseNavLoadStatus::InvalidSize, "triangle vertex index is outside vertex table");
-            }
-            if (zone_scoped) {
-                first_vertex = std::min(first_vertex, value);
-                last_vertex = std::max(last_vertex, value);
-            }
+    else {
+        if (should_verify_hash) {
+            hash = Fnv64Update(hash, vertex_bytes, static_cast<size_t>(vertex_count) * kVertexSize);
+            hash = Fnv64Update(hash, triangle_bytes, static_cast<size_t>(triangle_count) * kTriangleSize);
+            hash = Fnv64Update(hash, link_bytes, static_cast<size_t>(link_count) * kLinkSize);
         }
-        if (zone_scoped) {
-            for (int32_t& neighbor : triangle.neighbors) {
-                if (neighbor < 0 || static_cast<uint32_t>(neighbor) < selected_first_triangle
-                    || static_cast<uint32_t>(neighbor) >= selected_triangle_end) {
-                    neighbor = -1;
-                    continue;
-                }
-                neighbor -= static_cast<int32_t>(selected_first_triangle);
-            }
+        if (const char* error = convert_triangles(triangle_bytes, 0, triangle_count)) {
+            return Fail(BaseNavLoadStatus::InvalidSize, error);
         }
-        triangles.push_back(triangle);
+        const uint32_t selected_vertex_count = zone_scoped ? (triangles.empty() ? 0 : last_vertex - first_vertex + 1) : vertex_count;
+        vertices.resize(selected_vertex_count);
+        if (selected_vertex_count != 0) {
+            std::memcpy(
+                vertices.data(),
+                vertex_bytes + static_cast<size_t>(first_vertex) * kVertexSize,
+                selected_vertex_count * kVertexSize);
+        }
+        link_table.resize(link_count);
+        std::memcpy(link_table.data(), link_bytes, static_cast<size_t>(link_count) * kLinkSize);
+    }
+    if (should_verify_hash && hash != build_hash) {
+        return Fail(BaseNavLoadStatus::HashMismatch, "nav build hash mismatch");
     }
 
-    const uint32_t selected_vertex_count = zone_scoped ? (triangles.empty() ? 0 : last_vertex - first_vertex + 1) : vertex_count;
-    std::vector<BaseNavVertex> vertices;
-    vertices.reserve(selected_vertex_count);
-    const uint64_t vertex_skip = selected_vertex_count == 0 ? 0 : static_cast<uint64_t>(first_vertex - vertex_base);
-    const uint8_t* vertex_cursor = vertex_bytes + vertex_skip * kVertexSize;
-    for (uint32_t index = 0; index < selected_vertex_count; ++index) {
-        BaseNavVertex vertex;
-        vertex.u = ReadF32(vertex_cursor);
-        vertex.v = ReadF32(vertex_cursor);
-        vertex.height = ReadF32(vertex_cursor);
-        vertices.push_back(vertex);
-    }
     if (zone_scoped) {
         for (BaseNavTriangle& triangle : triangles) {
             for (uint32_t& vertex_index : triangle.vertices) {
@@ -891,32 +1067,88 @@ BaseNavLoadResult LoadBaseNavPack(const std::filesystem::path& path, std::string
         zones = std::move(scoped_zones);
     }
 
-    std::vector<BaseNavLink> links;
-    const size_t first_link = zone_scoped ? LowerBoundLinkSource(link_bytes, link_table_count, selected_first_triangle) : 0;
-    const size_t last_link = zone_scoped ? LowerBoundLinkSource(link_bytes, link_table_count, selected_triangle_end) : link_table_count;
-    links.reserve(last_link - first_link);
-    const uint8_t* link_cursor = link_bytes + first_link * kLinkSize;
-    for (size_t index = first_link; index < last_link; ++index) {
-        BaseNavLink link = ReadLinkRecord(link_cursor);
+    const auto invalid_link = [&](size_t index) {
+        const BaseNavLink& link = link_table[index];
         if (link.source >= triangle_count || link.target >= triangle_count) {
             LogWarn << "Skipping invalid BaseNav link." << VAR(link_base + index) << VAR(link.source) << VAR(link.target)
                     << VAR(triangle_count);
-            continue;
+            return true;
         }
-        if (zone_scoped) {
+        return false;
+    };
+    std::vector<BaseNavLink> links;
+    if (zone_scoped) {
+        const size_t first_link = LowerBoundLinkSource(link_table, selected_first_triangle);
+        const size_t last_link = LowerBoundLinkSource(link_table, selected_triangle_end);
+        links.reserve(last_link - first_link);
+        for (size_t index = first_link; index < last_link; ++index) {
+            if (invalid_link(index)) {
+                continue;
+            }
+            BaseNavLink link = link_table[index];
             if (link.source < selected_first_triangle || link.source >= selected_triangle_end || link.target < selected_first_triangle
                 || link.target >= selected_triangle_end) {
                 continue;
             }
             link.source -= selected_first_triangle;
             link.target -= selected_first_triangle;
+            links.push_back(link);
         }
-        links.push_back(link);
+    }
+    else {
+        // 整包 1500 万条 116 MB, 原地剔除而不是再抄一份
+        size_t kept = 0;
+        for (size_t index = 0; index < link_table.size(); ++index) {
+            if (!invalid_link(index)) {
+                link_table[kept++] = link_table[index];
+            }
+        }
+        link_table.resize(kept);
+        links = std::move(link_table);
+    }
+
+    std::vector<BaseNavOffMeshLink> off_mesh_links;
+    for (size_t i = 0; i < sections.size(); ++i) {
+        if (std::memcmp(sections[i].tag.data(), kOffMeshSectionTag, 4) == 0
+            && !ParseOffMeshSection(section_raw[i].first, section_raw[i].second, &off_mesh_links)) {
+            return Fail(BaseNavLoadStatus::InvalidSize, "nav off-mesh section is malformed");
+        }
+    }
+    std::vector<BaseNavSurface> surfaces;
+    for (size_t i = 0; i < sections.size(); ++i) {
+        if (std::memcmp(sections[i].tag.data(), kSurfaceSectionTag, 4) == 0) {
+            if (!ParseSurfaceSection(section_raw[i].first, section_raw[i].second, &surfaces) || surfaces.size() != triangle_count) {
+                return Fail(BaseNavLoadStatus::InvalidSize, "nav surface section is malformed");
+            }
+        }
+    }
+    if (zone_scoped && !surfaces.empty()) {
+        std::vector<BaseNavSurface> scoped(surfaces.begin() + selected_first_triangle, surfaces.begin() + selected_triangle_end);
+        surfaces = std::move(scoped);
+    }
+    if (zone_scoped) {
+        std::erase_if(off_mesh_links, [&](const BaseNavOffMeshLink& link) { return link.zone_id != selected_zone->zone_id; });
+    }
+    for (const BaseNavOffMeshLink& link : off_mesh_links) {
+        const bool known_zone =
+            std::any_of(zones.begin(), zones.end(), [&](const BaseNavZone& zone) { return zone.zone_id == link.zone_id; });
+        if (!known_zone) {
+            return Fail(BaseNavLoadStatus::InvalidSize, "nav off-mesh link refers to an unknown zone");
+        }
     }
 
     BaseNavLoadResult result;
-    result.pack =
-        detail::MakeBaseNavPack(path, std::move(zones), std::move(vertices), std::move(triangles), std::move(links), std::move(sections));
+    result.pack = detail::MakeBaseNavPack(
+        path,
+        std::move(zones),
+        std::move(vertices),
+        std::move(triangles),
+        std::move(links),
+        std::move(surfaces),
+        std::move(off_mesh_links),
+        std::move(sections),
+        build_hash,
+        file_fnv);
     return result;
 }
 

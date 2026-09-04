@@ -143,18 +143,22 @@ class MapNavigatorApp {
     this._editDeckSig = null;
     /** @type {?number} 路点拖动时重叠面探针的防抖句柄。 */
     this._editDeckTimer = null;
+    /** @type {Map<number, Array<{height:number, band:number[], thin:boolean}>>} 路点列表逐行显示的重叠面。 */
+    this.waypointDecks = new Map();
+    /** @type {?string} 当前片段全部 NAVMESH 路点的批量探针签名。 */
+    this._waypointDeckSig = null;
+    this._waypointDeckToken = 0;
+    /** @type {?number} 批量重叠面探针的防抖句柄。 */
+    this._waypointDeckTimer = null;
     const readDebugFlag = (key, defaultValue) => {
       const stored = localStorage.getItem(key);
       return stored === null ? defaultValue : stored === "1";
     };
     this.navDebug = {
-      search: readDebugFlag("maaend.mapnavigator.debugSearch", false),
-      rerouted: readDebugFlag("maaend.mapnavigator.debugRerouted", false),
-      stringPull: readDebugFlag("maaend.mapnavigator.debugStringPull", false),
+      topology: readDebugFlag("maaend.mapnavigator.debugTopology", false),
+      taut: readDebugFlag("maaend.mapnavigator.debugTaut", false),
+      pulled: readDebugFlag("maaend.mapnavigator.debugPulled", false),
       assembled: readDebugFlag("maaend.mapnavigator.debugAssembled", false),
-      loopFixed: readDebugFlag("maaend.mapnavigator.debugLoopFixed", false),
-      slim: readDebugFlag("maaend.mapnavigator.debugSlim", false),
-      widenCorners: readDebugFlag("maaend.mapnavigator.debugWidenCorners", false),
       planned: readDebugFlag("maaend.mapnavigator.debugPlanned", true),
       live: readDebugFlag("maaend.mapnavigator.showLivePath", true),
     };
@@ -284,13 +288,10 @@ class MapNavigatorApp {
       threeRecolorRow: $("three-recolor-row"),
       btnThreeRecolor: $("btn-three-recolor"),
       threeNavDebugOptions: $("three-nav-debug-options"),
-      threeChkNavDebugSearch: $("three-chk-nav-debug-search"),
-      threeChkNavDebugRerouted: $("three-chk-nav-debug-rerouted"),
-      threeChkNavDebugStringPull: $("three-chk-nav-debug-string-pull"),
+      threeChkNavDebugTopology: $("three-chk-nav-debug-topology"),
+      threeChkNavDebugTaut: $("three-chk-nav-debug-taut"),
+      threeChkNavDebugPulled: $("three-chk-nav-debug-pulled"),
       threeChkNavDebugAssembled: $("three-chk-nav-debug-assembled"),
-      threeChkNavDebugLoopFixed: $("three-chk-nav-debug-loop-fixed"),
-      threeChkNavDebugSlim: $("three-chk-nav-debug-slim"),
-      threeChkNavDebugWidenCorners: $("three-chk-nav-debug-widen-corners"),
       threeChkNavDebugPlanned: $("three-chk-nav-debug-planned"),
       threeChkNavDebugLivePath: $("three-chk-nav-debug-live-path"),
       btnStart: $("btn-start"),
@@ -300,7 +301,6 @@ class MapNavigatorApp {
       btnEditPlanClear: $("btn-edit-plan-clear"),
       editPlanStartLabel: $("edit-plan-start-label"),
       chkEditZipline: $("chk-edit-zipline"),
-      chkEditExactSlim: $("chk-edit-exact-slim"),
       btnCopyAssert: $("btn-copy-assert"),
       assertCopyFormat: $("assert-copy-format"),
       btnImport: $("btn-import"),
@@ -354,13 +354,10 @@ class MapNavigatorApp {
       displayZoneCombo: $("display-zone-combo"),
       displayTierCombo: $("display-tier-combo"),
       navDebugOptions: $("nav-debug-options"),
-      chkNavDebugSearch: $("chk-nav-debug-search"),
-      chkNavDebugRerouted: $("chk-nav-debug-rerouted"),
-      chkNavDebugStringPull: $("chk-nav-debug-string-pull"),
+      chkNavDebugTopology: $("chk-nav-debug-topology"),
+      chkNavDebugTaut: $("chk-nav-debug-taut"),
+      chkNavDebugPulled: $("chk-nav-debug-pulled"),
       chkNavDebugAssembled: $("chk-nav-debug-assembled"),
-      chkNavDebugLoopFixed: $("chk-nav-debug-loop-fixed"),
-      chkNavDebugSlim: $("chk-nav-debug-slim"),
-      chkNavDebugWidenCorners: $("chk-nav-debug-widen-corners"),
       chkNavDebugPlanned: $("chk-nav-debug-planned"),
       chkNavDebugLivePath: $("chk-nav-debug-live-path"),
       loadProgress: $("load-progress"),
@@ -414,8 +411,10 @@ class MapNavigatorApp {
       btnNavtestRun: $("btn-navtest-run"),
       btnNavtestStop: $("btn-navtest-stop"),
       navtestArmed: $("navtest-armed"),
+      navtestPhase: $("navtest-phase"),
       navtestHotkeyNote: $("navtest-hotkey-note"),
       navtestOverlay: $("navtest-overlay"),
+      navtestOverlayText: $("navtest-overlay-text"),
       panelProperties: $("panel-properties"),
       panelAssert: $("panel-assert"),
       panelLog: $("panel-log"),
@@ -503,6 +502,8 @@ class MapNavigatorApp {
         btnStop: this.els.btnNavtestStop,
         armedLabel: this.els.navtestArmed,
         overlay: this.els.navtestOverlay,
+        overlayText: this.els.navtestOverlayText,
+        phaseLabel: this.els.navtestPhase,
         hotkeyNote: this.els.navtestHotkeyNote,
         connection: this.connection,
         getRoute: () => this._navtestRoute(),
@@ -838,13 +839,10 @@ class MapNavigatorApp {
   /** Keep every diagnostic checkbox aligned with the persisted rendering state. */
   _syncNavDebugControls() {
     const controls = [
-      [this.els.chkNavDebugSearch, "search"],
-      [this.els.chkNavDebugRerouted, "rerouted"],
-      [this.els.chkNavDebugStringPull, "stringPull"],
+      [this.els.chkNavDebugTopology, "topology"],
+      [this.els.chkNavDebugTaut, "taut"],
+      [this.els.chkNavDebugPulled, "pulled"],
       [this.els.chkNavDebugAssembled, "assembled"],
-      [this.els.chkNavDebugLoopFixed, "loopFixed"],
-      [this.els.chkNavDebugSlim, "slim"],
-      [this.els.chkNavDebugWidenCorners, "widenCorners"],
       [this.els.chkNavDebugPlanned, "planned"],
       [this.els.chkNavDebugLivePath, "live"],
     ];
@@ -852,13 +850,10 @@ class MapNavigatorApp {
       entry.checked = Boolean(this.navDebug[key]);
     }
     const threeControls = [
-      [this.els.threeChkNavDebugSearch, "search"],
-      [this.els.threeChkNavDebugRerouted, "rerouted"],
-      [this.els.threeChkNavDebugStringPull, "stringPull"],
+      [this.els.threeChkNavDebugTopology, "topology"],
+      [this.els.threeChkNavDebugTaut, "taut"],
+      [this.els.threeChkNavDebugPulled, "pulled"],
       [this.els.threeChkNavDebugAssembled, "assembled"],
-      [this.els.threeChkNavDebugLoopFixed, "loopFixed"],
-      [this.els.threeChkNavDebugSlim, "slim"],
-      [this.els.threeChkNavDebugWidenCorners, "widenCorners"],
       [this.els.threeChkNavDebugPlanned, "planned"],
       [this.els.threeChkNavDebugLivePath, "live"],
     ];
@@ -912,11 +907,6 @@ class MapNavigatorApp {
       if (this.quickRouteTest?.goal) this._calculateQuickRouteTest();
       else if (this.editRoute) this._calculateEditPreview();
     });
-    e.chkEditExactSlim.addEventListener("change", () => {
-      if (this.navtest) this.navtest.routeChanged();
-      if (this.quickRouteTest?.goal) this._calculateQuickRouteTest();
-      else if (this.editRoute) this._calculateEditPreview();
-    });
     e.btnMapLayers.addEventListener("click", (event) => {
       event.stopPropagation();
       this._setMapLayerPanelOpen(e.mapLayerPanel.hidden);
@@ -947,13 +937,10 @@ class MapNavigatorApp {
     e.displayZoneCombo.addEventListener("change", () => this._onDisplayZoneChanged());
     e.displayTierCombo.addEventListener("change", () => this._onDisplayTierChanged());
     for (const [entry, key] of [
-      [e.chkNavDebugSearch, "search"],
-      [e.chkNavDebugRerouted, "rerouted"],
-      [e.chkNavDebugStringPull, "stringPull"],
+      [e.chkNavDebugTopology, "topology"],
+      [e.chkNavDebugTaut, "taut"],
+      [e.chkNavDebugPulled, "pulled"],
       [e.chkNavDebugAssembled, "assembled"],
-      [e.chkNavDebugLoopFixed, "loopFixed"],
-      [e.chkNavDebugSlim, "slim"],
-      [e.chkNavDebugWidenCorners, "widenCorners"],
       [e.chkNavDebugPlanned, "planned"],
     ]) {
       entry.addEventListener("change", () => {
@@ -974,13 +961,10 @@ class MapNavigatorApp {
       this._syncThreeOverlays();
     });
     for (const [entry, key] of [
-      [e.threeChkNavDebugSearch, "search"],
-      [e.threeChkNavDebugRerouted, "rerouted"],
-      [e.threeChkNavDebugStringPull, "stringPull"],
+      [e.threeChkNavDebugTopology, "topology"],
+      [e.threeChkNavDebugTaut, "taut"],
+      [e.threeChkNavDebugPulled, "pulled"],
       [e.threeChkNavDebugAssembled, "assembled"],
-      [e.threeChkNavDebugLoopFixed, "loopFixed"],
-      [e.threeChkNavDebugSlim, "slim"],
-      [e.threeChkNavDebugWidenCorners, "widenCorners"],
       [e.threeChkNavDebugPlanned, "planned"],
     ]) {
       entry.addEventListener("change", () => {
@@ -1258,6 +1242,7 @@ class MapNavigatorApp {
     if (mode === Mode.EDIT) {
       this._scheduleEditOffMeshProbe();
       this._scheduleEditDeckProbe();
+      this._scheduleWaypointDeckProbes();
     }
 
     const displayEditLocateHint = mode === Mode.EDIT ? this._editLocateHintForDisplay() : null;
@@ -2506,13 +2491,10 @@ class MapNavigatorApp {
       });
     return (diagnostics || []).map((diag) => ({
       ...diag,
-      astar_cells: project(diag.astar_cells),
-      rerouted_points: project(diag.rerouted_points),
-      string_pull_points: project(diag.string_pull_points),
+      topology_cells: project(diag.topology_cells),
+      taut_points: project(diag.taut_points),
+      pulled_points: project(diag.pulled_points),
       assembled_points: project(diag.assembled_points),
-      loop_fixed_points: project(diag.loop_fixed_points),
-      slim_points: project(diag.slim_points),
-      widened_points: project(diag.widened_points),
       planned_points: project(diag.planned_points),
       start: project([diag.start])[0],
       goal: project([diag.goal])[0],
@@ -2567,8 +2549,14 @@ class MapNavigatorApp {
     const zoneIndices = this.state.zonePointGlobalIndices();
     const localIndex = [...this.state.selectedIndices][0];
     const globalIndex = zoneIndices[localIndex];
-    const point = this.state.points[globalIndex];
-    if (!point || !getPointActions(point).includes(ActionType.NAVMESH)) return null;
+    return this._editDeckTarget(globalIndex, this.state.points[globalIndex]);
+  }
+
+  /** Resolve one author NAVMESH point to the base geometry used by `/api/deck-probe`. */
+  _editDeckTarget(globalIndex, point) {
+    if (this.state.mode !== Mode.EDIT || !this.field || !point || !getPointActions(point).includes(ActionType.NAVMESH)) {
+      return null;
+    }
 
     const targetTier = normalizeZoneId(point.target_tier || "");
     const routeZoneId = this._resolveZoneId(point.zone);
@@ -2599,6 +2587,46 @@ class MapNavigatorApp {
     this._renderEditDeckList();
     if (!target) return;
     this._editDeckTimer = setTimeout(() => this._probeEditDeckTarget(target), 100);
+  }
+
+  /** Refresh all current-segment NAVMESH waypoint heights for the sidebar list. @returns {void} */
+  _scheduleWaypointDeckProbes() {
+    if (this.state.mode !== Mode.EDIT || !this.field) return;
+    const targets = this.state
+      .zonePointGlobalIndices()
+      .map((globalIndex) => this._editDeckTarget(globalIndex, this.state.points[globalIndex]))
+      .filter(Boolean);
+    const signature = targets.map((target) => target.signature).join("|");
+    if (signature === this._waypointDeckSig) return;
+    this._waypointDeckSig = signature;
+    this.waypointDecks.clear();
+    this._renderWaypointList();
+    const token = ++this._waypointDeckToken;
+    clearTimeout(this._waypointDeckTimer);
+    if (!targets.length) return;
+    this._waypointDeckTimer = setTimeout(() => {
+      void Promise.all(
+        targets.map(async (target) => {
+          try {
+            const result = await postDeckProbe({zone_id: target.geometryZoneId, point: target.base});
+            return result && result.ok && Array.isArray(result.decks) ? [target.globalIndex, result.decks] : null;
+          } catch {
+            return null; // 探针只辅助选层，失败不能阻断路径编辑
+          }
+        }),
+      ).then((results) => {
+        if (token !== this._waypointDeckToken) return;
+        if (this.state.mode !== Mode.EDIT) {
+          // 结果丢在编辑模式外就得把签名一起丢掉, 否则回来时签名照旧, 这批路点再也探不出层。
+          this._waypointDeckSig = null;
+          return;
+        }
+        for (const result of results) {
+          if (result) this.waypointDecks.set(result[0], result[1]);
+        }
+        this._renderWaypointList();
+      });
+    }, 120);
   }
 
   /** @param {{globalIndex:number, geometryZoneId:number, base:number[]}} target @returns {Promise<void>} */
@@ -3956,10 +3984,7 @@ class MapNavigatorApp {
 
   /** Plan the temporary S/G pair through the runtime MapNavigateAction preview. */
   async _calculateQuickRouteTest() {
-    const built = buildQuickRouteTestRequest(this.quickRouteTest, {
-      zip: this.els.chkEditZipline.checked,
-      exact_slim: this.els.chkEditExactSlim.checked,
-    });
+    const built = buildQuickRouteTestRequest(this.quickRouteTest, {zip: this.els.chkEditZipline.checked});
     if (!built.ok) {
       setStatus(built.error, "#f59e0b");
       return;
@@ -4026,10 +4051,10 @@ class MapNavigatorApp {
       const exported = await exportPath(plan.targets);
       const customActionParam = {path: exported.nodes || []};
       if (this.els.chkEditZipline.checked) customActionParam.zip = true;
-      if (this.els.chkEditExactSlim.checked) customActionParam.exact_slim = true;
       const result = await postRoutePreview({
         position: plan.position,
         position_zone: plan.positionZone,
+        floor_y: plan.startDeckY,
         custom_action_param: customActionParam,
       });
       if (token !== this._editRouteToken || (result && result.stale)) return;
@@ -4166,7 +4191,12 @@ class MapNavigatorApp {
 
   _toggleLiveLocate() {
     if (this.liveLocateSocket) {
-      this._stopLiveLocate();
+      void this._stopLiveLocate();
+      return;
+    }
+    // 实时定位和试跑抢同一个游戏会话, 试跑还没交还就不让开。
+    if (this.navtest?.busy) {
+      setStatus("试跑会话尚未结束, 请等待其释放游戏连接。", "#f59e0b");
       return;
     }
     if (!this.connection?.isConnected()) return;
@@ -4182,9 +4212,12 @@ class MapNavigatorApp {
         this.els.btnLiveLocate.textContent = "开启实时定位";
         this.els.btnLiveLocate.classList.remove("btn-danger");
         this.els.btnLiveLocate.classList.add("btn-secondary");
+        this.els.btnLiveLocate.disabled = !this.connection.isConnected();
       }
+      // 会话真的关掉了, 等着开试跑的那一方可以往下走了。
+      if (this._liveLocateStopResolve) this._liveLocateStopResolve(true);
     };
-    socket.start(this.connection.buildSession());
+    socket.start(this.connection.buildSession(), {liveOnly: true});
     this._clearLivePath();
     this._initialLiveHeightColored = false;
     this.showLivePath = true;
@@ -4194,17 +4227,41 @@ class MapNavigatorApp {
     setStatus("实时定位已开启。", "#10b981");
   }
 
-  /** Keep standalone locating and route running mutually exclusive. */
+  /**
+   * 关掉实时定位, 并等到后端真的交还游戏会话为止。试跑要抢的就是这把锁,
+   * 提前返回会让它开在旧会话还占着的时候。
+   * @returns {Promise<boolean>} 会话是否已确认关闭
+   */
   _stopLiveLocate() {
     const socket = this.liveLocateSocket;
-    if (socket) socket.stop();
-    this.liveLocateSocket = null;
+    if (!socket) return Promise.resolve(true);
+    if (this._liveLocateStopPromise) return this._liveLocateStopPromise;
+
+    this.els.btnLiveLocate.disabled = true;
+    this.els.btnLiveLocate.textContent = "正在关闭实时定位…";
+    this._liveLocateStopPromise = new Promise((resolve) => {
+      const timeout = window.setTimeout(() => {
+        if (this._liveLocateStopPromise) {
+          this._liveLocateStopPromise = null;
+          this._liveLocateStopResolve = null;
+          this.els.btnLiveLocate.disabled = false;
+          setStatus("实时定位未能及时结束, 暂时无法启动试跑。", "#ef4444");
+          resolve(false);
+        }
+      }, 30000);
+      this._liveLocateStopResolve = (closed) => {
+        window.clearTimeout(timeout);
+        this._liveLocateStopResolve = null;
+        this._liveLocateStopPromise = null;
+        resolve(closed);
+      };
+    });
+    socket.stop();
     this.showLivePath = false;
     this._clearLivePath();
-    this.els.btnLiveLocate.textContent = "开启实时定位";
-    this.els.btnLiveLocate.classList.remove("btn-danger");
-    this.els.btnLiveLocate.classList.add("btn-secondary");
     this._syncThreeOverlays();
+    setStatus("正在停止实时定位, 等待游戏会话释放…", "#3b82f6");
+    return this._liveLocateStopPromise;
   }
 
   _recolorThreeByLiveHeight() {
@@ -4905,8 +4962,7 @@ class MapNavigatorApp {
 
   /** Keep each copy button's label aligned with its selected output format. @returns {void} */
   _syncCopyButtonLabels() {
-    this.els.btnCopyPath.textContent =
-      this.els.chkEditZipline.checked || this.els.chkEditExactSlim.checked ? "复制完整参数" : "复制路径";
+    this.els.btnCopyPath.textContent = this.els.chkEditZipline.checked ? "复制完整参数" : "复制路径";
     this.els.btnCopyAssert.textContent =
       this.els.assertCopyFormat.value === COPY_FORMAT_COORDINATES ? "复制坐标" : "复制断言";
   }
@@ -4919,10 +4975,8 @@ class MapNavigatorApp {
     }
     try {
       const result = await exportPath(this.state.points);
-      if (this.els.chkEditZipline.checked || this.els.chkEditExactSlim.checked) {
-        const param = {path: result.nodes};
-        if (this.els.chkEditZipline.checked) param.zip = true;
-        if (this.els.chkEditExactSlim.checked) param.exact_slim = true;
+      if (this.els.chkEditZipline.checked) {
+        const param = {path: result.nodes, zip: true};
         await this._copyText(JSON.stringify(param, null, 4));
         setStatus("MapNavigator 完整参数已复制到剪贴板", "#10b981");
       } else {
@@ -4974,7 +5028,6 @@ class MapNavigatorApp {
       path: this.state.points,
       exported: false,
       zip: this.els.chkEditZipline.checked,
-      exact_slim: this.els.chkEditExactSlim.checked,
     };
   }
 
@@ -5269,6 +5322,7 @@ class MapNavigatorApp {
   _syncActionControls() {
     this._renderEditInspection();
     this._renderWaypointList();
+    this._scheduleWaypointDeckProbes();
     this._renderEditDeckList();
     // 路线可能刚被改过: 重新装载到试跑会话, 让 F3 跑的始终是屏幕上这一条。
     if (this.navtest) this.navtest.routeChanged();
@@ -5371,6 +5425,20 @@ class MapNavigatorApp {
       coord.textContent = `${compactNumber(point.x)}, ${compactNumber(point.y)}`;
 
       row.append(handle, num, dot, name, coord);
+
+      const height = document.createElement("span");
+      height.className = "wp-height";
+      const decks = actions.includes(ActionType.NAVMESH) ? this.waypointDecks.get(zoneIndices[idx]) : null;
+      const selectedHeight = Number.isFinite(point.target_deck_y) ? point.target_deck_y : null;
+      // 只有一层时那层就是答案；多层时没选层就说不准站哪，等作者挑完再显示。
+      const selectedDeck =
+        decks && decks.length > 1 && selectedHeight !== null
+          ? decks.find((deck) => Math.abs(selectedHeight - deck.height) <= 2)
+          : null;
+      const displayHeight = decks && decks.length === 1 ? decks[0].height : selectedDeck?.height;
+      height.textContent = Number.isFinite(displayHeight) ? `[${displayHeight.toFixed(2)}]` : "[ - ]";
+      row.appendChild(height);
+
       if (point.strict) {
         const strict = document.createElement("span");
         strict.className = "wp-strict";

@@ -779,5 +779,89 @@
             "__ScenePrivateMapWulingNorthWulingExclusionZoneEnterWorldAnchorWithPick",
             "[JumpBack]SceneEnterMapWulingNorthWulingExclusionZone"
         ]
+    },
+    "SceneEnterWorldWulingSnowyForest0": {
+        "desc": "从任意界面进入武陵-雪松林-落雪山道大世界",
+        "pre_delay": 0,
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest0"
+        },
+        "post_delay": 0,
+        "next": [
+            "__ScenePrivateMapWulingSnowyForestEnterWorldAnchorWithPick",
+            "[JumpBack]SceneEnterMapWulingSnowyForest"
+        ]
+    },
+    "SceneEnterWorldWulingSnowyForest1": {
+        "desc": "从任意界面进入武陵-雪松林-寒雾松林大世界",
+        "pre_delay": 0,
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest1"
+        },
+        "post_delay": 0,
+        "next": [
+            "__ScenePrivateMapWulingSnowyForestEnterWorldAnchorWithPick",
+            "[JumpBack]SceneEnterMapWulingSnowyForest"
+        ]
+    },
+    "SceneEnterWorldWulingSnowyForest2": {
+        "desc": "从任意界面进入武陵-雪松林-雪祀木屋左侧大世界",
+        "pre_delay": 0,
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest2"
+        },
+        "post_delay": 0,
+        "next": [
+            "__ScenePrivateMapWulingSnowyForestEnterWorldAnchorWithPick",
+            "[JumpBack]SceneEnterMapWulingSnowyForest"
+        ]
+    },
+    "SceneEnterWorldWulingSnowyForest3": {
+        "desc": "从任意界面进入武陵-雪松林-仪式祭坛大世界",
+        "pre_delay": 0,
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest3"
+        },
+        "post_delay": 0,
+        "next": [
+            "__ScenePrivateMapWulingSnowyForestEnterWorldAnchorWithPick",
+            "[JumpBack]SceneEnterMapWulingSnowyForest"
+        ]
+    },
+    "SceneEnterWorldWulingSnowyForest4": {
+        "desc": "从任意界面进入武陵-雪松林-雾凇山谷左上角大世界",
+        "pre_delay": 0,
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest4"
+        },
+        "post_delay": 0,
+        "next": [
+            "__ScenePrivateMapWulingSnowyForestEnterWorldAnchorWithPick",
+            "[JumpBack]SceneEnterMapWulingSnowyForest"
+        ]
+    },
+    "SceneEnterWorldWulingSnowyForest5": {
+        "desc": "从任意界面进入武陵-雪松林-雪祀木屋右侧大世界",
+        "pre_delay": 0,
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest5"
+        },
+        "post_delay": 0,
+        "next": [
+            "__ScenePrivateMapWulingSnowyForestEnterWorldAnchorWithPick",
+            "[JumpBack]SceneEnterMapWulingSnowyForest"
+        ]
+    },
+    "SceneEnterWorldWulingSnowyForest6": {
+        "desc": "从任意界面进入武陵-雪松林-雾凇山谷右上角大世界",
+        "pre_delay": 0,
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest6"
+        },
+        "post_delay": 0,
+        "next": [
+            "__ScenePrivateMapWulingSnowyForestEnterWorldAnchorWithPick",
+            "[JumpBack]SceneEnterMapWulingSnowyForest"
+        ]
     }
 }

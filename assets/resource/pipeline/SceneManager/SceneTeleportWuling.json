@@ -2530,5 +2530,243 @@
                 "trace": true
             }
         }
+    },
+    "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest0": {
+        "desc": "在地图界面找锚点 (雪松林-落雪山道)",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "Wuling",
+            "icon": "TeleportAnchor",
+            "at": [
+                1365.5,
+                987.7
+            ]
+        },
+        "pre_delay": 0,
+        "action": "Click",
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": ""
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[JumpBack]__ScenePrivateMapTeleportChoose",
+            "[JumpBack]__ScenePrivateMapMarkerPanelClose",
+            "__ScenePrivateMapTeleportConfirm",
+            "__ScenePrivateMapTeleportSuccess"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
+        }
+    },
+    "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest1": {
+        "desc": "在地图界面找锚点 (雪松林-寒雾松林)",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "Wuling",
+            "icon": "TeleportAnchor",
+            "at": [
+                1413.0,
+                993.5
+            ]
+        },
+        "pre_delay": 0,
+        "action": "Click",
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": ""
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[JumpBack]__ScenePrivateMapTeleportChoose",
+            "[JumpBack]__ScenePrivateMapMarkerPanelClose",
+            "__ScenePrivateMapTeleportConfirm",
+            "__ScenePrivateMapTeleportSuccess"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
+        }
+    },
+    "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest2": {
+        "desc": "在地图界面找锚点 (雪松林-雪祀木屋左侧)",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "Wuling",
+            "icon": "TeleportAnchor",
+            "at": [
+                1509.8,
+                990.6
+            ]
+        },
+        "pre_delay": 0,
+        "action": "Click",
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": ""
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[JumpBack]__ScenePrivateMapTeleportChoose",
+            "[JumpBack]__ScenePrivateMapMarkerPanelClose",
+            "__ScenePrivateMapTeleportConfirm",
+            "__ScenePrivateMapTeleportSuccess"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
+        }
+    },
+    "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest3": {
+        "desc": "在地图界面找锚点 (雪松林-仪式祭坛)",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "Wuling",
+            "icon": "TeleportAnchor",
+            "at": [
+                1593.1,
+                934.5
+            ]
+        },
+        "pre_delay": 0,
+        "action": "Click",
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": ""
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[JumpBack]__ScenePrivateMapTeleportChoose",
+            "[JumpBack]__ScenePrivateMapMarkerPanelClose",
+            "__ScenePrivateMapTeleportConfirm",
+            "__ScenePrivateMapTeleportSuccess"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
+        }
+    },
+    "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest4": {
+        "desc": "在地图界面找锚点 (雪松林-雾凇山谷左上角)",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "Wuling",
+            "icon": "TeleportAnchor",
+            "at": [
+                1595.9,
+                1075.5
+            ]
+        },
+        "pre_delay": 0,
+        "action": "Click",
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": ""
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[JumpBack]__ScenePrivateMapTeleportChoose",
+            "[JumpBack]__ScenePrivateMapMarkerPanelClose",
+            "__ScenePrivateMapTeleportConfirm",
+            "__ScenePrivateMapTeleportSuccess"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
+        }
+    },
+    "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest5": {
+        "desc": "在地图界面找锚点 (雪松林-雪祀木屋右侧)",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "Wuling",
+            "icon": "TeleportAnchor",
+            "at": [
+                1598.5,
+                993.8
+            ]
+        },
+        "pre_delay": 0,
+        "action": "Click",
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": ""
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[JumpBack]__ScenePrivateMapTeleportChoose",
+            "[JumpBack]__ScenePrivateMapMarkerPanelClose",
+            "__ScenePrivateMapTeleportConfirm",
+            "__ScenePrivateMapTeleportSuccess"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
+        }
+    },
+    "__ScenePrivateMapWulingSnowyForestEnterWorldWulingSnowyForest6": {
+        "desc": "在地图界面找锚点 (雪松林-雾凇山谷右上角)",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "Wuling",
+            "icon": "TeleportAnchor",
+            "at": [
+                1720.5,
+                995.0
+            ]
+        },
+        "pre_delay": 0,
+        "action": "Click",
+        "anchor": {
+            "__ScenePrivateMapTeleportPickAnchor": ""
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[JumpBack]__ScenePrivateMapTeleportChoose",
+            "[JumpBack]__ScenePrivateMapMarkerPanelClose",
+            "__ScenePrivateMapTeleportConfirm",
+            "__ScenePrivateMapTeleportSuccess"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": {
+                "trace": true
+            },
+            "Node.Action.Failed": {
+                "trace": true
+            }
+        }
     }
 }
