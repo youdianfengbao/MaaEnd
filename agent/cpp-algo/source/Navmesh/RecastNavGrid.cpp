@@ -1031,7 +1031,9 @@ std::optional<std::vector<int64_t>> SpanAstar(
     }
     const bool hj = jumps != nullptr && !jumps->empty();
     // u 是否经跳边到达: 弦与视线均按地面计算, 跳边不参与
-    const auto byJump = [&](int64_t p, int64_t u) { return hj && p >= 0 && jumps->has(p, u); };
+    const auto byJump = [&](int64_t p, int64_t u) {
+        return hj && p >= 0 && jumps->has(p, u);
+    };
     const int64_t nx = ok2.nx, ny = ok2.ny;
     const int64_t gc = st.sp_cell[static_cast<size_t>(gset.front())];
     const int64_t gxx = gc % nx, gyy = gc / nx;

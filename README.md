@@ -61,7 +61,7 @@ Powered by [MaaFramework](https://github.com/MaaXYZ/MaaFramework) & [MXU](https:
 - 🎁 **赠送干员礼物**：自动前往联络台，给干员送礼并顺手领取回礼，好感度慢慢拉满！
 - 🔫 **武库升级 & 生产制造**：武器升级、装备制造、简易制作、批量简易制作自动化，解放双手，轻松提升战力和产能！💪
 - 💰 **自动倒卖**：自动囤货、售卖弹性需求物资双线配合，盯利润、控调度券，倒卖党狂喜！💸
-- 🛒 **售卖产品**：各据点产品自动兑换调度券，点点点就交给它吧！
+- 🛒 **据点交易**：各据点产品自动兑换调度券，点点点就交给它吧！
 - 🚚 **送货任务**：支持接取转交、仅接取、仅装箱三种模式，按地区开关更灵活！
 - 🌆 **委托抢单**：委托列表自动抢单，还能按需传送到仓储节点继续后续操作。
 - 💳 **信用点购物**：自动购买信用商店物品，支持优先级、折扣、保留阈值和信用点获取联动，挂机购物两不误！
@@ -89,6 +89,10 @@ Powered by [MaaFramework](https://github.com/MaaXYZ/MaaFramework) & [MXU](https:
 [![贡献者](https://contrib.rocks/image?repo=MaaEnd/MaaEnd&max=1000)](https://github.com/MaaEnd/MaaEnd/graphs/contributors)
 
 有你们的贡献，MaaEnd 才能变得越来越好~ ❤️
+
+## 🙏 致谢
+
+感谢 [zmdmap](https://zmdmap.com/) 为 MaaEnd 提供的信息支持。
 
 ## 💬 加入社区
 

@@ -1355,6 +1355,10 @@ bool NavigationStateMachine::TickNavigate()
             // 有各自的站位与提交距离, 判定圈被放宽或收紧的那几种情况要的也正是原来的宽松判定, 都不介入。
             if (waypoint.SettlesAtArrival()) {
                 if (route.waypoint_distance <= route.arrival_band) {
+                    // 这一拍的位移可能直接跨过步行进带; 挖掘的末端纠正必须先进入步行再挪动。
+                    if (waypoint.action == ActionType::DIG) {
+                        walk_mode_.Request(true);
+                    }
                     semantic_nodes::SettleAtStrictGoal(semantic_ctx, waypoint);
                     // 收尾里的转镜头没走操舵那条路, 在途转角账认不出来, 清掉重新起算
                     runtime_state_.steering_rate.Reset();
@@ -2043,22 +2047,25 @@ NavigationStateMachine::PromptDistance NavigationStateMachine::NearestPromptDist
             nearest.is_zipline = false;
         }
     }
-    // 上索点也算提示点: 同一个图标、同一件事 —— 够不够得着只看身位离架子多远。已经站上去了就不算,
-    // 剩下的跳靠瞄准接上; 走过的那些也不算, 链尾旁边的旧架子会把走路模式一直摁着
-    if (!runtime_state_.semantic.zipline_mounted) {
-        const std::vector<Waypoint>& path = session_->current_path();
-        for (size_t index = session_->current_node_idx(); index < path.size(); ++index) {
-            const Waypoint& waypoint = path[index];
-            if (waypoint.action != ActionType::ZIPLINE || !waypoint.HasPosition()) {
-                continue;
-            }
-            const double dx = waypoint.x - position_->x;
-            const double dy = waypoint.y - position_->y;
-            const double distance_sq = dx * dx + dy * dy;
-            if (nearest.distance_sq < 0.0 || distance_sq < nearest.distance_sq) {
-                nearest.distance_sq = distance_sq;
-                nearest.is_zipline = true;
-            }
+    // 挖掘点和上索点都需要减速接近; 只统计尚未经过的点, 避免已经执行的点持续压住走路模式。
+    // 已经站上滑索架时不再统计上索点, 剩下的跳靠瞄准接上; 挖掘点仍照常统计。
+    const std::vector<Waypoint>& path = session_->current_path();
+    for (size_t index = session_->current_node_idx(); index < path.size(); ++index) {
+        const Waypoint& waypoint = path[index];
+        const bool is_zipline = waypoint.action == ActionType::ZIPLINE;
+        if (!waypoint.HasPosition() || (waypoint.action != ActionType::DIG && !is_zipline)
+            || (is_zipline && runtime_state_.semantic.zipline_mounted)) {
+            continue;
+        }
+        const double dx = waypoint.x - position_->x;
+        const double dy = waypoint.y - position_->y;
+        const double distance_sq = dx * dx + dy * dy;
+        if (waypoint.action == ActionType::DIG && (nearest.dig_distance_sq < 0.0 || distance_sq < nearest.dig_distance_sq)) {
+            nearest.dig_distance_sq = distance_sq;
+        }
+        if (nearest.distance_sq < 0.0 || distance_sq < nearest.distance_sq) {
+            nearest.distance_sq = distance_sq;
+            nearest.is_zipline = is_zipline;
         }
     }
     return nearest;
@@ -2071,21 +2078,22 @@ void NavigationStateMachine::UpdatePromptSprintSuppression()
     }
 
     const double nearest_sq = NearestPromptDistance().distance_sq;
-    // 这条线上没有提示驱动的点时 nearest_sq < 0, 疾跑行为一点不碰
+    // 这条线上没有需要减速接近的点时 nearest_sq < 0, 疾跑行为一点不碰
     const bool approaching_prompt = nearest_sq >= 0.0 && nearest_sq <= kCollectSprintSuppressBandWu * kCollectSprintSuppressBandWu;
     motion_controller_->SetSprintSuppressed(approaching_prompt);
 }
 
-// Walk mode's only decision point: engaged on the last few units of an approach to a point that has to be
-// stood on, released everywhere else (travel legs, recovery, turn-in-place nodes, before motion is confirmed).
+// Regular approach walking policy: engaged on the last few units of an approach to a point that has to be
+// stood on, released everywhere else (travel legs, recovery, turn-in-place nodes). DIG may start walking before
+// motion is confirmed; its arrival gate still requires actual movement before digging.
 void NavigationStateMachine::UpdateWalkMode(NaviPhase phase)
 {
     PromptDistance nearest = NearestPromptDistance();
     const bool recovering = runtime_state_.recovery.active || runtime_state_.cross_tier_escape.active;
     const bool has_waypoint = session_->HasCurrentWaypoint();
     const ActionType action = has_waypoint ? session_->CurrentWaypoint().action : ActionType::HEADING;
-    const bool plain_approach = action == ActionType::COLLECT || action == ActionType::INTERACT || action == ActionType::RUN
-                                || action == ActionType::NAVMESH || action == ActionType::ZIPLINE;
+    const bool plain_approach = action == ActionType::COLLECT || action == ActionType::DIG || action == ActionType::INTERACT
+                                || action == ActionType::RUN || action == ActionType::NAVMESH || action == ActionType::ZIPLINE;
     // 末端要纠正的点按同一套来: 走路让滑行距离减半, 到点后要走回去的那段也就短一半
     bool settling_approach = false;
     if (has_waypoint && session_->CurrentWaypoint().SettlesAtArrival()) {
@@ -2099,8 +2107,10 @@ void NavigationStateMachine::UpdateWalkMode(NaviPhase phase)
         }
         settling_approach = true;
     }
-    if (phase != NaviPhase::Navigate || nearest.distance_sq < 0.0 || recovering || !(plain_approach || settling_approach)
-        || !runtime_state_.route.startup_motion_confirmed) {
+    // 连续挖掘会重置起步确认。短腿应从起步就走路, 而不是等确认位移时已进到达圈才切换。
+    const bool startup_blocks_walk = !runtime_state_.route.startup_motion_confirmed && action != ActionType::DIG;
+    if (phase != NaviPhase::Navigate || !position_->valid || nearest.distance_sq < 0.0 || recovering
+        || !(plain_approach || settling_approach) || startup_blocks_walk) {
         walk_mode_.Request(false);
         return;
     }
@@ -2109,7 +2119,10 @@ void NavigationStateMachine::UpdateWalkMode(NaviPhase phase)
     const double enter_band = nearest.is_zipline ? kZiplineWalkEnterBandWu : kCollectWalkEnterBandWu;
     const double exit_band = nearest.is_zipline ? kZiplineWalkExitBandWu : kCollectWalkExitBandWu;
     const double band = was_engaged ? exit_band : enter_band;
-    walk_mode_.Request(nearest.distance_sq <= band * band);
+    // 更近的采集点可能还在自己的步行带外, 不能挡掉稍远但已进入较大步行带的挖掘点。
+    const double dig_band = was_engaged ? kDigWalkExitBandWu : kDigWalkEnterBandWu;
+    const bool approaching_dig = nearest.dig_distance_sq >= 0.0 && nearest.dig_distance_sq <= dig_band * dig_band;
+    walk_mode_.Request(nearest.distance_sq <= band * band || approaching_dig);
     const bool walking = walk_mode_.engaged();
     if (walking != was_engaged) {
         const double nearest_stop_point = std::sqrt(nearest.distance_sq);

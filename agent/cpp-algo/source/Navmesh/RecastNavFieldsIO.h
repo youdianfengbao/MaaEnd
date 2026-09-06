@@ -120,7 +120,7 @@ struct FieldsOpenRec
     float h = 0.0F;
     uint16_t clr = 0; // 打通后的净空, 平方格数
     uint8_t flags = 0;
-    uint8_t src = 0; // bit0 = 缝门控, bit1 = 离网落点
+    uint8_t src = 0;  // bit0 = 缝门控, bit1 = 离网落点
 };
 
 // 在区内按 (gy, gx, h 位模式) 升序的区段中查找一条; 未找到返回空。

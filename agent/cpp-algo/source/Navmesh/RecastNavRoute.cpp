@@ -204,7 +204,8 @@ bool loadGridWindow(
                 }
                 // 打通表仅收录 core==0 的记录, 其余无需查询; 须在封缝净空之后取较大值, 否则会被重新压回 0
                 if (n_opn != 0 && (r.flags & kGridFlagCore) == 0) {
-                    if (const FieldsOpenRec* o = FindOpen(opn, n_opn, static_cast<int32_t>(t->gx0 + ix), static_cast<int32_t>(t->gy0 + iy), r.h)) {
+                    if (const FieldsOpenRec* o =
+                            FindOpen(opn, n_opn, static_cast<int32_t>(t->gx0 + ix), static_cast<int32_t>(t->gy0 + iy), r.h)) {
                         r.flags |= o->flags;
                         r.clr = std::max(r.clr, o->clr);
                     }
@@ -807,7 +808,8 @@ std::optional<WindowInfo> buildWindow(
                 }
                 continue;
             }
-            const float cost = std::max(r.cost_modifier, 1.0F) * static_cast<float>(std::hypot(static_cast<double>(hx - lx), static_cast<double>(hy - ly)));
+            const float cost = std::max(r.cost_modifier, 1.0F)
+                               * static_cast<float>(std::hypot(static_cast<double>(hx - lx), static_cast<double>(hy - ly)));
             info.links_cell.add(cl, ch, cost);
             info.links_span.add(sl, sh, cost);
             info.links_span_rev.add(sh, sl, cost);
@@ -1705,7 +1707,8 @@ std::optional<std::vector<WorldPoint>> routeWindow(
         const JumpEdges& jl = backward ? info.links_span_rev : info.links_span;
         const auto viaJumps = [&] {
             for (const JumpEdges::Edge& e : jl.e) {
-                if (seen[static_cast<size_t>(e.src)] != 0 && seen[static_cast<size_t>(e.dst)] == 0 && use[static_cast<size_t>(e.dst)] != 0) {
+                if (seen[static_cast<size_t>(e.src)] != 0 && seen[static_cast<size_t>(e.dst)] == 0
+                    && use[static_cast<size_t>(e.dst)] != 0) {
                     seen[static_cast<size_t>(e.dst)] = 1;
                     frontier.push_back(e.dst);
                 }
