@@ -386,11 +386,26 @@
             "clear_cache": true
         },
         "next": [
+            "__AccountSwitchResetSceneImageCheck"
+        ]
+    },
+    "__AccountSwitchResetSceneImageCheck": {
+        "desc": "账号切换后重置场景初始化状态，使下一个任务重新捕获当前账号 UID",
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ImageCheckSetResultAction",
+        "custom_action_param": {
+            "result": false
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
             "__AccountSwitchResetImsFirstScan"
         ]
     },
     "__AccountSwitchResetImsFirstScan": {
-        "desc": "清空 IMS 首次库存扫描标记：重新打开各地区 Begin，关闭商店 Completed，切号后会再次真正扫库",
+        "desc": "清空 IMS 首次库存扫描标记：重新打开各地区 Begin，关闭各完成标记，切号后会再次真正扫库",
         "recognition": "DirectHit",
         "pre_delay": 0,
         "action": {
@@ -402,6 +417,12 @@
                     "patch": {
                         "SyncItemDataBegin": {
                             "enabled": true
+                        },
+                        "SyncDepotItemDataBegin": {
+                            "enabled": true
+                        },
+                        "SyncDepotItemDataCompleted": {
+                            "enabled": false
                         },
                         "SyncShopItemDataBegin": {
                             "enabled": true

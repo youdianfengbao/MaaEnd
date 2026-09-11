@@ -16,6 +16,8 @@
                 "AutoFightMainAction",
                 "AutoDeliveryResolveDepotAction",
                 "AutoDeliveryResolveDestinationAction",
+                "AutoEssenceLoadInventoryAction",
+                "AutoEssenceTargetPlanAction",
                 "AutoSellItemExecuteItemTaskAction",
                 "AutoStockStapleQuantityControlAction",
                 "AutoStockpile.CaptureUid",
@@ -285,6 +287,20 @@
 			"then": {
 				"properties": {
 					"custom_action_param": { "$ref": "./components/repeat_action.schema.json#/$defs/RepeatUntilNotFoundParam" }
+				},
+				"required": [ "custom_action_param" ]
+			}
+		},
+		{
+			"if": {
+				"properties": {
+					"custom_action": { "const": "ZiplineImport" }
+				},
+				"required": [ "custom_action" ]
+			},
+			"then": {
+				"properties": {
+					"custom_action_param": { "$ref": "./components/zipline.schema.json#/$defs/ImportParam" }
 				},
 				"required": [ "custom_action_param" ]
 			}

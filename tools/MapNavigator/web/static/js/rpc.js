@@ -190,7 +190,8 @@ export function getZiplineRecords() {
  * Expand a complete MapNavigator request with the runtime planner, preserving global
  * route boundaries and zipline semantics.
  *
- * @param {{position:number[], position_zone:string, floor_y?:?number, custom_action_param:Object}} req
+ * @param {{position:number[], position_zone:string, floor_y?:?number, custom_action_param:Object,
+ *   zipline_account_id?:string}} req
  * @returns {Promise<{ok:boolean, stale?:boolean, points?:number[][],
  *   walk_segments?:number[][][], zipline_segments?:Array<Object>,
  *   diagnostics?:Array<Object>, expanded_waypoints?:number, zipline?:Object, error?:string,
@@ -206,6 +207,7 @@ export function postRoutePreview(req) {
     position_zone: req.position_zone,
     floor_y: req.floor_y === undefined ? null : req.floor_y,
     custom_action_param: req.custom_action_param,
+    zipline_account_id: req.zipline_account_id || "",
   });
 }
 
@@ -360,6 +362,23 @@ export function putSettings(payload) {
 }
 
 /**
+ * @returns {Promise<Object>} the virtual no-go table the planner reads from data/MapNavigator
+ */
+export function fetchNoGoZones() {
+  return getJson("/api/nogo");
+}
+
+/**
+ * Persist the no-go table. The backend then cold-starts the navmesh session so the
+ * next route preview plans against the saved polygons; `reloaded` says whether it did.
+ * @param {Object} payload serialized no-go doc
+ * @returns {Promise<{ok:boolean, path:string, zones:number, reloaded:boolean, error:string}>}
+ */
+export function saveNoGoZones(payload) {
+  return sendJson("/api/nogo", payload, "PUT");
+}
+
+/**
  * Check connection status with backend.
  * @param {Object} payload settings payload to check
  * @returns {Promise<{connected:boolean, message:string}>}
@@ -471,7 +490,7 @@ export class RecordingSocket extends SessionSocket {
    * @returns {void}
    */
   start(sessionConfig, options = {}) {
-    this._open({ ...(sessionConfig || {}), live_only: !!options.liveOnly });
+    this._open({...(sessionConfig || {}), live_only: !!options.liveOnly});
   }
 
   /** Ask the backend to stop recording. @returns {void} */

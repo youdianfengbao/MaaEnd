@@ -155,8 +155,20 @@ constexpr int32_t kDynamicRecoveryTotalTimeoutMs = 30000;
 // abandons the precise route.
 constexpr int32_t kRecoveryJumpAttemptsBeforeDetour = 2;
 constexpr double kDynamicRecoveryResetDistance = 2.0;
-constexpr double kCloseGoalDetourSuppressSlack = 6.0;
-constexpr int32_t kRecoveryDetourAttemptsBeforeUnstick = 1;
+// Each detour attempt places one virtual no-go disc and re-plans around it; a further stall at the same
+// spot places a larger one. After this many attempts at one anchor the ladder moves on to the physical
+// unstick.
+constexpr int32_t kRecoveryDetourAttemptsBeforeUnstick = 3;
+// Virtual no-go disc placed ahead of a stall. The first radius is an estimate of the unseen obstacle's
+// size; a further stall against an existing disc adds one step, up to the cap. The standoff keeps the
+// agent's own cell outside the disc so the replan has a start point; the goal clearance keeps the anchor
+// outside it.
+constexpr double kVirtualNoGoRadius = 2.0;
+constexpr double kVirtualNoGoRadiusStep = 1.5;
+constexpr double kVirtualNoGoRadiusMax = 6.5;
+constexpr double kVirtualNoGoRadiusMin = 1.0;
+constexpr double kVirtualNoGoStandoff = 1.0;
+constexpr double kVirtualNoGoGoalClearance = 1.0;
 constexpr double kUnstickSampleStepM = 0.5;  // per-ray on/off scan resolution (world units)
 constexpr double kUnstickMaxRockCrossingM =
     2.0;                                     // tolerate this much off-mesh (the rock) before solid ground; longer = water => reject bearing
@@ -266,12 +278,8 @@ constexpr double kZiplineLandingBandWu = 6.0;
 constexpr double kZiplineLandingHintRadiusWu = 24.0;
 constexpr int32_t kZiplineRideRetryIntervalMs = 150;
 constexpr int32_t kZiplineRideTimeoutMs = 30000;
-// 落点圈内还要连着读到这么多个非 held 定位才收工, 避免滑行途中恰好飞过落点上方就提前落地
-constexpr int32_t kZiplineLandingStableFixes = 2;
-// 站上架子后交互提示就没了, 所以确认只看「还认不认得出这条提示」。留一小段窗口是因为按下的
-// 那一帧提示往往还在
-constexpr int32_t kZiplineMountConfirmAttempts = 6;
-constexpr int32_t kZiplineMountConfirmIntervalMs = 250;
+// 起滑后连着这么多帧定位不到就当滑出去了: 滑行中小地图整个隐藏, 站在架子上没滑走时跟踪不会断
+constexpr int32_t kZiplineRideLostFixes = 3;
 // 起滑按完先等这么久再开始量位移, 免得把起步前的几帧当成没滑起来
 constexpr int32_t kZiplineLaunchSettleMs = 400;
 // 瞄准精度只能在按左键之前保证: 按下去人就滑走了, 半空里没有跟随层能把方向修回来。走路那套
@@ -280,6 +288,11 @@ constexpr double kZiplineAimToleranceDeg = 6.0;
 // 上索后的稳定等待与全部水平修正共用这个截止时间。每次只发一个后端批次并等待真实反馈，
 // 避免大角度转向在上索动画尚未结束时一次性排入多条输入。
 constexpr int32_t kZiplineAimHeadingTimeoutMs = 6000;
+// 第一批转完量一次「发了多少转了多少」当增益, 后面的 yaw 和俯仰都按它缩放。太小的一批量不准,
+// 增益夹在这个范围里, 一帧读歪不至于把俯仰整个放飞
+constexpr double kZiplineAimGainMinTurnDeg = 5.0;
+constexpr double kZiplineAimGainMin = 0.5;
+constexpr double kZiplineAimGainMax = 2.0;
 // 落差够大时镜头得抬到索的仰角上才起得了滑。小地图读不到俯仰, 所以每次从地面登上滑索架后
 // 先通过 Pipeline 把镜头拉到上限, 将该硬限位记作 +90 度, 再从这个固定基准开环调整。连续滑索
 // 没有上下索动作, 直接沿用上一跳记住的俯仰。游戏的俯仰范围不对称: 仰角最多 90 度, 俯角最多 60 度。
@@ -295,10 +308,18 @@ constexpr double kZiplineSettleMoveWu = 1.5;
 constexpr int32_t kZiplineSettleFixes = 4;
 // 下索是一次右键。站在架子上时移动指令会被架子的选点状态吃掉, 所以走路之前必须先下来
 constexpr int32_t kZiplineDismountHoldMs = 80;
-// 索没通电、两端根本没挂索时起滑是空响, 人还站在架子上。滑一趟是大位移, 所以「过了确认时间
-// 还在原地」与「滑起来了但没到落点」分得开, 不必耗满整个滑行超时。两个值待实机核准
-constexpr int32_t kZiplineMountConfirmMs = 5000;
+// 索没通电、两端根本没挂索时起滑是空响, 人还站在架子上。真滑起来小地图随即读不回坐标, 空响时坐标
+// 一直有效且位移为零, 两种结局分得开, 确认时间只要盖住失定位到判出滑行那几拍
+constexpr int32_t kZiplineLaunchConfirmMs = 1500;
 constexpr double kZiplineMountMinMoveWu = 3.0;
+// 上索判定读两个信号: 右上角按钮在架上收起, 底部操作引导出现架上那几条提示。底部提示的逐帧可读性
+// 随机位起落, 所以架上一侧读到一帧即认; 地面一侧要连续若干帧, 避免在上架过程中重按。按键到按钮
+// 收起的延迟里地面读数不予采信, settle 为其预留时间。窗口要盖住提示从按键到第一帧读得出的滞后,
+// 余量不足会把已经上架的人按下索键弄下来
+constexpr int32_t kZiplineMountSettleMs = 600;
+constexpr int32_t kZiplineMountWindowMs = 4000;
+constexpr int32_t kZiplineMountOnGroundFixes = 2;
+constexpr int32_t kZiplineMountPressBudget = 2;
 // 同一个上索点最多让重规划试这么多次, 再要重规划就当这根架子够不着, 退索改走路。楔死看门狗
 // 6s 重规划一次、12s 掐掉整趟导航, 所以这里必须小到能在它掐之前让出路来。滑索省下的那点路
 // 远不值一次导航失败, 判错方向只损失一段捷径
@@ -325,6 +346,18 @@ constexpr int32_t kZiplineAbandonWalkFallbackCount = 3;
 // 判定圈收到这里, 让人真把那点距离走完(有备用站位就是走过去, 没有就是再走近点)。
 // 再往下收就到定位噪声底下了, 收不拢只会白等看门狗
 constexpr double kZiplineRestandBandWu = 1.0;
+// 顶在设备上走不动时换下一个站位的门限。这时到点判定过不去、提示也没出来, 再等下去先招来的是
+// 恢复阶梯 —— 它跳一下、挪一下设备, 把这一轮的站位拖走, 所以必须抢在它前面动手
+constexpr int32_t kZiplineMountSpotStallMs = 2000;
+static_assert(kZiplineMountSpotStallMs < kObstacleRecoveryMinTriggerMs);
+// 滑错索又滑回来之后, 同一跳最多再试这么多次, 用完就站在架子上等换路
+constexpr int32_t kZiplineHopRetryBudget = 2;
+// 下索键按完等定位稳定的基准时长: 两倍还不稳再按一次, 四倍还不稳当卡住
+constexpr int32_t kZiplineDismountTimeoutMs = 2000;
+// 落地定位对不上时给冷启动的时间, 到点还对不上这跳按丢失记
+constexpr int32_t kZiplineUnknownTimeoutMs = 8000;
+// 两个节点算同一根架子的世界坐标距离。架子是点状物, 同一 level 里两根架子挨不到这么近
+constexpr double kZiplineTowerIdentityWu = 2.0;
 
 constexpr double kNoProgressDistanceEpsilon = 0.5;
 constexpr double kRouteProgressEpsilon = 0.5;
@@ -341,6 +374,8 @@ constexpr double kPostTurnForwardCommitMinDegrees = 15.0;
 
 constexpr const char* kDefaultNavmeshRelativePath = "assets/resource/model/map/navmesh/base.nav";
 constexpr const char* kDefaultCompressedNavmeshRelativePath = "assets/resource/model/map/navmesh/base.nav.gz";
+// 作者圈的虚拟禁区表。resource/model 是另一个仓库的子模块, 本仓库的配置统一放 data/<模块>/。
+constexpr const char* kNoGoTableRelativePath = "data/MapNavigator/nogo_zones.json";
 
 // Prompt-driven actions (collect / async interact), three nodes per kind: entry, authoritative recognition, exit.
 // The recognition node is also the ROI source, the pre-warm target and where the route's text is injected.
@@ -356,9 +391,14 @@ constexpr const char* kInteractExitNode = "MapNavigatorInteractEnd";
 constexpr const char* kZiplineMountEntryNode = "MapNavigatorZiplineMountStart";
 constexpr const char* kZiplineMountRecognitionNode = "MapNavigatorZiplineMount";
 constexpr const char* kZiplineMountExitNode = "MapNavigatorZiplineMountEnd";
-constexpr const char* kZiplineMountScanEntryNode = "MapNavigatorZiplineMountScanStart";
 constexpr const char* kZiplineMountScanNode = "MapNavigatorZiplineMountScan";
 constexpr const char* kZiplinePitchResetNode = "MapNavigatorZiplinePitchReset";
+// 上索判定的两个信号, 同样各配一个 Start 节点。地面判据的识别逻辑引自 Interface/InScene 的
+// 公开节点 InWorld, 在 pipeline 里包一层, 使未命中记在 MapNavigator 自己的节点名下
+constexpr const char* kZiplineOnGroundEntryNode = "MapNavigatorZiplineOnGroundStart";
+constexpr const char* kZiplineOnGroundNode = "MapNavigatorZiplineOnGround";
+constexpr const char* kZiplineOnTowerHintEntryNode = "MapNavigatorZiplineOnTowerHintStart";
+constexpr const char* kZiplineOnTowerHintNode = "MapNavigatorZiplineOnTowerHint";
 constexpr int32_t kPromptPostSleepMs = 80;
 
 // Resolution every pipeline ROI is authored against; the scanner rescales it to whatever the frame really is.

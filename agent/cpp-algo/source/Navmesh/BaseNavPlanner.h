@@ -20,16 +20,21 @@ struct BaseNavSnapResult
     double distance = 0.0;
 };
 
+// A disc placed at runtime where the agent stalled against an obstacle the mesh does not record.
+// Cleared from the walkable set like an authored no-go zone, yet never terminal: an endpoint inside it
+// still plans.
+struct BaseNavNoGoDisc
+{
+    WorldPoint center;
+    double radius = 0.0;
+};
+
 struct BaseNavRouteRequest
 {
     std::string zone_name;
     WorldPoint start;
     WorldPoint goal;
-    std::vector<uint32_t> blocked_triangles;
-    // World-coordinate blocked points (radius navmesh::recast::kBlockedPointRadius). Finer-grained than
-    // blocked_triangles for obstacles inside the start/goal triangle, where triangle blocking would seal
-    // an endpoint.
-    std::vector<WorldPoint> blocked_points;
+    std::vector<BaseNavNoGoDisc> no_go_discs;
     // Dominant-floor height of the floor being navigated (from the locator/tier zone). Lets snap resolve
     // onto the right floor of a multi-floor base. kBaseNavFloorYNone (default) keeps the floor-blind path.
     // Shared fallback for both endpoints; the per-endpoint overrides below take precedence when set.
@@ -49,6 +54,8 @@ enum class BaseNavRouteStatus
     Success,
     ZoneNotFound,
     Unreachable,
+    // An endpoint sits inside an authored virtual no-go zone. Terminal: no fallback may route around it.
+    NoGo,
 };
 
 struct BaseNavRouteResult
@@ -92,6 +99,11 @@ public:
         const WorldPoint& b,
         double half_width = 0.0,
         std::optional<double> seed_height = std::nullopt) const;
+
+    // 这条空中连线被地形顶起多少(高度口径同 floor_y, 恒 >= 0)。沿 a→b 采样, 取可走面高出两端
+    // 连线(高度线性插值)的最大值。采不到可走面的采样点不计入: 网格只含可走面, 未铺面的陡壁孤石
+    // 无从判定, 一律按未阻挡处理。用于判定两根滑索架之间是否隔着地形。
+    double lineRise(uint16_t zone_id, const WorldPoint& a, double a_height, const WorldPoint& b, double b_height) const;
 
     // RecastNav 复用: pack 链接表里有没有 source→target 这条(且过了通行判据)。
     bool hasLink(uint32_t source, uint32_t target) const;

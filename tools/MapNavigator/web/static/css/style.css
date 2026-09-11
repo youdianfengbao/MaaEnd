@@ -530,9 +530,9 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   height: var(--h-control);
-  padding: 0 8px;
+  padding: 0 4px;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -956,8 +956,23 @@ body.mode-log .sidebar-dock {
   min-width: 0;
 }
 
-.start-actions .chk {
+/* 滑索开关与账号下拉并排：开关定宽，下拉吃掉剩余宽度并压到同块小按钮的高度 */
+.start-zipline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.start-zipline .chk {
   flex: 0 0 auto;
+}
+
+.start-zipline .combo {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--h-control-sm);
+  border-radius: var(--r-sm);
+  font-size: 11px;
 }
 
 /* 「在地图上点选」按下后要看得出来自己正处在点选起点的状态 */
@@ -1451,6 +1466,102 @@ canvas {
   touch-action: none;
 }
 
+/* 三维 HUD 带：从左列右缘到窗口右缘，准星、提示、楼层卡都在这条带里居中，三维投影中心也对齐到它 */
+.three-hud {
+  position: absolute;
+  top: 0;
+  right: var(--side-gap);
+  bottom: 0;
+  left: calc(var(--side-w) + 2 * var(--side-gap));
+  pointer-events: none;
+}
+
+/* 提示与准星都不接鼠标，点击直接落到画布上 */
+.three-hint {
+  position: absolute;
+  bottom: calc(var(--side-gap) + 52px);
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-pill);
+  background: var(--glass-bar);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.three-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 5;
+  width: 18px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.three-crosshair::before,
+.three-crosshair::after {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+  content: "";
+}
+
+.three-crosshair::before {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.three-crosshair::after {
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+/* 起点楼层选择卡：挂在工具条下方居中，必须接鼠标 */
+.three-floor-prompt {
+  position: absolute;
+  top: calc(var(--side-gap) + 56px);
+  left: 50%;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(520px, 100%);
+  padding: 12px 16px;
+  border: 1px solid var(--border-hover);
+  border-radius: var(--r-lg);
+  background: var(--glass-popover);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.three-floor-title {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.three-floor-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ===== 地图工具条：唯一一条药丸, 在左列右侧的可见地图带里居中 =====
    定位框从左列右缘起到窗口右缘止, 内容宽度加 margin auto 居中; 窄屏时整条只会往右让, 绝不压到左列底下 */
 .map-bar {
@@ -1544,7 +1655,8 @@ canvas {
 /* 模式分组门控。只作用于带 group-* 的两组；两点测线 / 滑索测距 / 删除由 JS 的
    hidden 决定，绝不能进带 !important 的 display 规则，否则 [hidden] 压不住。 */
 .map-tools .btn-tool.group-edit,
-.map-tools .btn-tool.group-assert {
+.map-tools .btn-tool.group-assert,
+.map-tools .btn-tool.group-nogo {
   display: none !important;
 }
 
@@ -1558,9 +1670,70 @@ canvas {
   display: flex !important;
 }
 
+.mode-nogo .btn-tool.group-nogo,
+#canvas-wrap.mode-nogo .btn-tool.group-nogo {
+  display: flex !important;
+}
+
 /* 日志模式工具栏只剩滑索测距一个按钮, 分隔线会孤零零挂在最前面 */
 .mode-log .map-tools .tool-divider {
   display: none;
+}
+
+/* ===== 虚拟禁区列表：一行一个多边形, 编号 + 高度区间 + 删除 ===== */
+.nogo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nogo-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.nogo-row.selected {
+  border-color: rgba(251, 113, 133, 0.75);
+  background: rgba(244, 63, 94, 0.12);
+}
+
+/* 禁区页表头带着所在层和未保存标记, 一行放不下就折行, 不能把「未保存」省略掉 */
+#nogo-zone-name {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+/* 画在别的层上的禁区此刻不在画布上, 行淡一档; 点它会切过去 */
+.nogo-row.off-layer {
+  opacity: 0.6;
+}
+
+.nogo-row .entry.nogo-name {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.nogo-row-layer {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nogo-empty {
+  color: var(--text-muted);
+  font-size: 11px;
 }
 
 /* ===== 视图控制：只改怎么看，跟工具同处一条 ===== */

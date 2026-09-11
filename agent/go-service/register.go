@@ -5,6 +5,7 @@ import (
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/aerosalvage"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/autodelivery"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/autoecofarm"
+	"github.com/MaaXYZ/MaaEnd/agent/go-service/autoessence"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/autofight"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/autosell"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/autostockpile"
@@ -49,6 +50,7 @@ import (
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/taskersink/taskfail"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/trialofswordmancy"
 	webevent202605 "github.com/MaaXYZ/MaaEnd/agent/go-service/webevent/202605"
+	"github.com/MaaXYZ/MaaEnd/agent/go-service/ziplineimport"
 	"github.com/rs/zerolog/log"
 )
 
@@ -91,6 +93,7 @@ func registerAll() {
 	puzzle.Register()
 	bettersliding.Register()
 	essencefilter.Register()
+	autoessence.Register()
 	dijiangrewards.Register()
 	batchaddfriends.Register()
 	autoecofarm.Register()
@@ -106,6 +109,7 @@ func registerAll() {
 	outposttrading.Register()
 	creditshopping.Register()
 	webevent202605.Register()
+	ziplineimport.Register()
 	pullcount.Register()
 	trialofswordmancy.Register()
 	log.Info().
