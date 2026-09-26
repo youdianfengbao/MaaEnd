@@ -1,0 +1,221 @@
+{
+    // 矿脉源区 ValleyIV OriginLodespring：MapFind 认 TeleportAnchor 并 Click，再 Hit 搜滑索
+    // 锚点来自 LevelMapMark mark_sp_campfire，map01base 投影（原点左上、y 向下）
+    //   3500031058 → [882.0, 162.5]
+    //   3500031059 → [926.9, 289.3]
+    //   3500031061 → [1170.2, 320.3]
+    //   3500031060 → [1100.6, 457.3]
+    //   3500031199 → [1226.5, 562.8]
+    "SharedZiplineDeleteEnterVFOriginLodespring": {
+        "desc": "矿脉源区：先进任意地图，已在本区则跳过传送",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SubTask",
+        "custom_action_param": {
+            "sub": [
+                "SceneEnterMapAny"
+            ]
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SharedZiplineDeleteSkipTeleportVFOriginLodespring",
+            "SharedZiplineDeleteTeleportVFOriginLodespring"
+        ]
+    },
+    "SharedZiplineDeleteSkipTeleportVFOriginLodespring": {
+        "desc": "已在矿脉源区地图，跳过世界传送",
+        "recognition": "And",
+        "all_of": [
+            "InMapValleyIVOriginLodespring"
+        ],
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SharedZiplineDeletePrepareValleyIVOriginLodespring"
+        ]
+    },
+    "SharedZiplineDeleteTeleportVFOriginLodespring": {
+        "desc": "不在矿脉源区时，传送到本区锚点",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SubTask",
+        "custom_action_param": {
+            "sub": [
+                "SceneEnterWorldValleyIVOriginLodespring3"
+            ]
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SharedZiplineDeleteOpenMapVFOriginLodespring"
+        ]
+    },
+    "SharedZiplineDeleteOpenMapVFOriginLodespring": {
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SubTask",
+        "custom_action_param": {
+            "sub": [
+                "SceneEnterMapValleyIVOriginLodespring"
+            ]
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "SharedZiplineDeletePrepareValleyIVOriginLodespring"
+        ]
+    },
+    "SharedZiplineDeletePrepareValleyIVOriginLodespring": {
+        "next": [
+            "[JumpBack]SceneMapLayerSwitchToMain",
+            "[JumpBack]SharedZiplineDeleteFilterOpen",
+            "[JumpBack]SceneMapZoomOut",
+            "SharedZiplineDeleteVisitValleyIVOriginLodespring0"
+        ]
+    },
+    "SharedZiplineDeleteVisitValleyIVOriginLodespring0": {
+        "desc": "矿脉源区锚点 markInstId=3500031058",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "ValleyIV",
+            "icon": "TeleportAnchor",
+            "at": [
+                882.0,
+                162.5
+            ]
+        },
+        "action": "Click",
+        "post_wait_freezes": {
+            "target": [
+                -200,
+                -200,
+                200,
+                200
+            ],
+            "time": 100
+        },
+        "next": [
+            "[JumpBack]SharedZiplineDeleteTeleportClick",
+            "[JumpBack]SharedZiplineDeleteHit",
+            "SharedZiplineDeleteVisitValleyIVOriginLodespring1"
+        ]
+    },
+    "SharedZiplineDeleteVisitValleyIVOriginLodespring1": {
+        "desc": "矿脉源区锚点 markInstId=3500031059",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "ValleyIV",
+            "icon": "TeleportAnchor",
+            "at": [
+                926.9,
+                289.3
+            ]
+        },
+        "action": "Click",
+        "post_wait_freezes": {
+            "target": [
+                -200,
+                -200,
+                200,
+                200
+            ],
+            "time": 100
+        },
+        "next": [
+            "[JumpBack]SharedZiplineDeleteTeleportClick",
+            "[JumpBack]SharedZiplineDeleteHit",
+            "SharedZiplineDeleteVisitValleyIVOriginLodespring2"
+        ]
+    },
+    "SharedZiplineDeleteVisitValleyIVOriginLodespring2": {
+        "desc": "矿脉源区锚点 markInstId=3500031061",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "ValleyIV",
+            "icon": "TeleportAnchor",
+            "at": [
+                1170.2,
+                320.3
+            ]
+        },
+        "action": "Click",
+        "post_wait_freezes": {
+            "target": [
+                -200,
+                -200,
+                200,
+                200
+            ],
+            "time": 100
+        },
+        "next": [
+            "[JumpBack]SharedZiplineDeleteTeleportClick",
+            "[JumpBack]SharedZiplineDeleteHit",
+            "SharedZiplineDeleteVisitValleyIVOriginLodespring3"
+        ]
+    },
+    "SharedZiplineDeleteVisitValleyIVOriginLodespring3": {
+        "desc": "矿脉源区锚点 markInstId=3500031060",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "ValleyIV",
+            "icon": "TeleportAnchor",
+            "at": [
+                1100.6,
+                457.3
+            ]
+        },
+        "action": "Click",
+        "post_wait_freezes": {
+            "target": [
+                -200,
+                -200,
+                200,
+                200
+            ],
+            "time": 100
+        },
+        "next": [
+            "[JumpBack]SharedZiplineDeleteTeleportClick",
+            "[JumpBack]SharedZiplineDeleteHit",
+            "SharedZiplineDeleteVisitValleyIVOriginLodespring4"
+        ]
+    },
+    "SharedZiplineDeleteVisitValleyIVOriginLodespring4": {
+        "desc": "矿脉源区锚点 markInstId=3500031199",
+        "recognition": "Custom",
+        "custom_recognition": "MapFind",
+        "custom_recognition_param": {
+            "zone": "ValleyIV",
+            "icon": "TeleportAnchor",
+            "at": [
+                1226.5,
+                562.8
+            ]
+        },
+        "action": "Click",
+        "post_wait_freezes": {
+            "target": [
+                -200,
+                -200,
+                200,
+                200
+            ],
+            "time": 100
+        },
+        "next": [
+            "[JumpBack]SharedZiplineDeleteTeleportClick",
+            "[JumpBack]SharedZiplineDeleteHit",
+            "SharedZiplineDeleteRegionDone"
+        ]
+    }
+}

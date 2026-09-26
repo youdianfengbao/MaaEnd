@@ -459,6 +459,11 @@
                                 "minLength": 1,
                                 "title": "Exhausted Flag Node",
                                 "description": "Fork 扩展：情报交流耗尽标记节点名称。"
+                            },
+                            "whitelist": {
+                                "type": "string",
+                                "title": "Whitelist",
+                                "description": "Optional. Comma-separated whitelist. If empty, no filtering. Only candidates whose key is in the whitelist are accepted."
                             }
                         }
                     }

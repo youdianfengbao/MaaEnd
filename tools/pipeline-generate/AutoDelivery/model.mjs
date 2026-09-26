@@ -3,6 +3,8 @@ import {readFileSync} from "node:fs";
 import {BASE_NAV_ZONE_IMAGE_PARTS} from "../../MapNavigator/web/static/js/model.js";
 
 const catalogSource = JSON.parse(readFileSync(new URL("../data/delivery_destinations.json", import.meta.url), "utf8"));
+export const mapSources = catalogSource.maps ?? {};
+
 const routeSource = JSON.parse(readFileSync(new URL("./routes.json", import.meta.url), "utf8"));
 
 const APPROACH_DISTANCE_METERS = 8;
@@ -22,14 +24,97 @@ function assertNonEmptyString(value, label) {
     return value;
 }
 
-function readWalkOnly(value, label) {
+function readRouteModeFlag(value, label, key) {
     if (value === undefined) {
         return false;
     }
     if (typeof value !== "boolean") {
-        throw new TypeError(`[AutoDelivery] ${label}.walk_only 必须是布尔值`);
+        throw new TypeError(`[AutoDelivery] ${label}.${key} 必须是布尔值`);
     }
     return value;
+}
+
+// walk_only 与 zipline_only 是对同一条主路线滑索策略的两个相反约束：
+// walk_only 在用户启用滑索时仍走作者录制的步行路线；zipline_only 表示步行根本到不了，
+// 用户选择步行时运行时必须报错而不是静默退化成一条走不通的路线。两者同时声明无解。
+function readRouteMode(override, label) {
+    const walkOnly = readRouteModeFlag(override?.walk_only, label, "walk_only");
+    const ziplineOnly = readRouteModeFlag(override?.zipline_only, label, "zipline_only");
+    if (walkOnly && ziplineOnly) {
+        throw new Error(`[AutoDelivery] ${label} 同时声明了 walk_only 与 zipline_only，二者互斥`);
+    }
+    return {walkOnly, ziplineOnly};
+}
+
+// 数据源的 yaw 是游戏内实测的实体朝向，部分 NPC 面向墙或缺失朝向（缺省 0），
+// 自动接近点会因此落进墙体。yaw 覆盖让维护者按实际可站位方向修正接近点，不必整条重写路线。
+function readYawOverride(value, label) {
+    if (value === undefined) {
+        return null;
+    }
+    if (!Number.isFinite(value)) {
+        throw new TypeError(`[AutoDelivery] ${label}.yaw 必须是有限数值`);
+    }
+    return ((value % 360) + 360) % 360;
+}
+
+// 数据源的 u/v 由游戏世界坐标投影得来，落点可能与实际可交互位置差几米（例如被高架步道
+// 挡住、终点压在另一张可走面上）。offset 用底图像素偏移微调落点，接近点跟着一起移动。
+function readOffset(value, label) {
+    if (value === undefined) {
+        return null;
+    }
+    if (!Array.isArray(value) || value.length !== 2 || !value.every((item) => Number.isFinite(item))) {
+        throw new TypeError(`[AutoDelivery] ${label}.offset 必须是 [du, dv] 两个有限数值`);
+    }
+    if (value[0] === 0 && value[1] === 0) {
+        throw new Error(`[AutoDelivery] ${label}.offset 是全零偏移，没有作用对象`);
+    }
+    return value;
+}
+
+function assertAutoGenerationOverrideUsed(override, label) {
+    const knobs = [
+        "yaw",
+        "offset",
+    ].filter((key) => override?.[key] !== undefined);
+    if (knobs.length === 0) {
+        return;
+    }
+    if (override?.path?.length && override?.retry_path?.length) {
+        throw new Error(
+            `[AutoDelivery] ${label} 同时覆盖了 path 与 retry_path，${knobs.join(" / ")} 没有可作用的自动生成坐标`,
+        );
+    }
+}
+
+function readMap(source, label) {
+    const mapId = assertNonEmptyString(source.map, `${label}.map`);
+    const map = catalogSource.maps?.[mapId];
+    if (!map) {
+        throw new Error(`[AutoDelivery] ${label} 引用了未知地图 ${mapId}`);
+    }
+    return map;
+}
+
+function shiftSource(source, offset, label) {
+    if (offset === null) {
+        return source;
+    }
+    const map = readMap(source, label);
+    const [width, height] = map.size ?? [];
+    const u = roundCoordinate(source.u + offset[0]);
+    const v = roundCoordinate(source.v + offset[1]);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || u < 0 || u >= width || v < 0 || v >= height) {
+        throw new RangeError(
+            `[AutoDelivery] ${label} 的 offset ${JSON.stringify(offset)} 把落点移出底图：u=${u} v=${v}（图 ${width}x${height}）`,
+        );
+    }
+    return {
+        ...source,
+        u,
+        v,
+    };
 }
 
 function assertUnique(items, keyOf, label) {
@@ -122,26 +207,27 @@ function roundCoordinate(value) {
     return Number(value.toFixed(COORDINATE_PRECISION));
 }
 
-export function buildYawApproachTarget(source, map, label) {
+export function buildYawApproachTarget(source, map, label, yawOverride = null) {
     if (!Number.isFinite(source.u) || !Number.isFinite(source.v) || source.u < 0 || source.v < 0) {
         throw new TypeError(`[AutoDelivery] ${label} 的 u/v 坐标无效`);
     }
 
-    if (!Number.isFinite(source.yaw)) {
+    const yaw = yawOverride ?? source.yaw;
+    if (!Number.isFinite(yaw)) {
         throw new TypeError(`[AutoDelivery] ${label} 的 yaw 朝向无效`);
     }
     if (!Number.isFinite(map?.sx) || map.sx <= 0 || !Number.isFinite(map?.sy) || map.sy <= 0) {
         throw new TypeError(`[AutoDelivery] ${label} 的地图 sx/sy 比例无效`);
     }
 
-    const radians = (source.yaw * Math.PI) / 180;
+    const radians = (yaw * Math.PI) / 180;
     return [
         roundCoordinate(source.u + APPROACH_DISTANCE_METERS * map.sx * Math.sin(radians)),
         roundCoordinate(source.v - APPROACH_DISTANCE_METERS * map.sy * Math.cos(radians)),
     ];
 }
 
-export function buildNavmeshPath(source, label, withApproachPoint = false) {
+export function buildNavmeshPath(source, label, {withApproachPoint = false, yaw = null, offset = null} = {}) {
     if (!Number.isFinite(source.u) || !Number.isFinite(source.v) || source.u < 0 || source.v < 0) {
         throw new TypeError(`[AutoDelivery] ${label} 的 u/v 坐标无效`);
     }
@@ -152,12 +238,13 @@ export function buildNavmeshPath(source, label, withApproachPoint = false) {
     // 底图是二维的，同一格可能压着上下多张可走面；自动生成的点都要声明自己落在哪张面上，
     // 否则寻路会在重叠面里任选一张停下，且二维到达判定照样通过，属于静默走错层。
     // 接近点与终点同层，共用实体自身的世界高度。
-    const deckY = roundCoordinate(source.y);
+    const shifted = shiftSource(source, offset, label);
+    const deckY = roundCoordinate(shifted.y);
     const destination = {
         action: "NAVMESH",
         target: [
-            source.u,
-            source.v,
+            shifted.u,
+            shifted.v,
         ],
         target_deck_y: deckY,
     };
@@ -165,15 +252,11 @@ export function buildNavmeshPath(source, label, withApproachPoint = false) {
         return [destination];
     }
 
-    const mapId = assertNonEmptyString(source.map, `${label}.map`);
-    const map = catalogSource.maps?.[mapId];
-    if (!map) {
-        throw new Error(`[AutoDelivery] ${label} 引用了未知地图 ${mapId}`);
-    }
+    const map = readMap(shifted, label);
     return [
         {
             action: "NAVMESH",
-            target: buildYawApproachTarget(source, map, label),
+            target: buildYawApproachTarget(shifted, map, label, yaw),
             target_deck_y: deckY,
             required: true,
         },
@@ -204,8 +287,13 @@ const destinationOverrides = new Map(destinationOverrideItems);
 export const depots = assertArray(catalogSource.depots, "delivery_destinations.depots").map((source, index) => {
     const id = assertNonEmptyString(source.id, `depots[${index}].id`);
     const override = depotOverrides.get(id);
-    const walkOnly = readWalkOnly(override?.walk_only, `仓储 ${id}`);
-    const defaultPath = buildNavmeshPath(source, `仓储 ${id}`, true);
+    assertAutoGenerationOverrideUsed(override, `仓储 ${id}`);
+    const {walkOnly, ziplineOnly} = readRouteMode(override, `仓储 ${id}`);
+    const defaultPath = buildNavmeshPath(source, `仓储 ${id}`, {
+        withApproachPoint: true,
+        yaw: readYawOverride(override?.yaw, `仓储 ${id}`),
+        offset: readOffset(override?.offset, `仓储 ${id}`),
+    });
     const zoneId = buildLocatorZoneId(source.map, `仓储 ${id}`);
     const path = withZoneDeclaration(override?.path?.length ? override.path : defaultPath, zoneId, `仓储 ${id}`);
     const retryPath = withZoneDeclaration(
@@ -223,6 +311,7 @@ export const depots = assertArray(catalogSource.depots, "delivery_destinations.d
         retryPath,
         departurePath: override?.departure_path ?? [],
         walkOnly,
+        ziplineOnly,
         routeNode: buildRouteNode("Depot", id),
         zipRouteNode: buildRouteNode("Depot", id, true),
         retryRouteNode: buildRouteNode("DepotRetry", id),
@@ -257,11 +346,22 @@ export const destinations = assertArray(catalogSource.destinations, "delivery_de
             throw new Error(`[AutoDelivery] 终点 ${id} 引用了未知仓储 ${source.depot_id}`);
         }
         const override = destinationOverrides.get(id);
-        const walkOnly = readWalkOnly(override?.walk_only, `终点 ${id}`);
+        assertAutoGenerationOverrideUsed(override, `终点 ${id}`);
+        const {walkOnly, ziplineOnly} = readRouteMode(override, `终点 ${id}`);
+        const yaw = readYawOverride(override?.yaw, `终点 ${id}`);
+        const offset = readOffset(override?.offset, `终点 ${id}`);
         const withApproachPoint = source.kind === "recycle_bin";
-        const defaultPath = buildNavmeshPath(source, `终点 ${id}`, withApproachPoint);
+        const defaultPath = buildNavmeshPath(source, `终点 ${id}`, {
+            withApproachPoint,
+            yaw,
+            offset,
+        });
         const ownPath = override?.path?.length ? override.path : defaultPath;
-        const defaultRetryPath = buildNavmeshPath(source, `终点重试 ${id}`, true);
+        const defaultRetryPath = buildNavmeshPath(source, `终点重试 ${id}`, {
+            withApproachPoint: true,
+            yaw,
+            offset,
+        });
         const retryPath = withZoneDeclaration(
             override?.retry_path?.length ? override.retry_path : defaultRetryPath,
             buildLocatorZoneId(depot.map, `终点 ${id}`),
@@ -296,6 +396,7 @@ export const destinations = assertArray(catalogSource.destinations, "delivery_de
             path,
             retryPath,
             walkOnly,
+            ziplineOnly,
             routeNode: buildRouteNode("Destination", id),
             zipRouteNode: buildRouteNode("Destination", id, true),
             retryRouteNode: buildRouteNode("DestinationRetry", id),
@@ -323,6 +424,7 @@ export const runtimeCatalog = {
         map: item.map,
         route_node: item.routeNode,
         zip_route_node: item.zipRouteNode,
+        ...(item.ziplineOnly ? {zipline_only: true} : {}),
         ...(item.retryRouteNode ? {retry_route_node: item.retryRouteNode} : {}),
     })),
     destinations: destinations.map((item) => ({
@@ -335,6 +437,7 @@ export const runtimeCatalog = {
         area: item.area,
         route_node: item.routeNode,
         zip_route_node: item.zipRouteNode,
+        ...(item.ziplineOnly ? {zipline_only: true} : {}),
         ...(item.retryRouteNode ? {retry_route_node: item.retryRouteNode} : {}),
     })),
 };

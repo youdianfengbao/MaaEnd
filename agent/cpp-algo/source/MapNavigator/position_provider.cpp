@@ -107,16 +107,17 @@ bool PositionProvider::Capture(
     const int status = static_cast<int>(locate_result.status);
     if (locate_result.position) {
         const auto& position = *locate_result.position;
+        // camRot/camRotConf 只进日志，不参与任何判据。
+        const double cam_rot = locate_result.camRot ? locate_result.camRot->rot : -1.0;
+        const double cam_rot_conf = locate_result.camRot ? locate_result.camRot->confidence : -1.0;
         LogInfo << "MapLocator" << VAR(status) << VAR(locate_result.debugMessage) << VAR(position.zoneId) << VAR(position.x)
-                << VAR(position.y) << VAR(position.score) << VAR(position.sliceIndex) << VAR(position.angle) << VAR(position.latencyMs)
-                << VAR(position.isHeld);
+                << VAR(position.y) << VAR(position.score) << VAR(position.sliceIndex) << VAR(position.angle) << VAR(cam_rot)
+                << VAR(cam_rot_conf) << VAR(position.latencyMs);
     }
     else {
         LogInfo << "MapLocator" << VAR(status) << VAR(locate_result.debugMessage) << "position=null";
     }
     if (locate_result.status != maplocator::LocateStatus::Success || !locate_result.position) {
-        last_capture_was_held_ = false;
-        held_fix_streak_ = 0;
         return false;
     }
 
@@ -132,10 +133,9 @@ bool PositionProvider::Capture(
     out_pos->angle = locate_result.position->angle;
     out_pos->score = locate_result.position->score;
     out_pos->zone_id = locate_result.position->zoneId;
+    out_pos->camera_angle = locate_result.camRot ? std::optional<double>(locate_result.camRot->rot) : std::nullopt;
     out_pos->valid = true;
     out_pos->timestamp = capture_started_at;
-    last_capture_was_held_ = locate_result.position->isHeld;
-    held_fix_streak_ = last_capture_was_held_ ? (held_fix_streak_ + 1) : 0;
 
     // Single chokepoint: every capture path (semantic nodes, the state machine, WaitForFix) funnels
     // through here, and out_pos is always repopulated from the fresh locate result above before this
@@ -173,24 +173,12 @@ bool PositionProvider::WaitForFix(
 void PositionProvider::ResetTracking()
 {
     locator_->resetTrackingState();
-    last_capture_was_held_ = false;
     last_capture_was_black_screen_ = false;
-    held_fix_streak_ = 0;
-}
-
-bool PositionProvider::LastCaptureWasHeld() const
-{
-    return last_capture_was_held_;
 }
 
 bool PositionProvider::LastCaptureWasBlackScreen() const
 {
     return last_capture_was_black_screen_;
-}
-
-int PositionProvider::HeldFixStreak() const
-{
-    return held_fix_streak_;
 }
 
 } // namespace mapnavigator

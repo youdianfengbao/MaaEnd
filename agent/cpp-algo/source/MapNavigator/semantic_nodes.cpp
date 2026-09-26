@@ -10,6 +10,7 @@
 
 #include "action_wrapper.h"
 #include "async_prompt_action.h"
+#include "find_action.h"
 #include "motion_controller.h"
 #include "navi_config.h"
 #include "navi_math.h"
@@ -26,36 +27,6 @@ namespace semantic_nodes
 
 namespace
 {
-
-void ClearHeldZoneCandidate(NavigationRuntimeState* runtime_state)
-{
-    runtime_state->semantic.held_zone_candidate.clear();
-    runtime_state->semantic.held_zone_hits = 0;
-}
-
-bool AcceptHeldZoneCandidate(const Context& ctx, const std::string& zone_id)
-{
-    if (zone_id.empty()) {
-        ClearHeldZoneCandidate(ctx.runtime_state);
-        return false;
-    }
-
-    if (!ctx.position_provider->LastCaptureWasHeld()) {
-        ctx.runtime_state->semantic.held_zone_candidate = zone_id;
-        ctx.runtime_state->semantic.held_zone_hits = 1;
-        return true;
-    }
-
-    if (ctx.runtime_state->semantic.held_zone_candidate == zone_id) {
-        ++ctx.runtime_state->semantic.held_zone_hits;
-    }
-    else {
-        ctx.runtime_state->semantic.held_zone_candidate = zone_id;
-        ctx.runtime_state->semantic.held_zone_hits = 1;
-    }
-
-    return ctx.runtime_state->semantic.held_zone_hits >= kZoneConfirmStableFrames;
-}
 
 void ConsumeMatchedZoneNodes(const Context& ctx)
 {
@@ -89,7 +60,6 @@ Result FinalizePortalTransitZone(const Context& ctx, const std::string& zone_id,
     ctx.session->UpdateCurrentZone(zone_id);
     ctx.session->ResetProgress();
     ctx.runtime_state->OnWaypointAdvance();
-    ClearHeldZoneCandidate(ctx.runtime_state);
     ConsumeMatchedZoneNodes(ctx);
     StopMotionAndCommitment(ctx);
     ctx.position_provider->ResetTracking();
@@ -127,7 +97,7 @@ Result TickPortalTransit(const Context& ctx)
             utils::SleepFor(kZoneConfirmRetryIntervalMs);
             return result;
         }
-        if (ctx.position_provider->LastCaptureWasHeld() || ctx.position->zone_id != ctx.session->current_zone_id()) {
+        if (ctx.position->zone_id != ctx.session->current_zone_id()) {
             result.stay_in_current_tick = true;
             utils::SleepFor(kZoneConfirmRetryIntervalMs);
             return result;
@@ -138,7 +108,6 @@ Result TickPortalTransit(const Context& ctx)
         ctx.runtime_state->semantic.portal_transit_needs_reacquire = false;
         ctx.runtime_state->semantic.portal_transit_started = {};
         ctx.runtime_state->dynamic_replan_requested = true;
-        ClearHeldZoneCandidate(ctx.runtime_state);
         LogInfo << "Portal transit landing confirmed." << VAR(ctx.position->zone_id);
         result.consumed = true;
         result.stay_in_current_tick = true;
@@ -167,14 +136,6 @@ Result TickPortalTransit(const Context& ctx)
     const size_t matched_zone_index = FindFutureZoneDeclaration(ctx, candidate.zone_id);
     if (matched_zone_index == std::numeric_limits<size_t>::max()) {
         StopMotionAndCommitment(ctx);
-        result.stay_in_current_tick = true;
-        utils::SleepFor(kZoneConfirmRetryIntervalMs);
-        return result;
-    }
-
-    if (!AcceptHeldZoneCandidate(ctx, candidate.zone_id)) {
-        StopMotionAndCommitment(ctx);
-        ctx.position_provider->ResetTracking();
         result.stay_in_current_tick = true;
         utils::SleepFor(kZoneConfirmRetryIntervalMs);
         return result;
@@ -219,19 +180,6 @@ Result TickTransferWaitImpl(const Context& ctx)
 
     const int64_t waited_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(now - ctx.runtime_state->semantic.transfer_wait_started).count();
-    if (ctx.position_provider->LastCaptureWasHeld()) {
-        ctx.runtime_state->semantic.transfer_stable_hits = 0;
-        if (waited_ms > kRelocationWaitTimeoutMs) {
-            result.request_failure = true;
-            result.failure_reason = "transfer_wait_timeout";
-            result.failure_log_message = "TRANSFER wait timed out while locator fix stayed held.";
-            return result;
-        }
-        result.stay_in_current_tick = true;
-        utils::SleepFor(kRelocationRetryIntervalMs);
-        return result;
-    }
-
     const double moved_from_anchor = std::hypot(
         ctx.position->x - ctx.runtime_state->semantic.transfer_anchor_pos.x,
         ctx.position->y - ctx.runtime_state->semantic.transfer_anchor_pos.y);
@@ -343,7 +291,7 @@ bool CaptureCleanFix(const Context& ctx, NaviPosition* out_pos)
             utils::SleepFor(kStrictSettleFixIntervalMs);
         }
         if (!ctx.position_provider->Capture(ctx.position, false, ctx.session->current_zone_id())
-            || ctx.position_provider->LastCaptureWasHeld() || ctx.position_provider->LastCaptureWasBlackScreen()) {
+            || ctx.position_provider->LastCaptureWasBlackScreen()) {
             continue;
         }
         *out_pos = *ctx.position;
@@ -360,8 +308,7 @@ bool CaptureStableHeadingImpl(const Context& ctx, double* out_heading, const Can
         if (frame > 0) {
             utils::SleepFor(kHeadingStableReadIntervalMs);
         }
-        if (!ctx.position_provider->Capture(ctx.position, false, ctx.session->current_zone_id())
-            || ctx.position_provider->LastCaptureWasHeld()) {
+        if (!ctx.position_provider->Capture(ctx.position, false, ctx.session->current_zone_id())) {
             continue;
         }
         const double current = NaviMath::NormalizeAngle(ctx.position->angle);
@@ -402,6 +349,43 @@ bool TurnToHeadingOnce(const Context& ctx, double heading_delta)
     return true;
 }
 
+// 起步前把镜头对到角色朝向: 按 W 走的是镜头方向, 控制环却拿角色箭头当反馈量, 两者差 ε 度时第一步
+// 就偏 ε 度冲出去。camera_angle 为空即整段跳过。刻意不跟前进脉冲: 要的就是角色朝向不动、只有镜头转。
+// 调用方保证 ctx.position 是刚取的一帧, 且此刻人已站定。
+void AlignCameraToCharacterOnce(const Context& ctx)
+{
+    if (!ctx.position->camera_angle.has_value()) {
+        LogInfo << "Camera align skipped: no camera orientation.";
+        return;
+    }
+
+    const double character_heading = ctx.position->angle;
+    const double camera_before = *ctx.position->camera_angle;
+    const double delta = NaviMath::CalcDeltaRotation(camera_before, character_heading);
+    if (std::abs(delta) < kCameraAlignMinDegrees) {
+        LogInfo << "Camera already aligned." << VAR(character_heading) << VAR(camera_before) << VAR(delta);
+        return;
+    }
+    if (!TurnToHeadingOnce(ctx, delta)) {
+        LogWarn << "Camera align turn not sent." << VAR(character_heading) << VAR(camera_before) << VAR(delta);
+        return;
+    }
+    utils::SleepFor(kWaitAfterFirstTurnMs);
+
+    // 补读一帧记进日志: camera_after 看对齐是收敛还是背离, character_after 用来分辨镜头转了还是人跟着
+    // 一起转了。读到什么都不重试、不拦截。
+    double camera_after = -1.0;
+    double character_after = -1.0;
+    if (ctx.position_provider->Capture(ctx.position, false, ctx.session->current_zone_id())) {
+        character_after = ctx.position->angle;
+        if (ctx.position->camera_angle) {
+            camera_after = *ctx.position->camera_angle;
+        }
+    }
+    LogInfo << "Camera aligned to character heading." << VAR(character_heading) << VAR(camera_before) << VAR(delta) << VAR(camera_after)
+            << VAR(character_after);
+}
+
 bool CaptureStableHeading(const Context& ctx, double* out_heading)
 {
     return CaptureStableHeadingImpl(ctx, out_heading, [](int frame) { return frame < kHeadingStableReadMaxFrames; });
@@ -419,6 +403,9 @@ bool CaptureStableHeadingUntil(const Context& ctx, double* out_heading, std::chr
 void StopMotionAndCommitment(const Context& ctx)
 {
     ctx.motion_controller->SetForwardState(false);
+    // 站定去干别的事的主入口(传送/过图/挖掘/异步交互/FIND/滑索/严格到点), 镜头可能被那件事挪走。
+    // 走 ActionExecutor 停车的 JUMP/FIGHT/普通 INTERACT 在 HandleArrival 里各自置位。
+    ctx.runtime_state->ArmCameraAlign();
 }
 
 void SelectPhaseForCurrentWaypoint(const Context& ctx, const char* reason)
@@ -558,6 +545,9 @@ Result TickSemanticFlow(const Context& ctx, NaviPhase phase)
     if (phase == NaviPhase::WaitZipline) {
         return TickZiplineRide(ctx);
     }
+    if (phase == NaviPhase::WaitFind) {
+        return TickFindTarget(ctx);
+    }
     if (ctx.runtime_state->semantic.portal_transit_active) {
         return TickPortalTransit(ctx);
     }
@@ -582,6 +572,12 @@ Result ConsumeInlineSemantics(const Context& ctx)
         return heading_result;
     }
 
+    // 无坐标的 FIND 在这里接手: 刹停、切相位, 剩下的每一拍交给 TickFindTarget
+    Result find_result = ConsumeFindNodes(ctx);
+    if (find_result.consumed) {
+        return find_result;
+    }
+
     if (ctx.session->HasCurrentWaypoint() && ctx.session->CurrentWaypoint().IsZoneDeclaration()) {
         ctx.motion_controller->SetForwardState(true);
         result.consumed = true;
@@ -592,9 +588,6 @@ Result ConsumeInlineSemantics(const Context& ctx)
     return result;
 }
 
-namespace
-{
-
 // 到点后的公共收尾: 记账、推进、按下一个点选相位
 Result CompleteArrival(const Context& ctx, const Waypoint& waypoint, const std::optional<size_t>& node_idx, const char* reason)
 {
@@ -604,6 +597,9 @@ Result CompleteArrival(const Context& ctx, const Waypoint& waypoint, const std::
     SelectPhaseForCurrentWaypoint(ctx, reason);
     return { .consumed = true, .stay_in_current_tick = true };
 }
+
+namespace
+{
 
 Result ArriveTransfer(const Context& ctx, const std::optional<size_t>& node_idx, double actual_distance)
 {
@@ -638,7 +634,6 @@ Result ArrivePortal(const Context& ctx, const std::optional<size_t>& node_idx, d
     ctx.runtime_state->semantic.portal_transit_keep_moving_until_fix = true;
     ctx.runtime_state->semantic.portal_transit_needs_reacquire = false;
     ctx.runtime_state->semantic.portal_transit_started = std::chrono::steady_clock::now();
-    ClearHeldZoneCandidate(ctx.runtime_state);
     ctx.position_provider->ResetTracking();
     ctx.motion_controller->SetForwardState(true);
     LogInfo << "Action: PORTAL entered transit flow." << VAR(actual_distance);
@@ -695,6 +690,8 @@ Result ArriveInteract(const Context& ctx, const Waypoint& waypoint, const std::o
         LogInfo << "Action: INTERACT in rec mode, skipping the key press." << VAR(waypoint.interact_text_node);
     }
     else {
+        // 同 JUMP/FIGHT: Interact() 自行停车绕开了主入口, 而弹出的交互面板正是镜头会被挪走的地方。
+        ctx.runtime_state->ArmCameraAlign();
         ctx.action_executor->Interact();
     }
     return CompleteArrival(ctx, waypoint, node_idx, "waypoint_action_completed");
@@ -719,15 +716,21 @@ Result HandleArrival(const Context& ctx, const Waypoint& waypoint, double actual
         return StartZiplineHop(ctx, waypoint, actual_distance);
     case ActionType::DIG:
         return ArriveDig(ctx, waypoint, node_idx, actual_distance);
+    case ActionType::FIND:
+        return ArriveFind(ctx, waypoint, actual_distance);
     case ActionType::INTERACT:
         return ArriveInteract(ctx, waypoint, node_idx, actual_distance);
     case ActionType::SPRINT:
         ctx.action_executor->Sprint();
         break;
     case ActionType::JUMP:
+        // JUMP/FIGHT 与下面的普通 INTERACT 都在 ActionExecutor 里自行停车, 绕开了上面那个主入口,
+        // 只能在调用处各自置位。SPRINT 不停车, 不置。
+        ctx.runtime_state->ArmCameraAlign();
         ctx.action_executor->Jump();
         break;
     case ActionType::FIGHT:
+        ctx.runtime_state->ArmCameraAlign();
         ctx.action_executor->Fight();
         break;
     // 经过即推进; HEADING/ZONE 没坐标、NAVMESH 展开后换成规划点, 实际到不了这里

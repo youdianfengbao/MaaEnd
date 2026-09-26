@@ -203,53 +203,36 @@
         "post_delay": 0,
         "attach": {}
     },
-    "AutoEssenceInteract": {
-        "desc": "淤积点交互分发器：激发 / 开启挑战 / 领取 / 放弃等；未命中则回落到寻路分发",
+    "AutoEssenceDispatcher": {
+        "desc": "基质刷取分发：首次强制传送；之后认开挑战/激发/领取等，未命中则纯寻路",
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            // 如果玩家当前已精准处于某个淤积点的交互位置
+            // 整次任务首次：只强制传送+寻路，不识别其它界面
+            "__AutoEssenceForceTeleportOnce",
+            // 淤积点交互：激发 / 领取 / 放弃
             "AutoEssenceClickTriggerButton",
-            // 如果玩家当前已精准处于某个淤积点的交互位置，并且处于奖励待领取的状态
             "AutoEssenceClickObtainButton",
             "AutoEssenceClickDiscardButton",
             "[JumpBack]AutoEssenceInObtain",
-            "[Anchor]AutoEssenceMoveToTriggerPoint"
-        ],
-        "focus": {
-            "Node.Action.Starting": "🧠正在判断交互状态"
-        }
-    },
-    "AutoEssenceDispatcher": {
-        "desc": "自动基质刷取的寻路分发器，导航到对应淤积点的交互位置",
-        "pre_delay": 0,
-        "post_delay": 0,
-        "next": [
-            // 如果玩家已唤起了激发的界面
-            "AutoEssenceClickEssenceStartPrepare",
-            // 下述 Anchor 的指向目标需要由 AutoEssenceSetupLocation 节点来进行赋值
-            "[JumpBack]__AutoEssenceBackToWorldOnce",
-            "[Anchor]AutoEssenceMoveToTriggerPointMaybeTeleport",
+            // 无交互图标则纯寻路
             "[Anchor]AutoEssenceMoveToTriggerPoint"
         ],
         "focus": {
             "Node.Action.Starting": "🧠正在判断当前状态"
         }
     },
-    "__AutoEssenceBackToWorldOnce": {
-        "desc": "仅一次，万能跳转回到大世界（需 jumpback 调用）",
+    "__AutoEssenceForceTeleportOnce": {
+        "desc": "整次任务仅一次：强制传送到目标锚点后再寻路",
         "max_hit": 1,
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "SceneAnyEnterWorld"
-        ],
-        "focus": {
-            "Node.Action.Starting": "↩️返回大世界"
-        }
+            "[Anchor]AutoEssenceMoveToTriggerPointMaybeTeleport"
+        ]
     },
     "AutoEssenceClickTriggerButton": {
-        "desc": "识别并点击激发的大世界按钮（Alt 点击）",
+        "desc": "识别并点击激发的大世界按钮",
         "recognition": {
             "type": "Or",
             "param": {
@@ -262,29 +245,23 @@
         "action": {
             "type": "Custom",
             "param": {
-                "custom_action": "AutoAltClickAction"
+                "custom_action": "RepeatUntilFoundAction",
+                "custom_action_param": {
+                    "custom_action": "AutoAltClickAction",
+                    "wait_nodes": [
+                        "AutoEssenceClickEssenceStartPrepare",
+                        "AutoEssenceMistakeFactoryDevice"
+                    ]
+                }
             }
         },
-        "timeout": 2000,
         "next": [
             "AutoEssenceMistakeFactoryDevice",
             "AutoEssenceReadyToStart"
         ],
-        "on_error": [
-            "AutoEssenceClickTriggerButtonFailed"
-        ],
         "focus": {
             "Node.Action.Starting": "👆点击激发按钮"
         }
-    },
-    "AutoEssenceClickTriggerButtonFailed": {
-        "desc": "未能识别到激发的大世界按钮的守卫节点",
-        "max_hit": 8,
-        "pre_delay": 0,
-        "post_delay": 0,
-        "next": [
-            "[Anchor]AutoEssenceMoveToTriggerPoint"
-        ]
     },
     "AutoEssenceReadyToStart": {
         "desc": "点击了激发的大世界按钮之后的守卫节点",
@@ -322,7 +299,7 @@
             }
         },
         "next": [
-            "AutoEssenceClickTriggerButtonFailed"
+            "[Anchor]AutoEssenceMoveToTriggerPoint"
         ],
         "focus": {
             "Node.Action.Starting": "😕误入工业设备界面，点击关闭按钮"
@@ -554,6 +531,12 @@
                     // @i18n-skip
                     ""
                 ],
+                "replace": [
+                    [
+                        "进发",
+                        "迸发"
+                    ]
+                ],
                 "only_rec": true
             }
         }
@@ -587,7 +570,11 @@
                     138
                 ],
                 "expected": [
-                    "属性选择"
+                    "属性选择",
+                    "屬性選擇",
+                    "Select",
+                    "効果選択",
+                    "속성 선택"
                 ]
             }
         },
@@ -754,6 +741,12 @@
                 "expected": [
                     // @i18n-skip
                     "a^"
+                ],
+                "replace": [
+                    [
+                        "进发",
+                        "迸发"
+                    ]
                 ]
             }
         },
@@ -1042,7 +1035,10 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "[Anchor]AutoEssenceMoveToTriggerPoint" // 此 Anchor 最终会走回 AutoEssenceInteract 进行后续的奖励领取等操作
+            "AutoEssenceClickObtainButton",
+            "AutoEssenceClickDiscardButton",
+            "[JumpBack]AutoEssenceInObtain",
+            "[Anchor]AutoEssenceMoveToTriggerPoint" // 未识别到领取时纯寻路回交互位，再由 Interact 处理
         ],
         "focus": {
             "Node.Recognition.Starting": "🔍检查挑战是否结束",
